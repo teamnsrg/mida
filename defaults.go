@@ -7,6 +7,7 @@ const (
 	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
 	DefaultUserDataDirectory = "chrome-data/"
+	DefaultLogFileName       = "chrome.log"
 
 	// Output Parameters
 	DefaultLocalOutputPath  = "output/"
@@ -20,6 +21,7 @@ const (
 	DefaultIdentifierLength = 16
 )
 
+// Crawl Completion Conditions
 type CompletionCondition int
 
 const (
@@ -40,11 +42,10 @@ var DefaultBrowserFlags = []string{
 	"--disable-renderer-backgrounding",
 	"--disable-extensions",
 	"--disable-sync",
+	"--disk-cache-size=1",
 	"--incognito",
 	"--new-window",
 	"--no-default-browser-check",
 	"--no-first-run",
 	"--safebrowsing-disable-auto-update",
-    "--headless",
-    "--disable-gpu",
 }

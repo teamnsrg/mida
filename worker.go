@@ -7,6 +7,8 @@ import (
 	"github.com/phayes/freeport"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
+	"path"
+
 	//"github.com/teamnsrg/chromedp/client"
 	"github.com/teamnsrg/chromedp/runner"
 	"math/rand"
@@ -31,7 +33,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
-		midaBrowserOutfile, err := os.Create("chromelog.log")
+		midaBrowserOutfile, err := os.Create(path.Join(st.UserDataDirectory, DefaultLogFileName))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -44,7 +46,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 	}
 
 	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
-		runner.Flag("remote-debugging-port", port))
+		runner.Flag("remote-debugging-port", port),
+		runner.Flag("user-data-dir", st.UserDataDirectory),
+	)
 
 	r, err := runner.New(runnerOpts...)
 	if err != nil {
@@ -106,15 +110,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 
 	err = c.Shutdown(cxt)
 	if err != nil {
-        log.Fatal("Client Shutdown:", err)
+		log.Fatal("Client Shutdown:", err)
 	}
-
-    /*
-	err = r.Shutdown(cxt)
-	if err != nil {
-        log.Fatal("Runner Shutdown:", err)
-	}
-    */
 
 	// Send results through channel to results processor
 
@@ -130,8 +127,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 
 func GenRandomIdentifier() string {
 	// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
-
 	b := ""
+	rand.Seed(time.Now().UTC().UnixNano())
 	for i := 0; i < DefaultIdentifierLength; i++ {
 		b = b + string(Letters[rand.Intn(len(Letters))])
 	}

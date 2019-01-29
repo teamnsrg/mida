@@ -2,8 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	//"github.com/influxdata/platform/kit/errors"
-    "errors"
+	"errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -125,11 +124,11 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 
 	///// BEGIN SANITIZE AND BUILD URL
 	if t.URL == "" {
-		return st, errors.New("No URL to crawl given in task")
+		return st, errors.New("no URL to crawl given in task")
 	}
 
 	if t.Protocol != "http" && t.Protocol != "https" {
-		return st, errors.New("Protocol should be 'http' or 'https'")
+		return st, errors.New("protocol should be 'http' or 'https'")
 	}
 
 	port := ""
@@ -237,6 +236,17 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	}
 
 	///// END SANITIZE BROWSER PARAMETERS /////
+
+	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
+
+	// For now, these are just bools and we will just copy them
+	st.AllFiles = t.AllFiles
+	st.AllScripts = t.AllScripts
+	st.JSTrace = t.JSTrace
+	st.Screenshot = t.Screenshot
+	st.Cookies = t.Cookies
+	st.Certificates = t.Certificates
+	st.CodeCoverage = t.CodeCoverage
 
 	return st, nil
 }

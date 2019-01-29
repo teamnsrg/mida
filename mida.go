@@ -16,7 +16,7 @@ func main() {
 
 	go RunPrometheusClient()
 
-	sampleTask, err := ReadTaskFromFile("/home/pmurley/go/src/github.com/teamnsrg/mida/examples/exampleTask.json")
+	sampleTask, err := ReadTaskFromFile("/Users/pmurley/go/src/github.com/teamnsrg/mida/examples/exampleTask.json")
 	if err != nil {
 		log.Fatal(err)
 	}
