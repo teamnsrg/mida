@@ -6,12 +6,14 @@ const (
 	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
+	DefaultUserDataDirectory = "chrome-data/"
 
 	// Output Parameters
 	DefaultLocalOutputPath  = "output/"
 	DefaultRemoteOutputPath = ""
 
 	// Task completion
+	DefaultTimeout = 5 // Default time (in seconds) to remain on a page before exiting browser
 
 	// Other/Util
 	Letters                 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -29,10 +31,13 @@ const (
 var DefaultBrowserFlags = []string{
 	"--disable-background-networking",
 	"--disable-background-timer-throttling",
+	"--disable-backgrounding-occluded-windows",
 	"--disable-client-side-phishing-detection",
 	"--disable-extensions",
+	"--disable-ipc-flooding-protection",
 	"--disable-popup-blocking",
 	"--disable-prompt-on-repost",
+	"--disable-renderer-backgrounding",
 	"--disable-extensions",
 	"--disable-sync",
 	"--incognito",

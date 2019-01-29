@@ -27,6 +27,7 @@ type CompletionSettings struct {
 
 type BrowserSettings struct {
 	BrowserBinary      string   `json:"browser_binary"`
+	UserDataDirectory  string   `json:"user_data_directory"`
 	AddBrowserFlags    []string `json:"add_browser_flags"`
 	RemoveBrowserFlags []string `json:"remove_browser_flags"`
 	SetBrowserFlags    []string `json:"set_browser_flags"`
@@ -54,8 +55,9 @@ type RawMIDATask struct {
 type SanitizedMIDATask struct {
 	Url string
 
-	BrowserBinary string
-	BrowserFlags  []runner.CommandLineOption
+	BrowserBinary     string
+	UserDataDirectory string
+	BrowserFlags      []runner.CommandLineOption
 
 	LocalOutputPath  string
 	RemoteOutputPath string
@@ -102,7 +104,7 @@ func InitTask() RawMIDATask {
 		},
 		Completion: CompletionSettings{
 			CompletionCondition: "CompleteOnTimeoutOnly",
-			Timeout:             10,
+			Timeout:             DefaultTimeout,
 		},
 		Output: OutputSettings{
 			SaveToLocalFS:  true,
@@ -159,6 +161,8 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 
 	st.Timeout = t.Completion.Timeout
 
+	///// END SANITIZE TASK COMPLETION SETTINGS /////
+
 	///// BEGIN SANITIZE BROWSER PARAMETERS /////
 
 	// Make sure we have a valid browser binary path, or select a default one
@@ -189,6 +193,14 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 		} else {
 			st.BrowserBinary = t.Browser.BrowserBinary
 		}
+	}
+
+	// Sanitize user data directory to use
+	if t.Browser.UserDataDirectory == "" {
+		st.UserDataDirectory = DefaultUserDataDirectory
+	} else {
+		// Chrome will create any directories required
+		st.UserDataDirectory = t.Browser.UserDataDirectory
 	}
 
 	// Sanitize browser flags/command line options

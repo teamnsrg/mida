@@ -1,7 +1,7 @@
 {
   "protocol": "http",
   "port": 80,
-  "url": "www.murley.io",
+  "url": "www.cnn.com",
   "all_files": true,
   "all_scripts": true,
   "js_trace": true,
@@ -11,6 +11,7 @@
   "code_coverage": true,
   "browser": {
     "browser_binary": "",
+    "user_data_directory": "",
     "add_browser_flags": [],
     "remove_browser_flags": [],
     "set_browser_flags": []
@@ -21,6 +22,5 @@
     "local_path": "output"
   },
   "completion": {
-    "timeout": 15
   }
 }
