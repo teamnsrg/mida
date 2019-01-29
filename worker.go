@@ -7,7 +7,7 @@ import (
 	"github.com/phayes/freeport"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
-	"github.com/teamnsrg/chromedp/client"
+	//"github.com/teamnsrg/chromedp/client"
 	"github.com/teamnsrg/chromedp/runner"
 	"math/rand"
 	"os"
@@ -31,7 +31,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
-		midaBrowserOutfile, err := os.Create("/Users/pmurley/Desktop/chromelog.log")
+		midaBrowserOutfile, err := os.Create("chromelog.log")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -42,8 +42,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	port = 9556
 
 	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
 		runner.Flag("remote-debugging-port", port))
@@ -57,8 +55,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 		log.Fatal(err)
 	}
 
-	c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
-	//c, err := chromedp.New(cxt, chromedp.WithRunner(r))
+	//c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
+	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,13 +106,15 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 
 	err = c.Shutdown(cxt)
 	if err != nil {
-		log.Fatal(err)
+        log.Fatal("Client Shutdown:", err)
 	}
 
+    /*
 	err = r.Shutdown(cxt)
 	if err != nil {
-		log.Fatal(err)
+        log.Fatal("Runner Shutdown:", err)
 	}
+    */
 
 	// Send results through channel to results processor
 

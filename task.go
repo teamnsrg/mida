@@ -2,7 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/influxdata/platform/kit/errors"
+	//"github.com/influxdata/platform/kit/errors"
+    "errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"

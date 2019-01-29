@@ -40,4 +40,6 @@ var DefaultBrowserFlags = []string{
 	"--no-default-browser-check",
 	"--no-first-run",
 	"--safebrowsing-disable-auto-update",
+    "--headless",
+    "--disable-gpu",
 }
