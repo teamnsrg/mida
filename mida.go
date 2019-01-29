@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -16,11 +16,16 @@ func main() {
 
 	go RunPrometheusClient()
 
-	sampleTask := InitTask()
+	sampleTask, err := ReadTaskFromFile("/Users/pmurley/go/src/github.com/teamnsrg/mida/examples/exampleTask.json")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	sampleTask.URL = "murley.io"
-
-	ProcessSanitizedTask(sampleTask)
+	sanitizedSampleTask, err := SanitizeTask(sampleTask)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ProcessSanitizedTask(sanitizedSampleTask)
 
 	log.Info(*taskSrcFlag, *monitorFlag, *instanceNumFlag, *taskFileFlag)
 

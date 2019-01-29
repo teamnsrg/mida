@@ -2,27 +2,35 @@ package main
 
 import (
 	"context"
-	log "github.com/Sirupsen/logrus"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
+	"github.com/phayes/freeport"
+	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
+	"github.com/teamnsrg/chromedp/client"
 	"github.com/teamnsrg/chromedp/runner"
 	"math/rand"
 	"os"
 	"time"
 )
 
-func ProcessSanitizedTask(t MIDA_Task) {
+func ProcessSanitizedTask(st SanitizedMIDATask) {
+
+	numScriptsParsed := 0
+	numScriptsSourceCode := 0
+	numResources := 0
 
 	// Create our context and browser
 	cxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Generates a random identifier which will be used to name the user data directory, if not given
-	// Set the length of this identifier with DEFAULT_IDENTIFIER_LENGTH in defaults.go
+	// Set the length of this identifier with DefaultIdentifierLength in defaults.go
+	randomIdentifier := GenRandomIdentifier()
+	log.Info(randomIdentifier)
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
-	if t.JSTrace {
+	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create("/Users/pmurley/Desktop/chromelog.log")
 		if err != nil {
 			log.Fatal(err)
@@ -30,10 +38,27 @@ func ProcessSanitizedTask(t MIDA_Task) {
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 
-	c, err := chromedp.New(cxt, chromedp.WithRunnerOptions(
-		runner.Flag("remote-debugging-port", 8088),
-		runner.Flag("headless", true),
-		runner.Flag("disable-gpu", true)))
+	port, err := freeport.GetFreePort()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	port = 9556
+
+	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
+		runner.Flag("remote-debugging-port", port))
+
+	r, err := runner.New(runnerOpts...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = r.Start(cxt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
+	//c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,6 +67,16 @@ func ProcessSanitizedTask(t MIDA_Task) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventRequestWillBeSent)
 		log.Debug(data.Request.URL)
+		numResources += 1
+	}))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
+		data := param.(*network.EventLoadingFailed)
+		log.Info(data)
+		numResources += 1
 	}))
 	if err != nil {
 		log.Fatal(err)
@@ -49,8 +84,9 @@ func ProcessSanitizedTask(t MIDA_Task) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*debugger.EventScriptParsed)
-		result, _ := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
-		log.Debug(result)
+		numScriptsParsed += 1
+		_, _ = debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
+		numScriptsSourceCode += 1
 
 	}))
 	if err != nil {
@@ -59,12 +95,13 @@ func ProcessSanitizedTask(t MIDA_Task) {
 
 	// Ensure that events have stopped and shut down the browser
 	// Navigate to specified URL and wait for termination condition
-	err = c.Run(cxt, chromedp.Navigate("https://murley.io"))
+
+	err = c.Run(cxt, chromedp.Navigate(st.Url))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = c.Run(cxt, chromedp.Sleep(10*time.Second))
+	err = c.Run(cxt, chromedp.Sleep(time.Duration(st.Timeout)*time.Second))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,11 +111,18 @@ func ProcessSanitizedTask(t MIDA_Task) {
 		log.Fatal(err)
 	}
 
+	err = r.Shutdown(cxt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Send results through channel to results processor
 
 	// Return true if processing was successful or false if failed
 
-	log.Info(t)
+	log.Info("Scripts parsed/downloaded:", numScriptsParsed, numScriptsSourceCode)
+	log.Info("Resources: ", numResources)
+	log.Info(st)
 
 	log.Info(cxt)
 
@@ -86,10 +130,10 @@ func ProcessSanitizedTask(t MIDA_Task) {
 
 func GenRandomIdentifier() string {
 	// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
-	var letters = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	b := make([]rune, DEFAULT_IDENTIFER_LENGTH)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+
+	b := ""
+	for i := 0; i < DefaultIdentifierLength; i++ {
+		b = b + string(Letters[rand.Intn(len(Letters))])
 	}
-	return string(b)
+	return b
 }

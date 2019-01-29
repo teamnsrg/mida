@@ -1,0 +1,26 @@
+{
+  "protocol": "http",
+  "port": 80,
+  "url": "www.murley.io",
+  "all_files": true,
+  "all_scripts": true,
+  "js_trace": true,
+  "screenshot": true,
+  "cookies": true,
+  "certificates": true,
+  "code_coverage": true,
+  "browser": {
+    "browser_binary": "",
+    "add_browser_flags": [],
+    "remove_browser_flags": [],
+    "set_browser_flags": []
+  },
+  "output": {
+    "local": true,
+    "remote": false,
+    "local_path": "output"
+  },
+  "completion": {
+    "timeout": 15
+  }
+}
