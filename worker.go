@@ -95,14 +95,13 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 		log.Fatal(err)
 	}
 
-	// Ensure that events have stopped and shut down the browser
 	// Navigate to specified URL and wait for termination condition
-
 	err = c.Run(cxt, chromedp.Navigate(st.Url))
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Ensure that events have stopped and shut down the browser
 	err = c.Run(cxt, chromedp.Sleep(time.Duration(st.Timeout)*time.Second))
 	if err != nil {
 		log.Fatal(err)

@@ -6,6 +6,11 @@ import (
 	"net/http"
 )
 
+// Statistics from the execution of a single task, used for monitoring
+// the performance of MIDA through Prometheus/Grafana
+type TaskStats struct {
+}
+
 func RunPrometheusClient() {
 
 	http.Handle("/metrics", promhttp.Handler())

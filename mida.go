@@ -5,6 +5,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// A configuration for running MIDA
+type MIDAConfig struct {
+	// Number of simultaneous browser instances
+	NumWorkers int
+
+	// Where should MIDA pull tasks from. Can be an AMPQ (RabbitMQ) address
+	// or a file. If task parameters are given via command line, a file
+	// (default: "mida_task.json") will be created containing the task.
+	TaskInputSource string
+
+	// Monitoring parameters
+	EnableMonitoring bool
+	PrometheusPort   int
+
+	// Note that results configuration parameters are set on a per-task basis
+}
+
 func main() {
 
 	taskSrcFlag := flag.String("tasksrc", "", "Source for task(s)")
@@ -28,8 +45,6 @@ func main() {
 	ProcessSanitizedTask(sanitizedSampleTask)
 
 	log.Info(*taskSrcFlag, *monitorFlag, *instanceNumFlag, *taskFileFlag)
-
-	// Parse config file (if it exists)
 
 	// Construct necessary channels
 
