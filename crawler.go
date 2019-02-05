@@ -16,7 +16,17 @@ import (
 	"time"
 )
 
-func ProcessSanitizedTask(st SanitizedMIDATask) {
+func CrawlerInstance(tc chan SanitizedMIDATask, rc chan RawMIDAResult, mConfig MIDAConfig) {
+	for st := range tc {
+		rawResult, err := ProcessSanitizedTask(st)
+		if err != nil {
+			log.Fatal(err)
+		}
+		rc <- rawResult
+	}
+}
+
+func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	numScriptsParsed := 0
 	numScriptsSourceCode := 0
@@ -27,7 +37,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 	defer cancel()
 
 	// Generates a random identifier which will be used to name the user data directory, if not given
-	// Set the length of this identifier with DefaultIdentifierLength in defaults.go
+	// Set the length of this identifier with DefaultIdentifierLength in default.go
 	randomIdentifier := GenRandomIdentifier()
 	log.Info(randomIdentifier)
 
@@ -49,11 +59,13 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 
+	// Remote Debugging Protocol (DevTools) will listen on this port
 	port, err := freeport.GetFreePort()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Add these the port and the user data directory as arguments to the browser as we start it up
 	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
 		runner.Flag("remote-debugging-port", port),
 		runner.Flag("user-data-dir", st.UserDataDirectory),
@@ -130,6 +142,16 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 	log.Info(st)
 
 	log.Info(cxt)
+
+	// Remove our user data directory
+	err = os.RemoveAll(st.UserDataDirectory)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// For now, just return a trivial thing
+	result := RawMIDAResult{}
+	return result, nil
 
 }
 

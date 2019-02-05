@@ -1,6 +1,11 @@
 package main
 
 const (
+	// MIDA Configuration Defaults
+	DefaultNumWorkers     = 1
+	DefaultTaskLocation   = "MIDA_task.json"
+	DefaultPrometheusPort = 8001
+
 	// Browser-Related Parameters
 	DefaultOSXChromePath     = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
@@ -40,7 +45,6 @@ var DefaultBrowserFlags = []string{
 	"--disable-popup-blocking",
 	"--disable-prompt-on-repost",
 	"--disable-renderer-backgrounding",
-	"--disable-extensions",
 	"--disable-sync",
 	"--disk-cache-size=1",
 	"--incognito",

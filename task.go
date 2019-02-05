@@ -116,6 +116,16 @@ func InitTask() RawMIDATask {
 	return t
 }
 
+func SanitizeTasks(rtc chan RawMIDATask, stc chan SanitizedMIDATask, mConfig MIDAConfig) {
+	for r := range rtc {
+		st, err := SanitizeTask(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+		stc <- st
+	}
+}
+
 // Run a series of checks on a raw task to ensure it is valid for a crawl.
 // Put the task in a new format ("SanitizedMIDATask") which is used for processing.
 func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
@@ -155,7 +165,7 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	} else if t.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
 		st.CCond = CompleteOnTimeoutAfterLoad
 	} else {
-		return st, errors.New("Invalid completion condition value given")
+		return st, errors.New("invalid completion condition value given")
 	}
 
 	st.Timeout = t.Completion.Timeout
