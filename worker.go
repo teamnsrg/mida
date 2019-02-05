@@ -31,6 +31,15 @@ func ProcessSanitizedTask(st SanitizedMIDATask) {
 	randomIdentifier := GenRandomIdentifier()
 	log.Info(randomIdentifier)
 
+	// Create our user data directory, if it does not yet exist
+	_, err := os.Stat(st.UserDataDirectory)
+	if err != nil {
+		err = os.MkdirAll(st.UserDataDirectory, 0744)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(st.UserDataDirectory, DefaultLogFileName))
