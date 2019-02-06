@@ -24,9 +24,10 @@ const (
 	DefaultLogFileName       = "chrome.log"
 
 	// Output Parameters
-	DefaultLocalOutputPath  = "results/"
+	DefaultLocalOutputPath  = "results"
 	DefaultRemoteOutputPath = ""
 	TemporaryDirectory      = ".tmp"
+	DefaultFileSubdir       = "files"
 
 	// Task completion
 	DefaultProtocol            = "http"

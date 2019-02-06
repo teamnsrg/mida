@@ -146,10 +146,6 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 		t.Protocol = DefaultProtocol
 	}
 
-	if t.Protocol != "http" && t.Protocol != "https" {
-		return st, errors.New("protocol should be 'http' or 'https'")
-	}
-
 	port := ""
 	if t.Port == 80 && t.Protocol == "http" {
 		// Ignore port
@@ -160,6 +156,8 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 		port = ""
 	} else if t.Port > 0 && t.Port < 65536 {
 		port = ":" + strconv.Itoa(t.Port)
+	} else {
+		log.Fatal("Invalid port")
 	}
 
 	// Build the actual URL we will visit

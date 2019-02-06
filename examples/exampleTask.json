@@ -12,7 +12,7 @@
     "code_coverage": true,
     "browser": {
       "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
-      "user_data_directory": "123",
+      "user_data_directory": "",
       "add_browser_flags": [],
       "remove_browser_flags": [],
       "set_browser_flags": []
@@ -27,9 +27,9 @@
     }
   },
   {
-    "protocol": "http",
-    "port": 80,
-    "url": "www.murley.io",
+    "protocol": "https",
+    "port": 0,
+    "url": "amazon.com",
     "all_files": true,
     "all_scripts": true,
     "js_trace": true,
@@ -39,7 +39,7 @@
     "code_coverage": true,
     "browser": {
       "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
-      "user_data_directory": "udd",
+      "user_data_directory": "",
       "add_browser_flags": [],
       "remove_browser_flags": [],
       "set_browser_flags": []

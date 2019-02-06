@@ -28,15 +28,13 @@ type MIDAConfig struct {
 func main() {
 
 	mConfig := MIDAConfig{
-		NumCrawlers:      2,
-		NumStorers:       DefaultNumStorers,
+		NumCrawlers:      3,
+		NumStorers:       2,
 		UseAMPQForTasks:  false,
 		TaskLocation:     "examples/exampleTask.json",
 		EnableMonitoring: true,
 		PrometheusPort:   DefaultPrometheusPort,
 	}
-
-	log.Info(mConfig)
 
 	// Create channels for the pipeline
 	monitoringChan := make(chan TaskStats)

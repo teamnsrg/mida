@@ -7,6 +7,7 @@ import (
 	"github.com/phayes/freeport"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
+	"io/ioutil"
 	"path"
 	"sync"
 
@@ -35,9 +36,8 @@ func CrawlerInstance(tc <-chan SanitizedMIDATask, rc chan<- RawMIDAResult, mConf
 
 func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
-	numScriptsParsed := 0
-	numScriptsSourceCode := 0
-	numResources := 0
+	rawResult := RawMIDAResult{}
+	rawResult.stats.StartTime = time.Now()
 
 	// Create our context and browser
 	cxt, cancel := context.WithCancel(context.Background())
@@ -57,6 +57,17 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		err = os.MkdirAll(st.UserDataDirectory, 0744)
 		if err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	if st.AllFiles {
+		// Create a subdirectory where we will store all the files
+		_, err = os.Stat(path.Join(st.UserDataDirectory, DefaultFileSubdir))
+		if err != nil {
+			err = os.MkdirAll(path.Join(st.UserDataDirectory, DefaultFileSubdir), 0744)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
@@ -92,9 +103,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		log.Fatal(err)
 	}
 
-	log.Info(cxt)
-	log.Info(r)
-
 	//c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
@@ -105,7 +113,23 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventRequestWillBeSent)
 		log.Debug(data.Request.URL)
-		numResources += 1
+	}))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
+		data := param.(*network.EventLoadingFinished)
+		respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
+		if err != nil {
+			// TODO: Count how many times this happens, figure out what types of resources it is happening for
+		} else {
+			err = ioutil.WriteFile(path.Join(st.UserDataDirectory, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 	}))
 	if err != nil {
 		log.Fatal(err)
@@ -113,8 +137,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
-		log.Info(data)
-		numResources += 1
+		// TODO: Count how many times this happens, figure out what types of resources it is happening for
+		log.Debug(data.BlockedReason)
 	}))
 	if err != nil {
 		log.Fatal(err)
@@ -122,9 +146,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*debugger.EventScriptParsed)
-		numScriptsParsed += 1
 		_, _ = debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
-		numScriptsSourceCode += 1
 
 	}))
 	if err != nil {
@@ -148,25 +170,10 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		log.Fatal("Client Shutdown:", err)
 	}
 
-	// Send results through channel to results processor
+	// Record how long the browser was open
+	rawResult.stats.TimeAfterBrowserClose = time.Now()
 
-	// Return true if processing was successful or false if failed
-
-	log.Info("Scripts parsed/downloaded:", numScriptsParsed, numScriptsSourceCode)
-	log.Info("Resources: ", numResources)
-	log.Info(st)
-
-	log.Info(cxt)
-
-	// Remove our user data directory
-	err = os.RemoveAll(st.UserDataDirectory)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// For now, just return a trivial thing
-	result := RawMIDAResult{}
-	return result, nil
+	return rawResult, nil
 
 }
 

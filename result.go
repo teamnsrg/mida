@@ -1,21 +1,26 @@
 package main
 
-import "github.com/prometheus/common/log"
+import (
+	"time"
+)
 
 type RawMIDAResult struct {
-	resultNum int
-	stats     TaskStats
+	sanitizedTask SanitizedMIDATask
+	stats         TaskStats
 }
 
 type FinalMIDAResult struct {
-	resultNum int
-	stats     TaskStats
+	sanitizedTask SanitizedMIDATask
+	stats         TaskStats
 }
 
 func ValidateResult(rr <-chan RawMIDAResult, fr chan<- FinalMIDAResult) {
 	for rawResult := range rr {
-		log.Info("validate result here", rawResult)
-		finalResult := FinalMIDAResult{}
+		finalResult := FinalMIDAResult{
+			sanitizedTask: rawResult.sanitizedTask,
+			stats:         rawResult.stats,
+		}
+		finalResult.stats.TimeAfterValidation = time.Now()
 		fr <- finalResult
 	}
 

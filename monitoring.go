@@ -1,10 +1,12 @@
 package main
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 // Statistics from the execution of a single task, used for monitoring
@@ -16,29 +18,36 @@ type TaskStats struct {
 	SanitizedTask SanitizedMIDATask
 
 	///// TIMING METRICS /////
-	StartTime            float64 //
-	TotalTime            float64 // Time from receipt of raw task to completion of storage
-	TaskSanitizationTime float64 // Time to sanitize task
-	BrowserTime          float64 // Time the browser is open for this task
-	ValidationTime       float64 // Time spent in results validation
+	StartTime             time.Time
+	TimeAfterStorage      time.Time
+	TimeAfterBrowserClose time.Time
+	TimeAfterValidation   time.Time
 
 	///// RESULTS METRICS /////
 	RawJSTraceSize uint // Size of raw JS trace (log from browser) in bytes
 
 }
 
-func RunPrometheusClient(c chan TaskStats, port int) {
+func RunPrometheusClient(c <-chan TaskStats, port int) {
+
+	browserDurationHistogram := prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "browser_duration_seconds",
+			Help:    "A histogram of browser open durations",
+			Buckets: prometheus.LinearBuckets(0, 2, 45),
+		})
+	prometheus.MustRegister(browserDurationHistogram)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Info("Running Prom client")
 
 	go func() {
 		for t := range c {
-			log.Info("Update metrics here", t)
+			// Update all of our Prometheus metrics using the TaskStats object
+			browserDurationHistogram.Observe(t.TimeAfterBrowserClose.Sub(t.StartTime).Seconds())
 		}
 	}()
 
-	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+	log.Error(http.ListenAndServe(":"+strconv.Itoa(port), nil))
 
 	return
 }
