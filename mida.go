@@ -2,13 +2,16 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
-	"time"
+	"sync"
 )
 
 // A configuration for running MIDA
 type MIDAConfig struct {
 	// Number of simultaneous browser instances
 	NumCrawlers int
+
+	// Number of goroutines storing results data
+	NumStorers int
 
 	// If true, TaskLocation is an address for an AMPQ server, and credentials
 	// must also be provided (as part of the URI). If false, TaskLocation
@@ -25,8 +28,9 @@ func main() {
 
 	mConfig := MIDAConfig{
 		NumCrawlers:      DefaultNumWorkers,
+		NumStorers:       DefaultNumStorers,
 		UseAMPQForTasks:  false,
-		TaskLocation:     DefaultTaskLocation,
+		TaskLocation:     "examples/exampleTask.json",
 		EnableMonitoring: true,
 		PrometheusPort:   DefaultPrometheusPort,
 	}
@@ -45,28 +49,34 @@ func main() {
 		go RunPrometheusClient(monitoringChan, mConfig.PrometheusPort)
 	}
 
-	// Start goroutine that handles crawl results storage
-	go StoreResults(finalResultChan, mConfig)
+	// Start goroutine(s) that handles crawl results storage
+	var storageWG sync.WaitGroup
+	storageWG.Add(mConfig.NumStorers)
+	for i := 0; i < mConfig.NumStorers; i++ {
+		go StoreResults(finalResultChan, mConfig, &storageWG)
+	}
 
 	// Start goroutine that handles crawl results sanitization
 	go ValidateResult(rawResultChan, finalResultChan)
 
 	// Start crawler(s) which take sanitized tasks as arguments
-	go CrawlerInstance(sanitizedTaskChan, rawResultChan, mConfig)
+	var crawlerWG sync.WaitGroup
+	crawlerWG.Add(mConfig.NumCrawlers)
+	for i := 0; i < mConfig.NumCrawlers; i++ {
+		go CrawlerInstance(sanitizedTaskChan, rawResultChan, mConfig, &crawlerWG)
+	}
 
 	// Start goroutine which sanitizes input tasks
 	go SanitizeTasks(rawTaskChan, sanitizedTaskChan, mConfig)
 
-	sampleTask, err := ReadTaskFromFile("examples/exampleTask.json")
-	if err != nil {
-		log.Fatal(err)
-	}
+	go TaskIntake(rawTaskChan, mConfig)
 
-	rawTaskChan <- sampleTask
+	// Once all crawlers have completed, we can close the Raw Result Channel
+	crawlerWG.Wait()
+	close(rawResultChan)
 
-	time.Sleep(60 * time.Second)
-
-	// Wait on workgroup to complete
+	// We are done when all storage has completed
+	storageWG.Wait()
 
 	return
 

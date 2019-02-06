@@ -73,47 +73,26 @@ type SanitizedMIDATask struct {
 	CodeCoverage bool
 }
 
-func ReadTaskFromFile(fname string) (RawMIDATask, error) {
-	t := InitTask()
+func ReadTasksFromFile(fname string) ([]RawMIDATask, error) {
+	tasks := make([]RawMIDATask, 0)
 
 	data, err := ioutil.ReadFile(fname)
 	if err != nil {
-		return t, err
+		return tasks, err
 	}
 
-	err = json.Unmarshal(data, &t)
+	err = json.Unmarshal(data, &tasks)
 	if err != nil {
-		return t, err
+		singleTask := RawMIDATask{}
+		err = json.Unmarshal(data, &singleTask)
+		if err != nil {
+			return tasks, err
+		} else {
+			return append(tasks, singleTask), nil
+		}
 	} else {
-		return t, nil
+		return tasks, nil
 	}
-}
-
-// Initialize raw task with default values. Note that some values (URL, etc.) must be specified elsewhere
-func InitTask() RawMIDATask {
-	t := RawMIDATask{
-		Protocol: "http",
-		Port:     0,
-		URL:      "",
-		Browser: BrowserSettings{
-			BrowserBinary:      "",
-			AddBrowserFlags:    []string{},
-			RemoveBrowserFlags: []string{},
-			SetBrowserFlags:    []string{},
-		},
-		Completion: CompletionSettings{
-			CompletionCondition: "CompleteOnTimeoutOnly",
-			Timeout:             DefaultTimeout,
-		},
-		Output: OutputSettings{
-			SaveToLocalFS:  true,
-			SaveToRemoteFS: false,
-			LocalPath:      DefaultLocalOutputPath,
-			RemotePath:     DefaultRemoteOutputPath,
-		},
-	}
-
-	return t
 }
 
 func SanitizeTasks(rtc chan RawMIDATask, stc chan SanitizedMIDATask, mConfig MIDAConfig) {
@@ -124,6 +103,29 @@ func SanitizeTasks(rtc chan RawMIDATask, stc chan SanitizedMIDATask, mConfig MID
 		}
 		stc <- st
 	}
+
+	close(stc)
+}
+
+// Retrieves raw tasks, either from a queue or a file
+func TaskIntake(rtc chan RawMIDATask, mConfig MIDAConfig) {
+	if mConfig.UseAMPQForTasks {
+		log.Info("AMPQ not yet supported")
+	} else {
+		rawTasks, err := ReadTasksFromFile(mConfig.TaskLocation)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Put raw tasks in the channel
+		for _, rt := range rawTasks {
+			rtc <- rt
+		}
+	}
+
+	// Start the process of closing up the pipeline and exit
+	close(rtc)
+
 }
 
 // Run a series of checks on a raw task to ensure it is valid for a crawl.
@@ -135,6 +137,10 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	///// BEGIN SANITIZE AND BUILD URL
 	if t.URL == "" {
 		return st, errors.New("no URL to crawl given in task")
+	}
+
+	if t.Protocol == "" {
+		t.Protocol = DefaultProtocol
 	}
 
 	if t.Protocol != "http" && t.Protocol != "https" {
@@ -164,11 +170,20 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 		st.CCond = CompleteOnLoadEvent
 	} else if t.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
 		st.CCond = CompleteOnTimeoutAfterLoad
+	} else if t.Completion.CompletionCondition == "" {
+		st.CCond = DefaultCompletionCondition
 	} else {
 		return st, errors.New("invalid completion condition value given")
 	}
 
-	st.Timeout = t.Completion.Timeout
+	// If we don't get a value for timeout (or get zero), and we NEED that
+	// value, just set it to the default
+	if t.Completion.Timeout == 0 && st.CCond != CompleteOnLoadEvent {
+		log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
+		st.Timeout = DefaultTimeout
+	} else {
+		st.Timeout = t.Completion.Timeout
+	}
 
 	///// END SANITIZE TASK COMPLETION SETTINGS /////
 

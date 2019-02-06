@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
 	"path"
+	"sync"
 
 	//"github.com/teamnsrg/chromedp/client"
 	"github.com/teamnsrg/chromedp/runner"
@@ -16,14 +17,20 @@ import (
 	"time"
 )
 
-func CrawlerInstance(tc chan SanitizedMIDATask, rc chan RawMIDAResult, mConfig MIDAConfig) {
+func CrawlerInstance(tc chan SanitizedMIDATask, rc chan RawMIDAResult, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
 	for st := range tc {
 		rawResult, err := ProcessSanitizedTask(st)
 		if err != nil {
 			log.Fatal(err)
 		}
+		// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
 		rc <- rawResult
 	}
+
+	// RawMIDAResult channel is closed once all crawlers have exited, where they are first created
+	crawlerWG.Done()
+
+	return
 }
 
 func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
@@ -56,6 +63,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		if err != nil {
 			log.Fatal(err)
 		}
+		// This allows us to redirect the output from the browser to a file we choose.
+		// This happens in github.com/teamnsrg/chromedp/runner.go
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 

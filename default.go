@@ -1,8 +1,18 @@
 package main
 
+// Crawl Completion Conditions
+type CompletionCondition int
+
+const (
+	CompleteOnLoadEvent        CompletionCondition = 0
+	CompleteOnTimeoutOnly      CompletionCondition = 1
+	CompleteOnTimeoutAfterLoad CompletionCondition = 2
+)
+
 const (
 	// MIDA Configuration Defaults
 	DefaultNumWorkers     = 1
+	DefaultNumStorers     = 1
 	DefaultTaskLocation   = "MIDA_task.json"
 	DefaultPrometheusPort = 8001
 
@@ -19,20 +29,13 @@ const (
 	DefaultRemoteOutputPath = ""
 
 	// Task completion
-	DefaultTimeout = 5 // Default time (in seconds) to remain on a page before exiting browser
+	DefaultProtocol            = "http"
+	DefaultTimeout             = 5 // Default time (in seconds) to remain on a page before exiting browser
+	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Other/Util
 	Letters                 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	DefaultIdentifierLength = 16
-)
-
-// Crawl Completion Conditions
-type CompletionCondition int
-
-const (
-	CompleteOnLoadEvent        CompletionCondition = 0
-	CompleteOnTimeoutOnly      CompletionCondition = 1
-	CompleteOnTimeoutAfterLoad CompletionCondition = 2
 )
 
 var DefaultBrowserFlags = []string{
@@ -46,7 +49,7 @@ var DefaultBrowserFlags = []string{
 	"--disable-prompt-on-repost",
 	"--disable-renderer-backgrounding",
 	"--disable-sync",
-	"--disk-cache-size=1",
+	"--disk-cache-size=0",
 	"--incognito",
 	"--new-window",
 	"--no-default-browser-check",

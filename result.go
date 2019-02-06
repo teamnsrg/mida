@@ -18,4 +18,7 @@ func ValidateResult(rr chan RawMIDAResult, fr chan FinalMIDAResult) {
 		finalResult := FinalMIDAResult{}
 		fr <- finalResult
 	}
+
+	// All validated results have been sent so close the channel
+	close(fr)
 }

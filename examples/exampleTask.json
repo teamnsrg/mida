@@ -22,6 +22,6 @@
     "local_path": "output"
   },
   "completion": {
-    "timeout": 30
+    "timeout": 10
   }
 }
