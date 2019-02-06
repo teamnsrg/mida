@@ -12,7 +12,7 @@ type FinalMIDAResult struct {
 	stats     TaskStats
 }
 
-func ValidateResult(rr chan RawMIDAResult, fr chan FinalMIDAResult) {
+func ValidateResult(rr <-chan RawMIDAResult, fr chan<- FinalMIDAResult) {
 	for rawResult := range rr {
 		log.Info("validate result here", rawResult)
 		finalResult := FinalMIDAResult{}

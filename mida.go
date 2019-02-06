@@ -2,6 +2,7 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
+	"os"
 	"sync"
 )
 
@@ -27,7 +28,7 @@ type MIDAConfig struct {
 func main() {
 
 	mConfig := MIDAConfig{
-		NumCrawlers:      DefaultNumWorkers,
+		NumCrawlers:      2,
 		NumStorers:       DefaultNumStorers,
 		UseAMPQForTasks:  false,
 		TaskLocation:     "examples/exampleTask.json",
@@ -53,7 +54,7 @@ func main() {
 	var storageWG sync.WaitGroup
 	storageWG.Add(mConfig.NumStorers)
 	for i := 0; i < mConfig.NumStorers; i++ {
-		go StoreResults(finalResultChan, mConfig, &storageWG)
+		go StoreResults(finalResultChan, mConfig, monitoringChan, &storageWG)
 	}
 
 	// Start goroutine that handles crawl results sanitization
@@ -77,6 +78,12 @@ func main() {
 
 	// We are done when all storage has completed
 	storageWG.Wait()
+
+	// Cleanup remaining artifacts
+	err := os.RemoveAll(TemporaryDirectory)
+	if err != nil {
+		log.Warn(err)
+	}
 
 	return
 

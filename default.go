@@ -21,12 +21,12 @@ const (
 	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
-	DefaultUserDataDirectory = "chrome-data/"
 	DefaultLogFileName       = "chrome.log"
 
 	// Output Parameters
-	DefaultLocalOutputPath  = "output/"
+	DefaultLocalOutputPath  = "results/"
 	DefaultRemoteOutputPath = ""
+	TemporaryDirectory      = ".tmp"
 
 	// Task completion
 	DefaultProtocol            = "http"
@@ -34,8 +34,8 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Other/Util
-	Letters                 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	DefaultIdentifierLength = 16
+	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+	DefaultIdentifierLength = 16 // Random identifier for each crawl
 )
 
 var DefaultBrowserFlags = []string{

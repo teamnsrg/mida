@@ -1,27 +1,56 @@
-{
-  "protocol": "http",
-  "port": 80,
-  "url": "www.cnn.com",
-  "all_files": true,
-  "all_scripts": true,
-  "js_trace": true,
-  "screenshot": true,
-  "cookies": true,
-  "certificates": true,
-  "code_coverage": true,
-  "browser": {
-    "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
-    "user_data_directory": "",
-    "add_browser_flags": [],
-    "remove_browser_flags": [],
-    "set_browser_flags": []
+[
+  {
+    "protocol": "http",
+    "port": 80,
+    "url": "www.cnn.com",
+    "all_files": true,
+    "all_scripts": true,
+    "js_trace": true,
+    "screenshot": true,
+    "cookies": true,
+    "certificates": true,
+    "code_coverage": true,
+    "browser": {
+      "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
+      "user_data_directory": "123",
+      "add_browser_flags": [],
+      "remove_browser_flags": [],
+      "set_browser_flags": []
+    },
+    "output": {
+      "local": true,
+      "remote": false,
+      "local_path": "output"
+    },
+    "completion": {
+      "timeout": 10
+    }
   },
-  "output": {
-    "local": true,
-    "remote": false,
-    "local_path": "output"
-  },
-  "completion": {
-    "timeout": 10
+  {
+    "protocol": "http",
+    "port": 80,
+    "url": "www.murley.io",
+    "all_files": true,
+    "all_scripts": true,
+    "js_trace": true,
+    "screenshot": true,
+    "cookies": true,
+    "certificates": true,
+    "code_coverage": true,
+    "browser": {
+      "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
+      "user_data_directory": "udd",
+      "add_browser_flags": [],
+      "remove_browser_flags": [],
+      "set_browser_flags": []
+    },
+    "output": {
+      "local": true,
+      "remote": false,
+      "local_path": "output"
+    },
+    "completion": {
+      "timeout": 10
+    }
   }
-}
+]

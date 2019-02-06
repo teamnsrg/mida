@@ -73,10 +73,12 @@ type SanitizedMIDATask struct {
 	CodeCoverage bool
 }
 
-func ReadTasksFromFile(fname string) ([]RawMIDATask, error) {
+// Wrapper function that basically just unmarshals a JSON task
+// file, which may contain one or more tasks.
+func ReadTasksFromFile(fName string) ([]RawMIDATask, error) {
 	tasks := make([]RawMIDATask, 0)
 
-	data, err := ioutil.ReadFile(fname)
+	data, err := ioutil.ReadFile(fName)
 	if err != nil {
 		return tasks, err
 	}
@@ -95,7 +97,8 @@ func ReadTasksFromFile(fname string) ([]RawMIDATask, error) {
 	}
 }
 
-func SanitizeTasks(rtc chan RawMIDATask, stc chan SanitizedMIDATask, mConfig MIDAConfig) {
+// Takes raw tasks from input channel and produces sanitized tasks for the output channel
+func SanitizeTasks(rtc <-chan RawMIDATask, stc chan<- SanitizedMIDATask, mConfig MIDAConfig) {
 	for r := range rtc {
 		st, err := SanitizeTask(r)
 		if err != nil {
@@ -108,7 +111,7 @@ func SanitizeTasks(rtc chan RawMIDATask, stc chan SanitizedMIDATask, mConfig MID
 }
 
 // Retrieves raw tasks, either from a queue or a file
-func TaskIntake(rtc chan RawMIDATask, mConfig MIDAConfig) {
+func TaskIntake(rtc chan<- RawMIDATask, mConfig MIDAConfig) {
 	if mConfig.UseAMPQForTasks {
 		log.Info("AMPQ not yet supported")
 	} else {
@@ -193,14 +196,12 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	if t.Browser.BrowserBinary == "" {
 		// Set to system default.
 		if runtime.GOOS == "darwin" {
-			// OS X
 			if _, err := os.Stat(DefaultOSXChromiumPath); err == nil {
 				st.BrowserBinary = DefaultOSXChromiumPath
 			} else if _, err := os.Stat(DefaultOSXChromePath); err == nil {
 				st.BrowserBinary = DefaultOSXChromePath
 			}
 		} else if runtime.GOOS == "linux" {
-			// Linux
 			if _, err := os.Stat(DefaultLinuxChromiumPath); err == nil {
 				st.BrowserBinary = DefaultLinuxChromiumPath
 			} else if _, err := os.Stat(DefaultLinuxChromePath); err == nil {
@@ -221,7 +222,7 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 
 	// Sanitize user data directory to use
 	if t.Browser.UserDataDirectory == "" {
-		st.UserDataDirectory = DefaultUserDataDirectory
+		st.UserDataDirectory = ""
 	} else {
 		// Chrome will create any directories required
 		st.UserDataDirectory = t.Browser.UserDataDirectory

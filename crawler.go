@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-func CrawlerInstance(tc chan SanitizedMIDATask, rc chan RawMIDAResult, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
+func CrawlerInstance(tc <-chan SanitizedMIDATask, rc chan<- RawMIDAResult, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
 	for st := range tc {
 		rawResult, err := ProcessSanitizedTask(st)
 		if err != nil {
@@ -46,9 +46,12 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	// Generates a random identifier which will be used to name the user data directory, if not given
 	// Set the length of this identifier with DefaultIdentifierLength in default.go
 	randomIdentifier := GenRandomIdentifier()
-	log.Info(randomIdentifier)
 
 	// Create our user data directory, if it does not yet exist
+	if st.UserDataDirectory == "" {
+		st.UserDataDirectory = path.Join(TemporaryDirectory, randomIdentifier)
+	}
+
 	_, err := os.Stat(st.UserDataDirectory)
 	if err != nil {
 		err = os.MkdirAll(st.UserDataDirectory, 0744)
@@ -88,6 +91,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Info(cxt)
+	log.Info(r)
 
 	//c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
@@ -169,7 +175,7 @@ func GenRandomIdentifier() string {
 	b := ""
 	rand.Seed(time.Now().UTC().UnixNano())
 	for i := 0; i < DefaultIdentifierLength; i++ {
-		b = b + string(Letters[rand.Intn(len(Letters))])
+		b = b + string(AlphaNumChars[rand.Intn(len(AlphaNumChars))])
 	}
 	return b
 }
