@@ -28,6 +28,90 @@
     "max_attempts": 1
   },
   {
+    "url": "http://www.cnn.com",
+    "data": {
+      "all_files": true,
+      "all_scripts": true,
+      "js_trace": true,
+      "screenshot": true,
+      "cookies": true,
+      "certificates": true,
+      "code_coverage": true
+    },
+    "browser": {
+      "browser_binary": "",
+      "user_data_directory": "",
+      "add_browser_flags": [],
+      "remove_browser_flags": [],
+      "set_browser_flags": []
+    },
+    "output": {
+      "local": true,
+      "remote": false,
+      "local_path": "output"
+    },
+    "completion": {
+      "timeout": 10
+    },
+    "max_attempts": 1
+  },
+  {
+    "url": "http://www.cnn.com",
+    "data": {
+      "all_files": true,
+      "all_scripts": true,
+      "js_trace": true,
+      "screenshot": true,
+      "cookies": true,
+      "certificates": true,
+      "code_coverage": true
+    },
+    "browser": {
+      "browser_binary": "",
+      "user_data_directory": "",
+      "add_browser_flags": [],
+      "remove_browser_flags": [],
+      "set_browser_flags": []
+    },
+    "output": {
+      "local": true,
+      "remote": false,
+      "local_path": "output"
+    },
+    "completion": {
+      "timeout": 10
+    },
+    "max_attempts": 1
+  },
+  {
+    "url": "http://www.cnn.com",
+    "data": {
+      "all_files": true,
+      "all_scripts": true,
+      "js_trace": true,
+      "screenshot": true,
+      "cookies": true,
+      "certificates": true,
+      "code_coverage": true
+    },
+    "browser": {
+      "browser_binary": "",
+      "user_data_directory": "",
+      "add_browser_flags": [],
+      "remove_browser_flags": [],
+      "set_browser_flags": []
+    },
+    "output": {
+      "local": true,
+      "remote": false,
+      "local_path": "output"
+    },
+    "completion": {
+      "timeout": 10
+    },
+    "max_attempts": 1
+  },
+  {
     "url": "murley.io",
     "data": {
       "all_files": true,

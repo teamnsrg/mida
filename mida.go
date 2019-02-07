@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"sync"
 )
@@ -26,6 +26,7 @@ type MIDAConfig struct {
 }
 
 func main() {
+	log.Info("MIDA is starting...")
 
 	mConfig := MIDAConfig{
 		NumCrawlers:      3,
