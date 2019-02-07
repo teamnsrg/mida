@@ -11,7 +11,7 @@
     "certificates": true,
     "code_coverage": true,
     "browser": {
-      "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
+      "browser_binary": "",
       "user_data_directory": "",
       "add_browser_flags": [],
       "remove_browser_flags": [],
@@ -24,7 +24,8 @@
     },
     "completion": {
       "timeout": 10
-    }
+    },
+    "max_attempts": 4
   },
   {
     "protocol": "https",
@@ -38,7 +39,7 @@
     "certificates": true,
     "code_coverage": true,
     "browser": {
-      "browser_binary": "/home/pmurley/chrome_builds/1-28-19/chrome",
+      "browser_binary": "",
       "user_data_directory": "",
       "add_browser_flags": [],
       "remove_browser_flags": [],

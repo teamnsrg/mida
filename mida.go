@@ -1,8 +1,6 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"os"
 	"sync"
 )
 
@@ -42,6 +40,11 @@ func main() {
 	rawResultChan := make(chan RawMIDAResult)
 	sanitizedTaskChan := make(chan SanitizedMIDATask)
 	rawTaskChan := make(chan RawMIDATask)
+	retryChan := make(chan SanitizedMIDATask)
+
+	var crawlerWG sync.WaitGroup  // Tracks active crawler workers
+	var storageWG sync.WaitGroup  // Tracks active storage workers
+	var pipelineWG sync.WaitGroup // Tracks tasks currently in pipeline
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if mConfig.EnableMonitoring {
@@ -49,24 +52,23 @@ func main() {
 	}
 
 	// Start goroutine(s) that handles crawl results storage
-	var storageWG sync.WaitGroup
+
 	storageWG.Add(mConfig.NumStorers)
 	for i := 0; i < mConfig.NumStorers; i++ {
-		go StoreResults(finalResultChan, mConfig, monitoringChan, &storageWG)
+		go StoreResults(finalResultChan, mConfig, monitoringChan, retryChan, &storageWG, &pipelineWG)
 	}
 
 	// Start goroutine that handles crawl results sanitization
-	go ValidateResult(rawResultChan, finalResultChan)
+	go PostprocessResult(rawResultChan, finalResultChan)
 
 	// Start crawler(s) which take sanitized tasks as arguments
-	var crawlerWG sync.WaitGroup
 	crawlerWG.Add(mConfig.NumCrawlers)
 	for i := 0; i < mConfig.NumCrawlers; i++ {
-		go CrawlerInstance(sanitizedTaskChan, rawResultChan, mConfig, &crawlerWG)
+		go CrawlerInstance(sanitizedTaskChan, rawResultChan, retryChan, mConfig, &crawlerWG)
 	}
 
 	// Start goroutine which sanitizes input tasks
-	go SanitizeTasks(rawTaskChan, sanitizedTaskChan, mConfig)
+	go SanitizeTasks(rawTaskChan, sanitizedTaskChan, mConfig, &pipelineWG)
 
 	go TaskIntake(rawTaskChan, mConfig)
 
@@ -78,10 +80,12 @@ func main() {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	err := os.RemoveAll(TemporaryDirectory)
-	if err != nil {
-		log.Warn(err)
-	}
+	/*
+		err := os.RemoveAll(TempDirectory)
+		if err != nil {
+			log.Warn(err)
+		}
+	*/
 
 	return
 

@@ -18,14 +18,33 @@ import (
 	"time"
 )
 
-func CrawlerInstance(tc <-chan SanitizedMIDATask, rc chan<- RawMIDAResult, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
-	for st := range tc {
-		rawResult, err := ProcessSanitizedTask(st)
-		if err != nil {
-			log.Fatal(err)
+func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan chan<- RawMIDAResult, retryChan <-chan SanitizedMIDATask, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
+
+	for sanitizedTaskChan != nil {
+		select {
+		case st, ok := <-retryChan:
+			if !ok {
+				retryChan = nil
+			} else {
+				rawResult, err := ProcessSanitizedTask(st)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
+				rawResultChan <- rawResult
+			}
+		case st, ok := <-sanitizedTaskChan:
+			if !ok {
+				sanitizedTaskChan = nil
+			} else {
+				rawResult, err := ProcessSanitizedTask(st)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
+				rawResultChan <- rawResult
+			}
 		}
-		// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
-		rc <- rawResult
 	}
 
 	// RawMIDAResult channel is closed once all crawlers have exited, where they are first created
@@ -38,6 +57,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	rawResult := RawMIDAResult{}
 	rawResult.stats.StartTime = time.Now()
+	rawResult.sanitizedTask = st
 
 	// Create our context and browser
 	cxt, cancel := context.WithCancel(context.Background())
@@ -49,7 +69,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	// Create our user data directory, if it does not yet exist
 	if st.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(TemporaryDirectory, randomIdentifier)
+		st.UserDataDirectory = path.Join(TempDirectory, randomIdentifier)
 	}
 
 	_, err := os.Stat(st.UserDataDirectory)
@@ -60,11 +80,23 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		}
 	}
 
+	// Create our results directory within the user data directory
+	resultsDir := path.Join(st.UserDataDirectory, randomIdentifier)
+	_, err = os.Stat(resultsDir)
+	if err != nil {
+		err = os.MkdirAll(resultsDir, 0755)
+		if err != nil {
+			log.Fatal("Error creating results directory")
+		}
+	} else {
+		log.Fatal("Results directory already existed within user data directory")
+	}
+
 	if st.AllFiles {
 		// Create a subdirectory where we will store all the files
-		_, err = os.Stat(path.Join(st.UserDataDirectory, DefaultFileSubdir))
+		_, err = os.Stat(path.Join(resultsDir, DefaultFileSubdir))
 		if err != nil {
-			err = os.MkdirAll(path.Join(st.UserDataDirectory, DefaultFileSubdir), 0744)
+			err = os.MkdirAll(path.Join(resultsDir, DefaultFileSubdir), 0744)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -73,7 +105,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
-		midaBrowserOutfile, err := os.Create(path.Join(st.UserDataDirectory, DefaultLogFileName))
+		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, DefaultLogFileName))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -124,7 +156,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		if err != nil {
 			// TODO: Count how many times this happens, figure out what types of resources it is happening for
 		} else {
-			err = ioutil.WriteFile(path.Join(st.UserDataDirectory, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+			err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 			if err != nil {
 				log.Fatal(err)
 			}

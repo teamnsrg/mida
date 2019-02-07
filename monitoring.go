@@ -28,7 +28,7 @@ type TaskStats struct {
 
 }
 
-func RunPrometheusClient(c <-chan TaskStats, port int) {
+func RunPrometheusClient(monitoringChan <-chan TaskStats, port int) {
 
 	browserDurationHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -41,7 +41,7 @@ func RunPrometheusClient(c <-chan TaskStats, port int) {
 	http.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		for t := range c {
+		for t := range monitoringChan {
 			// Update all of our Prometheus metrics using the TaskStats object
 			browserDurationHistogram.Observe(t.TimeAfterBrowserClose.Sub(t.StartTime).Seconds())
 		}

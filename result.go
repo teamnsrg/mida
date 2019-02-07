@@ -14,16 +14,16 @@ type FinalMIDAResult struct {
 	stats         TaskStats
 }
 
-func ValidateResult(rr <-chan RawMIDAResult, fr chan<- FinalMIDAResult) {
-	for rawResult := range rr {
+func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<- FinalMIDAResult) {
+	for rawResult := range rawResultChan {
 		finalResult := FinalMIDAResult{
 			sanitizedTask: rawResult.sanitizedTask,
 			stats:         rawResult.stats,
 		}
 		finalResult.stats.TimeAfterValidation = time.Now()
-		fr <- finalResult
+		finalResultChan <- finalResult
 	}
 
-	// All validated results have been sent so close the channel
-	close(fr)
+	// All Postprocessed results have been sent so close the channel
+	close(finalResultChan)
 }

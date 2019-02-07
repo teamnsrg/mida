@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type OutputSettings struct {
@@ -49,6 +50,9 @@ type RawMIDATask struct {
 	Cookies      bool `json:"cookies"`
 	Certificates bool `json:"certificates"`
 	CodeCoverage bool `json:"code_coverage"`
+
+	// Track how many times we will attempt this task
+	MaxAttempts int `json:"max_attempts"`
 }
 
 type SanitizedMIDATask struct {
@@ -71,6 +75,11 @@ type SanitizedMIDATask struct {
 	Cookies      bool
 	Certificates bool
 	CodeCoverage bool
+
+	// Parameters for retrying a task if it fails to complete
+	MaxAttempts    int
+	CurrentAttempt int
+	TaskFailed     bool
 }
 
 // Wrapper function that basically just unmarshals a JSON task
@@ -98,16 +107,21 @@ func ReadTasksFromFile(fName string) ([]RawMIDATask, error) {
 }
 
 // Takes raw tasks from input channel and produces sanitized tasks for the output channel
-func SanitizeTasks(rtc <-chan RawMIDATask, stc chan<- SanitizedMIDATask, mConfig MIDAConfig) {
-	for r := range rtc {
+func SanitizeTasks(rawTaskChan <-chan RawMIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, mConfig MIDAConfig, pipelineWG *sync.WaitGroup) {
+	for r := range rawTaskChan {
 		st, err := SanitizeTask(r)
 		if err != nil {
 			log.Fatal(err)
 		}
-		stc <- st
+		pipelineWG.Add(1)
+
+		sanitizedTaskChan <- st
 	}
 
-	close(stc)
+	// Wait until the pipeline is clear before we close the sanitized task channel,
+	// which will cause MIDA to shutdown
+	pipelineWG.Wait()
+	close(sanitizedTaskChan)
 }
 
 // Retrieves raw tasks, either from a queue or a file
@@ -271,6 +285,18 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	st.Cookies = t.Cookies
 	st.Certificates = t.Certificates
 	st.CodeCoverage = t.CodeCoverage
+
+	///// END SANITIZE DATA GATHERING PARAMETERS /////
+
+	if t.MaxAttempts <= 1 {
+		st.MaxAttempts = 1
+	} else if t.MaxAttempts > MaximumTaskAttempts {
+		log.Fatal("A task may not have more than ", MaximumTaskAttempts, " attempts")
+	} else {
+		st.MaxAttempts = t.MaxAttempts
+	}
+
+	st.CurrentAttempt = 1
 
 	return st, nil
 }
