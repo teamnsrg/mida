@@ -6,24 +6,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 )
-
-type OutputSettings struct {
-	SaveToLocalFS  bool   `json:"local"`
-	SaveToRemoteFS bool   `json:"remote_fs"`
-	LocalPath      string `json:"local_path"`
-	RemotePath     string `json:"remote_path"`
-}
-
-type CompletionSettings struct {
-	CompletionCondition string `json:"completion_condition"`
-	Timeout             int    `json:"timeout"`
-}
 
 type BrowserSettings struct {
 	BrowserBinary      string   `json:"browser_binary"`
@@ -33,16 +21,12 @@ type BrowserSettings struct {
 	SetBrowserFlags    []string `json:"set_browser_flags"`
 }
 
-type RawMIDATask struct {
-	Protocol string `json:"protocol"`
-	Port     int    `json:"port"`
-	URL      string `json:"url"`
+type CompletionSettings struct {
+	CompletionCondition string `json:"completion_condition"`
+	Timeout             int    `json:"timeout"`
+}
 
-	Browser    BrowserSettings    `json:"browser"`
-	Output     OutputSettings     `json:"output"`
-	Completion CompletionSettings `json:"completion"`
-
-	// Data gathering options
+type DataSettings struct {
 	AllFiles     bool `json:"all_files"`
 	AllScripts   bool `json:"all_scripts"`
 	JSTrace      bool `json:"js_trace"`
@@ -50,6 +34,22 @@ type RawMIDATask struct {
 	Cookies      bool `json:"cookies"`
 	Certificates bool `json:"certificates"`
 	CodeCoverage bool `json:"code_coverage"`
+}
+
+type OutputSettings struct {
+	SaveToLocalFS  bool   `json:"local"`
+	SaveToRemoteFS bool   `json:"remote_fs"`
+	LocalPath      string `json:"local_path"`
+	RemotePath     string `json:"remote_path"`
+}
+
+type RawMIDATask struct {
+	URL string `json:"url"`
+
+	Browser    BrowserSettings    `json:"browser"`
+	Completion CompletionSettings `json:"completion"`
+	Data       DataSettings       `json:"data"`
+	Output     OutputSettings     `json:"output"`
 
 	// Track how many times we will attempt this task
 	MaxAttempts int `json:"max_attempts"`
@@ -58,16 +58,16 @@ type RawMIDATask struct {
 type SanitizedMIDATask struct {
 	Url string
 
+	// Browser settings
 	BrowserBinary     string
 	UserDataDirectory string
 	BrowserFlags      []runner.CommandLineOption
 
-	LocalOutputPath  string
-	RemoteOutputPath string
-
+	// Completion Settings
 	CCond   CompletionCondition
 	Timeout int
 
+	// Data settings
 	AllFiles     bool
 	AllScripts   bool
 	JSTrace      bool
@@ -75,6 +75,10 @@ type SanitizedMIDATask struct {
 	Cookies      bool
 	Certificates bool
 	CodeCoverage bool
+
+	// Output Settings
+	LocalOutputPath  string
+	RemoteOutputPath string
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts    int
@@ -156,26 +160,20 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 		return st, errors.New("no URL to crawl given in task")
 	}
 
-	if t.Protocol == "" {
-		t.Protocol = DefaultProtocol
+	// Do what we can to ensure a valid URL
+	u, err := url.ParseRequestURI(t.URL)
+	if err != nil {
+		if !strings.Contains(t.URL, "://") {
+			u, err = url.ParseRequestURI(DefaultProtocolPrefix + t.URL)
+			if err != nil {
+				log.Fatal("Bad URL in task: ", t.URL)
+			}
+		} else {
+			log.Fatal("Bad URL in task: ", t.URL)
+		}
 	}
 
-	port := ""
-	if t.Port == 80 && t.Protocol == "http" {
-		// Ignore port
-		port = ""
-	} else if t.Port == 443 && t.Protocol == "https" {
-		port = ""
-	} else if t.Port == 0 {
-		port = ""
-	} else if t.Port > 0 && t.Port < 65536 {
-		port = ":" + strconv.Itoa(t.Port)
-	} else {
-		log.Fatal("Invalid port")
-	}
-
-	// Build the actual URL we will visit
-	st.Url = t.Protocol + "://" + t.URL + port
+	st.Url = u.String()
 
 	///// BEGIN SANITIZE TASK COMPLETION SETTINGS
 
@@ -278,13 +276,13 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
 
 	// For now, these are just bools and we will just copy them
-	st.AllFiles = t.AllFiles
-	st.AllScripts = t.AllScripts
-	st.JSTrace = t.JSTrace
-	st.Screenshot = t.Screenshot
-	st.Cookies = t.Cookies
-	st.Certificates = t.Certificates
-	st.CodeCoverage = t.CodeCoverage
+	st.AllFiles = t.Data.AllFiles
+	st.AllScripts = t.Data.AllScripts
+	st.JSTrace = t.Data.JSTrace
+	st.Screenshot = t.Data.Screenshot
+	st.Cookies = t.Data.Cookies
+	st.Certificates = t.Data.Certificates
+	st.CodeCoverage = t.Data.CodeCoverage
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 

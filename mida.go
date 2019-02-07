@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/prometheus/common/log"
+	"os"
 	"sync"
 )
 
@@ -80,12 +82,10 @@ func main() {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	/*
-		err := os.RemoveAll(TempDirectory)
-		if err != nil {
-			log.Warn(err)
-		}
-	*/
+	err := os.RemoveAll(TempDirectory)
+	if err != nil {
+		log.Warn(err)
+	}
 
 	return
 

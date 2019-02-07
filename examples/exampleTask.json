@@ -1,15 +1,15 @@
 [
   {
-    "protocol": "http",
-    "port": 80,
-    "url": "www.cnn.com",
-    "all_files": true,
-    "all_scripts": true,
-    "js_trace": true,
-    "screenshot": true,
-    "cookies": true,
-    "certificates": true,
-    "code_coverage": true,
+    "url": "http://www.cnn.com",
+    "data": {
+      "all_files": true,
+      "all_scripts": true,
+      "js_trace": true,
+      "screenshot": true,
+      "cookies": true,
+      "certificates": true,
+      "code_coverage": true
+    },
     "browser": {
       "browser_binary": "",
       "user_data_directory": "",
@@ -25,19 +25,19 @@
     "completion": {
       "timeout": 10
     },
-    "max_attempts": 4
+    "max_attempts": 1
   },
   {
-    "protocol": "https",
-    "port": 0,
-    "url": "amazon.com",
-    "all_files": true,
-    "all_scripts": true,
-    "js_trace": true,
-    "screenshot": true,
-    "cookies": true,
-    "certificates": true,
-    "code_coverage": true,
+    "url": "murley.io",
+    "data": {
+      "all_files": true,
+      "all_scripts": true,
+      "js_trace": true,
+      "screenshot": true,
+      "cookies": true,
+      "certificates": true,
+      "code_coverage": true
+    },
     "browser": {
       "browser_binary": "",
       "user_data_directory": "",
@@ -52,6 +52,7 @@
     },
     "completion": {
       "timeout": 10
-    }
+    },
+    "max_attempts": 1
   }
 ]

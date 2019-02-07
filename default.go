@@ -32,7 +32,7 @@ const (
 	DefaultFileSubdir       = "files"
 
 	// Task completion
-	DefaultProtocol            = "http"
+	DefaultProtocolPrefix      = "http://"
 	DefaultTimeout             = 5 // Default time (in seconds) to remain on a page before exiting browser
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 

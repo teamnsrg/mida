@@ -11,8 +11,6 @@ import (
 func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, monitoringChan chan<- TaskStats, retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup) {
 	for r := range finalResultChan {
 
-		r.sanitizedTask.TaskFailed = true
-
 		if !r.sanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
 		}
