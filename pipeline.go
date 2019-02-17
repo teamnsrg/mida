@@ -25,7 +25,7 @@ type MIDAConfig struct {
 	PrometheusPort   int
 }
 
-func main() {
+func InitPipeline() {
 	log.Info("MIDA is starting...")
 
 	mConfig := MIDAConfig{
