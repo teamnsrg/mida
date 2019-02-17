@@ -59,7 +59,7 @@ file, exiting when all tasks in the file are completed.`,
 	var maxAttempts int
 
 	// Browser settings
-	var binary string
+	var browser string
 	var userDataDir string
 	var addBrowserFlags []string
 	var removeBrowserFlags []string
@@ -75,21 +75,22 @@ file, exiting when all tasks in the file are completed.`,
 
 	var outputPath string
 	var groupID string
+	var overwrite bool
 
 	cmdBuild.Flags().StringVarP(&urlfile, "urlfile", "f",
 		"", "File containing URLs to visit (1 per line)")
 	cmdBuild.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTimeout,
 		"Maximum attempts for a task before it fails")
 
-	cmdBuild.Flags().StringVarP(&binary, "binary", "b",
+	cmdBuild.Flags().StringVarP(&browser, "browser", "b",
 		"", "Path to browser binary to use for this task")
-	cmdBuild.Flags().StringVarP(&userDataDir, "user-data-dir", "u",
+	cmdBuild.Flags().StringVarP(&userDataDir, "user-data-dir", "d",
 		"", "User Data Directory used for this task.")
-	cmdBuild.Flags().StringSliceP("add-browser-flags", "p", addBrowserFlags,
+	cmdBuild.Flags().StringSliceP("add-browser-flags", "", addBrowserFlags,
 		"Flags to add to browser launch (comma-separated, no'--')")
-	cmdBuild.Flags().StringSliceP("remove-browser-flags", "r", removeBrowserFlags,
+	cmdBuild.Flags().StringSliceP("remove-browser-flags", "", removeBrowserFlags,
 		"Flags to remove from browser launch (comma-separated, no'--')")
-	cmdBuild.Flags().StringSliceP("set-browser-flags", "s", setBrowserFlags,
+	cmdBuild.Flags().StringSliceP("set-browser-flags", "", setBrowserFlags,
 		"Overrides default browser flags (comma-separated, no'--')")
 	cmdBuild.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
@@ -99,11 +100,13 @@ file, exiting when all tasks in the file are completed.`,
 	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "local-output-path", "l", DefaultLocalOutputPath,
-		"Local path to use for storing task results")
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "p", DefaultLocalOutputPath,
+		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
 	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", DefaultTaskLocation,
 		"Path to write the newly-created JSON task file")
+	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
+		"Allow overwriting of an existing task file")
 	cmdBuild.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
 		"Group ID used for identifying experiments")
 

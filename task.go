@@ -38,10 +38,8 @@ type DataSettings struct {
 }
 
 type OutputSettings struct {
-	SaveToLocalFS  bool   `json:"local"`
-	SaveToRemoteFS bool   `json:"remote_fs"`
-	LocalPath      string `json:"local_path"`
-	RemotePath     string `json:"remote_path"`
+	Path    string `json:"path"`
+	GroupID string `json:"group_id"`
 }
 
 type MIDATask struct {
@@ -92,8 +90,8 @@ type SanitizedMIDATask struct {
 	CodeCoverage bool
 
 	// Output Settings
-	LocalOutputPath  string
-	RemoteOutputPath string
+	OutputPath string
+	GroupID    string
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts    int

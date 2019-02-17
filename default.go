@@ -37,6 +37,15 @@ const (
 	DefaultTimeout             = 5 // Default time (in seconds) to remain on a page before exiting browser
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
+	// Defaults for data gathering settings
+	DefaultAllFiles     = true
+	DefaultAllScripts   = true
+	DefaultJSTrace      = true
+	DefaultCertificates = true
+	DefaultCookies      = true
+	DefaultCodeCoverage = true
+	DefaultScreenshot   = true
+
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 	DefaultIdentifierLength = 16 // Random identifier for each crawl
