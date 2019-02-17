@@ -19,6 +19,7 @@ type BrowserSettings struct {
 	AddBrowserFlags    []string `json:"add_browser_flags"`
 	RemoveBrowserFlags []string `json:"remove_browser_flags"`
 	SetBrowserFlags    []string `json:"set_browser_flags"`
+	Extensions         []string `json:"extensions"`
 }
 
 type CompletionSettings struct {
@@ -43,8 +44,22 @@ type OutputSettings struct {
 	RemotePath     string `json:"remote_path"`
 }
 
-type RawMIDATask struct {
+type MIDATask struct {
 	URL string `json:"url"`
+
+	Browser    BrowserSettings    `json:"browser"`
+	Completion CompletionSettings `json:"completion"`
+	Data       DataSettings       `json:"data"`
+	Output     OutputSettings     `json:"output"`
+
+	// Track how many times we will attempt this task
+	MaxAttempts int `json:"max_attempts"`
+}
+
+type MIDATaskSet []MIDATask
+
+type CompressedMIDATaskSet struct {
+	URLs []string `json:"urls"`
 
 	Browser    BrowserSettings    `json:"browser"`
 	Completion CompletionSettings `json:"completion"`
@@ -86,10 +101,10 @@ type SanitizedMIDATask struct {
 	TaskFailed     bool
 }
 
-// Wrapper function that basically just unmarshals a JSON task
-// file, which may contain one or more tasks.
-func ReadTasksFromFile(fName string) ([]RawMIDATask, error) {
-	tasks := make([]RawMIDATask, 0)
+// Wrapper function that reads single tasks, full task sets,
+// or compressed task sets from file
+func ReadTasksFromFile(fName string) ([]MIDATask, error) {
+	tasks := make(MIDATaskSet, 0)
 
 	data, err := ioutil.ReadFile(fName)
 	if err != nil {
@@ -97,21 +112,41 @@ func ReadTasksFromFile(fName string) ([]RawMIDATask, error) {
 	}
 
 	err = json.Unmarshal(data, &tasks)
-	if err != nil {
-		singleTask := RawMIDATask{}
-		err = json.Unmarshal(data, &singleTask)
-		if err != nil {
-			return tasks, err
-		} else {
-			return append(tasks, singleTask), nil
-		}
-	} else {
+	if err == nil {
 		return tasks, nil
 	}
+
+	singleTask := MIDATask{}
+	err = json.Unmarshal(data, &singleTask)
+	if err == nil {
+		return append(tasks, singleTask), nil
+	}
+
+	compressedTaskSet := CompressedMIDATaskSet{}
+	err = json.Unmarshal(data, &compressedTaskSet)
+	if err == nil {
+		// Decompress by iterating through URLs
+		for _, v := range compressedTaskSet.URLs {
+			newTask := MIDATask{
+				URL:         v,
+				Browser:     compressedTaskSet.Browser,
+				Completion:  compressedTaskSet.Completion,
+				Data:        compressedTaskSet.Data,
+				Output:      compressedTaskSet.Output,
+				MaxAttempts: compressedTaskSet.MaxAttempts,
+			}
+			tasks = append(tasks, newTask)
+		}
+
+		return tasks, nil
+
+	}
+
+	return tasks, errors.New("failed to unmarshal task file")
 }
 
 // Takes raw tasks from input channel and produces sanitized tasks for the output channel
-func SanitizeTasks(rawTaskChan <-chan RawMIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, mConfig MIDAConfig, pipelineWG *sync.WaitGroup) {
+func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, mConfig MIDAConfig, pipelineWG *sync.WaitGroup) {
 	for r := range rawTaskChan {
 		st, err := SanitizeTask(r)
 		if err != nil {
@@ -129,7 +164,7 @@ func SanitizeTasks(rawTaskChan <-chan RawMIDATask, sanitizedTaskChan chan<- Sani
 }
 
 // Retrieves raw tasks, either from a queue or a file
-func TaskIntake(rtc chan<- RawMIDATask, mConfig MIDAConfig) {
+func TaskIntake(rtc chan<- MIDATask, mConfig MIDAConfig) {
 	if mConfig.UseAMPQForTasks {
 		log.Info("AMPQ not yet supported")
 	} else {
@@ -151,7 +186,7 @@ func TaskIntake(rtc chan<- RawMIDATask, mConfig MIDAConfig) {
 
 // Run a series of checks on a raw task to ensure it is valid for a crawl.
 // Put the task in a new format ("SanitizedMIDATask") which is used for processing.
-func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
+func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	var st SanitizedMIDATask
 
@@ -288,8 +323,8 @@ func SanitizeTask(t RawMIDATask) (SanitizedMIDATask, error) {
 
 	if t.MaxAttempts <= 1 {
 		st.MaxAttempts = 1
-	} else if t.MaxAttempts > MaximumTaskAttempts {
-		log.Fatal("A task may not have more than ", MaximumTaskAttempts, " attempts")
+	} else if t.MaxAttempts > DefaultMaximumTaskAttempts {
+		log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
 	} else {
 		st.MaxAttempts = t.MaxAttempts
 	}

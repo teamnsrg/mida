@@ -26,7 +26,6 @@ type MIDAConfig struct {
 }
 
 func InitPipeline() {
-	log.Info("MIDA is starting...")
 
 	mConfig := MIDAConfig{
 		NumCrawlers:      3,
@@ -42,7 +41,7 @@ func InitPipeline() {
 	finalResultChan := make(chan FinalMIDAResult)
 	rawResultChan := make(chan RawMIDAResult)
 	sanitizedTaskChan := make(chan SanitizedMIDATask)
-	rawTaskChan := make(chan RawMIDATask)
+	rawTaskChan := make(chan MIDATask)
 	retryChan := make(chan SanitizedMIDATask)
 
 	var crawlerWG sync.WaitGroup  // Tracks active crawler workers

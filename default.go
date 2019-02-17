@@ -16,7 +16,7 @@ const (
 	DefaultTaskLocation   = "MIDA_task.json"
 	DefaultPrometheusPort = 8001
 
-	MaximumTaskAttempts = 10
+	DefaultMaximumTaskAttempts = 10
 
 	// Browser-Related Parameters
 	DefaultOSXChromePath     = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -30,6 +30,7 @@ const (
 	DefaultRemoteOutputPath = ""
 	TempDirectory           = ".tmp"
 	DefaultFileSubdir       = "files"
+	DefaultGroupID          = "default"
 
 	// Task completion
 	DefaultProtocolPrefix      = "http://"
