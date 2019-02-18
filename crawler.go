@@ -4,9 +4,7 @@ import (
 	"context"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/page"
 	"github.com/phayes/freeport"
-	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -27,7 +25,7 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 			} else {
 				rawResult, err := ProcessSanitizedTask(st)
 				if err != nil {
-					log.Fatal(err)
+					Log.Fatal(err)
 				}
 				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
 				rawResultChan <- rawResult
@@ -38,7 +36,7 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 			} else {
 				rawResult, err := ProcessSanitizedTask(st)
 				if err != nil {
-					log.Fatal(err)
+					Log.Fatal(err)
 				}
 				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
 				rawResultChan <- rawResult
@@ -75,7 +73,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		err = os.MkdirAll(st.UserDataDirectory, 0744)
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 	}
 
@@ -85,10 +83,10 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		err = os.MkdirAll(resultsDir, 0755)
 		if err != nil {
-			log.Fatal("Error creating results directory")
+			Log.Fatal("Error creating results directory")
 		}
 	} else {
-		log.Fatal("Results directory already existed within user data directory")
+		Log.Fatal("Results directory already existed within user data directory")
 	}
 
 	if st.AllFiles {
@@ -97,7 +95,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		if err != nil {
 			err = os.MkdirAll(path.Join(resultsDir, DefaultFileSubdir), 0744)
 			if err != nil {
-				log.Fatal(err)
+				Log.Fatal(err)
 			}
 		}
 	}
@@ -106,7 +104,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, DefaultLogFileName))
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 		// This allows us to redirect the output from the browser to a file we choose.
 		// This happens in github.com/teamnsrg/chromedp/runner.go
@@ -116,7 +114,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	// Remote Debugging Protocol (DevTools) will listen on this port
 	port, err := freeport.GetFreePort()
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	// Add these the port and the user data directory as arguments to the browser as we start it up
@@ -127,33 +125,32 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	r, err := runner.New(runnerOpts...)
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 	err = r.Start(cxt)
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*page.EventLoadEventFired)
-		log.Info(data)
+		Log.Info("TODO")
 	}))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventRequestWillBeSent)
-		log.Debug(data.Request.URL)
+		Log.Debug(data.Request.URL)
 	}))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
@@ -164,22 +161,22 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		} else {
 			err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 			if err != nil {
-				log.Fatal(err)
+				Log.Fatal(err)
 			}
 		}
 
 	}))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
 		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		log.Info(data.BlockedReason)
+		Log.Info(data.BlockedReason)
 	}))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
@@ -188,7 +185,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	}))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	// Navigate to specified URL, timing out if no connection to the site
@@ -199,16 +196,16 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}()
 	select {
 	case err = <-navChan:
-		log.Info("Navigation completed")
+		Log.Debug("Navigation completed")
 	case <-time.After(DefaultNavTimeout * time.Second):
-		log.Warn("Navigation timeout")
-		// TODO: Handle this case, build a corresponding results, etc.
+		Log.Warn("Navigation timeout")
+		// TODO: Handle navigation errors, build a corresponding results, etc.
 	}
 	if err != nil {
 		if err.Error() == "net::ERR_NAME_NOT_RESOLVED" {
-			log.Warn("DNS did not resolve")
+			Log.Warn("DNS did not resolve")
 		} else {
-			log.Warn("Unknown navigation error: ", err.Error())
+			Log.Warn("Unknown navigation error: ", err.Error())
 		}
 	}
 
@@ -216,12 +213,12 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	// the completion condition specified in the task.
 	err = c.Run(cxt, chromedp.Sleep(time.Duration(st.Timeout)*time.Second))
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	err = c.Shutdown(cxt)
 	if err != nil {
-		log.Fatal("Client Shutdown:", err)
+		Log.Fatal("Client Shutdown:", err)
 	}
 
 	// Record how long the browser was open

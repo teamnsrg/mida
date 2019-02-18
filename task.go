@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
 	"net/url"
@@ -111,14 +110,14 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 
 	err = json.Unmarshal(data, &tasks)
 	if err == nil {
-		log.Info("Parsed MIDATaskSet from file")
+		Log.Debug("Parsed MIDATaskSet from file")
 		return tasks, nil
 	}
 
 	singleTask := MIDATask{}
 	err = json.Unmarshal(data, &singleTask)
 	if err == nil {
-		log.Info("Parsed single MIDATask from file")
+		Log.Debug("Parsed single MIDATask from file")
 		return append(tasks, singleTask), nil
 	}
 
@@ -138,7 +137,7 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 			tasks = append(tasks, newTask)
 		}
 
-		log.Info("Parsed CompressedMIDATaskSet from file")
+		Log.Debug("Parsed CompressedMIDATaskSet from file")
 		return tasks, nil
 
 	}
@@ -151,7 +150,7 @@ func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- Sanitiz
 	for r := range rawTaskChan {
 		st, err := SanitizeTask(r)
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 		pipelineWG.Add(1)
 
@@ -167,11 +166,11 @@ func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- Sanitiz
 // Retrieves raw tasks, either from a queue or a file
 func TaskIntake(rtc chan<- MIDATask, mConfig MIDAConfig) {
 	if mConfig.UseAMPQForTasks {
-		log.Info("AMPQ not yet supported")
+		Log.Info("AMPQ not yet supported")
 	} else {
 		rawTasks, err := ReadTasksFromFile(mConfig.TaskLocation)
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 
 		// Put raw tasks in the channel
@@ -201,10 +200,10 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 		if !strings.Contains(t.URL, "://") {
 			u, err = url.ParseRequestURI(DefaultProtocolPrefix + t.URL)
 			if err != nil {
-				log.Fatal("Bad URL in task: ", t.URL)
+				Log.Fatal("Bad URL in task: ", t.URL)
 			}
 		} else {
-			log.Fatal("Bad URL in task: ", t.URL)
+			Log.Fatal("Bad URL in task: ", t.URL)
 		}
 	}
 
@@ -227,7 +226,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	// If we don't get a value for timeout (or get zero), and we NEED that
 	// value, just set it to the default
 	if t.Completion.Timeout == 0 && st.CCond != CompleteOnLoadEvent {
-		log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
+		Log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
 		st.Timeout = DefaultTimeout
 	} else {
 		st.Timeout = t.Completion.Timeout
@@ -253,13 +252,13 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 				st.BrowserBinary = DefaultLinuxChromePath
 			}
 		} else {
-			log.Fatal("Failed to locate Chrome or Chromium on your system")
+			Log.Fatal("Failed to locate Chrome or Chromium on your system")
 		}
 	} else {
 		// Validate that this binary exists
 		if _, err := os.Stat(t.Browser.BrowserBinary); err != nil {
 			// We won't crawl if the user specified a browser that does not exist
-			log.Fatal("No such browser binary: ", t.Browser.BrowserBinary)
+			Log.Fatal("No such browser binary: ", t.Browser.BrowserBinary)
 		} else {
 			st.BrowserBinary = t.Browser.BrowserBinary
 		}
@@ -276,16 +275,16 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	// Sanitize browser flags/command line options
 	if len(t.Browser.SetBrowserFlags) != 0 {
 		if len(t.Browser.AddBrowserFlags) != 0 {
-			log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
+			Log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
 		}
 		if len(t.Browser.RemoveBrowserFlags) != 0 {
-			log.Warn("SetBrowserFlags option is overriding RemoveBrowserFlags option")
+			Log.Warn("SetBrowserFlags option is overriding RemoveBrowserFlags option")
 		}
 
 		for _, flag := range t.Browser.SetBrowserFlags {
 			ff, err := FormatFlag(flag)
 			if err != nil {
-				log.Warn(err)
+				Log.Warn(err)
 			} else {
 				st.BrowserFlags = append(st.BrowserFlags, ff)
 			}
@@ -299,7 +298,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 			}
 			ff, err := FormatFlag(flag)
 			if err != nil {
-				log.Warn(err)
+				Log.Warn(err)
 			} else {
 				st.BrowserFlags = append(st.BrowserFlags, ff)
 			}
@@ -324,7 +323,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	if t.MaxAttempts <= 1 {
 		st.MaxAttempts = 1
 	} else if t.MaxAttempts > DefaultMaximumTaskAttempts {
-		log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
+		Log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
 	} else {
 		st.MaxAttempts = t.MaxAttempts
 	}

@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,7 +23,7 @@ type TaskStats struct {
 	TimeAfterValidation   time.Time
 
 	///// RESULTS METRICS /////
-	RawJSTraceSize uint // Size of raw JS trace (log from browser) in bytes
+	RawJSTraceSize uint // Size of raw JS trace (Log from browser) in bytes
 
 }
 
@@ -47,7 +46,7 @@ func RunPrometheusClient(monitoringChan <-chan TaskStats, port int) {
 		}
 	}()
 
-	log.Error(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+	Log.Error(http.ListenAndServe(":"+strconv.Itoa(port), nil))
 
 	return
 }

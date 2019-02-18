@@ -1,7 +1,6 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -115,7 +114,7 @@ file, exiting when all tasks in the file are completed.`,
 		Long:  `Read tasks from a file and enqueue these tasks using AMPQ`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Info("Running enqueue.")
+			Log.Info("Running enqueue.")
 		},
 	}
 

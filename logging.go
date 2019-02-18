@@ -1,0 +1,39 @@
+package main
+
+import (
+	"github.com/sirupsen/logrus"
+	"github.com/snowzach/rotatefilehook"
+	"github.com/x-cray/logrus-prefixed-formatter"
+	"os"
+)
+
+var Log = logrus.New()
+
+func InitLogger() {
+	logLevel := logrus.InfoLevel
+
+	fileFormatter := new(prefixed.TextFormatter)
+	fileFormatter.FullTimestamp = true
+
+	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
+		Filename:   MIDALogFile,
+		MaxSize:    50, //megabytes
+		MaxBackups: 3,
+		MaxAge:     30, //days
+		Level:      logLevel,
+		Formatter:  fileFormatter,
+	})
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	consoleFormatter := new(prefixed.TextFormatter)
+	consoleFormatter.FullTimestamp = true
+	consoleFormatter.ForceColors = true
+	consoleFormatter.ForceFormatting = true
+
+	Log.SetLevel(logLevel)
+	Log.SetOutput(os.Stdout)
+	Log.SetFormatter(consoleFormatter)
+	Log.AddHook(rotateFileHook)
+}

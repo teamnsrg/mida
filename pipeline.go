@@ -1,7 +1,6 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
 	"sync"
@@ -32,19 +31,19 @@ func InitPipeline(cmd *cobra.Command) {
 	mConfig := MIDAConfig{}
 	crawlers, err := cmd.Flags().GetInt("crawlers")
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 	storers, err := cmd.Flags().GetInt("storers")
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 	monitor, err := cmd.Flags().GetBool("monitor")
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 	promPort, err := cmd.Flags().GetInt("prom-port")
 	if err != nil {
-		log.Fatal(err)
+		Log.Fatal(err)
 	}
 
 	mConfig.NumCrawlers = crawlers
@@ -56,7 +55,7 @@ func InitPipeline(cmd *cobra.Command) {
 		mConfig.UseAMPQForTasks = false
 		taskfile, err := cmd.Flags().GetString("taskfile")
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 		mConfig.TaskLocation = taskfile
 	} else if cmd.Name() == "client" {
@@ -112,7 +111,7 @@ func InitPipeline(cmd *cobra.Command) {
 	// Cleanup remaining artifacts
 	err = os.RemoveAll(TempDirectory)
 	if err != nil {
-		log.Warn(err)
+		Log.Warn(err)
 	}
 
 	return

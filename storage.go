@@ -1,7 +1,6 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
 	"os"
 	"sync"
 	"time"
@@ -19,17 +18,17 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
 		err := os.RemoveAll(r.sanitizedTask.UserDataDirectory)
 		if err != nil {
-			log.Fatal(err)
+			Log.Fatal(err)
 		}
 
 		if r.sanitizedTask.TaskFailed {
 			if r.sanitizedTask.CurrentAttempt >= r.sanitizedTask.MaxAttempts {
 				// We are abandoning trying this task. Too bad.
-				log.Error("Task failed after ", r.sanitizedTask.MaxAttempts, " attempts.")
+				Log.Error("Task failed after ", r.sanitizedTask.MaxAttempts, " attempts.")
 
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
-				log.Debug("Retrying task...")
+				Log.Debug("Retrying task...")
 				r.sanitizedTask.CurrentAttempt++
 				pipelineWG.Add(1)
 				retryChan <- r.sanitizedTask

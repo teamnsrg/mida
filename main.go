@@ -1,15 +1,17 @@
 package main
 
-import (
-	log "github.com/sirupsen/logrus"
-)
-
+// Sets up logging and hands off control to command.go, which is responsible
+// for parsing args/flags and initiating the appropriate functionality
 func main() {
-	log.SetReportCaller(true)
+	InitLogger()
+
+	Log.Info("MIDA starting")
 
 	rootCmd := BuildCommands()
 	err := rootCmd.Execute()
 	if err != nil {
-		log.Fatal(err)
+		Log.Error(err)
 	}
+
+	Log.Info("MIDA exiting")
 }

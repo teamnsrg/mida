@@ -24,7 +24,7 @@ const (
 	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
-	DefaultLogFileName       = "chrome.log"
+	DefaultLogFileName       = "chrome.Log"
 
 	// Output Parameters
 	DefaultLocalOutputPath  = "results"
@@ -50,6 +50,7 @@ const (
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 	DefaultIdentifierLength = 16 // Random identifier for each crawl
+	MIDALogFile             = "mida.log"
 )
 
 var DefaultBrowserFlags = []string{
