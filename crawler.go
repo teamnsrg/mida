@@ -4,17 +4,16 @@ import (
 	"context"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/phayes/freeport"
 	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
-	"io/ioutil"
-	"path"
-	"sync"
-
-	//"github.com/teamnsrg/chromedp/client"
 	"github.com/teamnsrg/chromedp/runner"
+	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
+	"sync"
 	"time"
 )
 
@@ -135,13 +134,20 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		log.Fatal(err)
 	}
 
-	//c, err := chromedp.New(cxt, chromedp.WithClient(cxt, client.New(client.URL("http://localhost:9555/json"))))
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// Set up required listeners and timers
+	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
+		data := param.(*page.EventLoadEventFired)
+		log.Info(data)
+	}))
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventRequestWillBeSent)
 		log.Debug(data.Request.URL)
@@ -170,7 +176,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
 		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		log.Debug(data.BlockedReason)
+		log.Info(data.BlockedReason)
 	}))
 	if err != nil {
 		log.Fatal(err)
@@ -185,13 +191,29 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		log.Fatal(err)
 	}
 
-	// Navigate to specified URL and wait for termination condition
-	err = c.Run(cxt, chromedp.Navigate(st.Url))
+	// Navigate to specified URL, timing out if no connection to the site
+	// can be made
+	navChan := make(chan error, 1)
+	go func() {
+		navChan <- c.Run(cxt, chromedp.Navigate(st.Url))
+	}()
+	select {
+	case err = <-navChan:
+		log.Info("Navigation completed")
+	case <-time.After(DefaultNavTimeout * time.Second):
+		log.Warn("Navigation timeout")
+		// TODO: Handle this case, build a corresponding results, etc.
+	}
 	if err != nil {
-		log.Fatal(err)
+		if err.Error() == "net::ERR_NAME_NOT_RESOLVED" {
+			log.Warn("DNS did not resolve")
+		} else {
+			log.Warn("Unknown navigation error: ", err.Error())
+		}
 	}
 
-	// Ensure that events have stopped and shut down the browser
+	// Wait for specified termination condition. This logic is dependent on
+	// the completion condition specified in the task.
 	err = c.Run(cxt, chromedp.Sleep(time.Duration(st.Timeout)*time.Second))
 	if err != nil {
 		log.Fatal(err)

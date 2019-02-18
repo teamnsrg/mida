@@ -5,6 +5,8 @@ import (
 )
 
 func main() {
+	log.SetReportCaller(true)
+
 	rootCmd := BuildCommands()
 	err := rootCmd.Execute()
 	if err != nil {

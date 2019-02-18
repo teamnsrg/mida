@@ -17,6 +17,7 @@ const (
 	DefaultPrometheusPort = 8001
 
 	DefaultMaximumTaskAttempts = 10
+	DefaultNavTimeout          = 7
 
 	// Browser-Related Parameters
 	DefaultOSXChromePath     = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
