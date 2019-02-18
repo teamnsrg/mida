@@ -4,23 +4,35 @@ import (
 	"time"
 )
 
+type TimingResult struct {
+	BrowserOpen           time.Time
+	DevtoolsConnect       time.Time
+	ConnectionEstablished time.Time
+	LoadEvent             time.Time
+	DOMContentEvent       time.Time
+	BrowserClose          time.Time
+}
+
 type RawMIDAResult struct {
-	sanitizedTask SanitizedMIDATask
-	stats         TaskStats
+	SanitizedTask SanitizedMIDATask
+	Stats         TaskStats
+	Timing        TimingResult
 }
 
 type FinalMIDAResult struct {
-	sanitizedTask SanitizedMIDATask
-	stats         TaskStats
+	SanitizedTask SanitizedMIDATask
+	Stats         TaskStats
+	Timing        TimingResult
 }
 
 func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<- FinalMIDAResult) {
 	for rawResult := range rawResultChan {
 		finalResult := FinalMIDAResult{
-			sanitizedTask: rawResult.sanitizedTask,
-			stats:         rawResult.stats,
+			SanitizedTask: rawResult.SanitizedTask,
+			Stats:         rawResult.Stats,
+			Timing:        rawResult.Timing,
 		}
-		finalResult.stats.TimeAfterValidation = time.Now()
+		finalResult.Stats.TimeAfterValidation = time.Now()
 		finalResultChan <- finalResult
 	}
 

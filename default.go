@@ -24,7 +24,7 @@ const (
 	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
-	DefaultLogFileName       = "chrome.Log"
+	DefaultLogFileName       = "chrome.log"
 
 	// Output Parameters
 	DefaultLocalOutputPath  = "results"

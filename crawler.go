@@ -5,6 +5,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/phayes/freeport"
+	"github.com/prometheus/common/log"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -53,8 +54,12 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	rawResult := RawMIDAResult{}
-	rawResult.stats.StartTime = time.Now()
-	rawResult.sanitizedTask = st
+	var rawResultLock sync.Mutex // Should be used any time this object is updated
+
+	rawResultLock.Lock()
+	rawResult.Stats.StartTime = time.Now()
+	rawResult.SanitizedTask = st
+	rawResultLock.Unlock()
 
 	// Create our context and browser
 	cxt, cancel := context.WithCancel(context.Background())
@@ -77,7 +82,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		}
 	}
 
-	// Create our results directory within the user data directory
+	// Create our temporary results directory within the user data directory
 	resultsDir := path.Join(st.UserDataDirectory, randomIdentifier)
 	_, err = os.Stat(resultsDir)
 	if err != nil {
@@ -131,23 +136,61 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		Log.Fatal(err)
 	}
+	rawResultLock.Lock()
+	rawResult.Timing.BrowserOpen = time.Now()
+	rawResultLock.Unlock()
 
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
 		Log.Fatal(err)
 	}
+	rawResultLock.Lock()
+	rawResult.Timing.DevtoolsConnect = time.Now()
+	rawResultLock.Unlock()
 
 	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
-		Log.Info("TODO")
+		rawResultLock.Lock()
+		if rawResult.Timing.LoadEvent.IsZero() {
+			rawResult.Timing.LoadEvent = time.Now()
+			Log.Info("Load Event")
+		} else {
+			Log.Warn("Duplicate load event")
+		}
+		rawResultLock.Unlock()
+
+	}))
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	// Set up required listeners and timers
+	err = c.Run(cxt, chromedp.CallbackFunc("Page.domContentEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
+		rawResultLock.Lock()
+		if rawResult.Timing.DOMContentEvent.IsZero() {
+			rawResult.Timing.DOMContentEvent = time.Now()
+			Log.Info("DOMContentLoaded Event")
+		} else {
+			Log.Warn("Duplicate DOMContentLoaded event")
+		}
+		rawResultLock.Unlock()
+	}))
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	err = c.Run(cxt, chromedp.CallbackFunc("Page.frameNavigated", func(param interface{}, handler *chromedp.TargetHandler) {
+		// data := param.(*page.EventFrameNavigated)
+		// Log.Info(data.Frame.URL, " : ", data.Frame.ID," : ", data.Frame.Name," : ", data.Frame.State.String())
 	}))
 	if err != nil {
 		Log.Fatal(err)
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
+		// If we are gathering network request metadata or gathering all files, we need to store all this info
 		data := param.(*network.EventRequestWillBeSent)
-		Log.Debug(data.Request.URL)
+		Log.Debug(data)
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -155,13 +198,17 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFinished)
-		respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
-		if err != nil {
-			// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		} else {
-			err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+		if st.AllFiles {
+			respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
 			if err != nil {
-				Log.Fatal(err)
+				// The browser was unable to provide the content of this particular resource
+				// TODO: Count how many times this happens, figure out what types of resources it is happening for
+				log.Warn("Failed to get response Body for resource: ", data.RequestID)
+			} else {
+				err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+				if err != nil {
+					Log.Fatal(err)
+				}
 			}
 		}
 
@@ -173,7 +220,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
 		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		Log.Info(data.BlockedReason)
+		Log.Info("Loading Failed: ", data.BlockedReason, " : ", data.ErrorText)
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -222,7 +269,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}
 
 	// Record how long the browser was open
-	rawResult.stats.TimeAfterBrowserClose = time.Now()
+	rawResult.Stats.TimeAfterBrowserClose = time.Now()
 
 	return rawResult, nil
 
