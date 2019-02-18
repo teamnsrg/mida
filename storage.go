@@ -1,7 +1,10 @@
 package main
 
 import (
+	"github.com/pkg/errors"
+	"net/url"
 	"os"
+	"path"
 	"sync"
 	"time"
 )
@@ -12,6 +15,18 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 
 		if !r.SanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
+			outputPathURL, err := url.Parse(r.SanitizedTask.OutputPath)
+			if err != nil {
+				Log.Error(err)
+			} else {
+				if outputPathURL.Host == "" {
+					StoreResultsLocalFS(r)
+				} else {
+					// Remote storage not yet implemented
+					Log.Info("Remote storage not yet implemented")
+				}
+			}
+
 		}
 
 		// Remove all data from crawl
@@ -45,4 +60,36 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 	}
 
 	storageWG.Done()
+}
+
+// Given a valid FinalMIDAResult, stores it according to the output
+// path specified in the sanitized task within the result
+func StoreResultsLocalFS(r FinalMIDAResult) error {
+	outpath := path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier)
+	_, err := os.Stat(outpath)
+	if err != nil {
+		err = os.MkdirAll(outpath, 0755)
+		if err != nil {
+			Log.Error("Failed to create local output directory")
+			return errors.New("Failed to create local output directory")
+		}
+	} else {
+		Log.Error("Output directory for task already exists")
+		return errors.New("Output directory for task already exists")
+	}
+
+	// Place all relevant results within that directory
+	if r.SanitizedTask.AllFiles {
+		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir))
+		if err != nil {
+			Log.Error("AllFiles requested but no files directory exists within temporary results directory")
+			Log.Error("Files will not be stored")
+			return errors.New("files temporary directory does not exist")
+		} else {
+			os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir),
+				path.Join(outpath, DefaultFileSubdir))
+		}
+	}
+
+	return nil
 }

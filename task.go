@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
-	"strings"
 )
 
 type BrowserSettings struct {
@@ -86,8 +85,9 @@ type SanitizedMIDATask struct {
 	Screenshot      bool
 
 	// Output Settings
-	OutputPath string
-	GroupID    string
+	OutputPath       string
+	GroupID          string // For identifying experiments
+	RandomIdentifier string // Randomly generated task identifier
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts    int
@@ -161,33 +161,4 @@ func TaskIntake(rtc chan<- MIDATask, mConfig MIDAConfig) {
 
 	// Start the process of closing up the pipeline and exit
 	close(rtc)
-}
-
-// Check to see if a flag has been removed by the RemoveBrowserFlags setting
-func IsRemoved(toRemove []string, candidate string) bool {
-	for _, x := range toRemove {
-		if candidate == x {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Takes a variety of possible flag formats and puts them
-// in a format that chromedp understands (key/value)
-func FormatFlag(f string) (runner.CommandLineOption, error) {
-	if strings.HasPrefix(f, "--") {
-		f = f[2:]
-	}
-
-	parts := strings.Split(f, "=")
-	if len(parts) == 1 {
-		return runner.Flag(parts[0], true), nil
-	} else if len(parts) == 2 {
-		return runner.Flag(parts[0], parts[1]), nil
-	} else {
-		return runner.Flag("", ""), errors.New("Invalid flag: " + f)
-	}
-
 }

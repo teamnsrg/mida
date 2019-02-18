@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 	"sync"
@@ -33,7 +34,10 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	var st SanitizedMIDATask
 
-	///// BEGIN SANITIZE AND BUILD URL
+	// Generate our random identifier for this task
+	st.RandomIdentifier = GenRandomIdentifier()
+
+	///// BEGIN SANITIZE AND BUILD URL /////
 	if t.URL == "" {
 		return st, errors.New("no URL to crawl given in task")
 	}
@@ -53,6 +57,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	st.Url = u.String()
 
+	///// END SANITIZE AND BUILD URL /////
 	///// BEGIN SANITIZE TASK COMPLETION SETTINGS
 
 	if t.Completion.CompletionCondition == "CompleteOnTimeoutOnly" {
@@ -77,7 +82,6 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	}
 
 	///// END SANITIZE TASK COMPLETION SETTINGS /////
-
 	///// BEGIN SANITIZE BROWSER PARAMETERS /////
 
 	// Make sure we have a valid browser binary path, or select a default one
@@ -110,7 +114,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	// Sanitize user data directory to use
 	if t.Browser.UserDataDirectory == "" {
-		st.UserDataDirectory = ""
+		st.UserDataDirectory = path.Join(TempDirectory, st.RandomIdentifier)
 	} else {
 		// Chrome will create any directories required
 		st.UserDataDirectory = t.Browser.UserDataDirectory
@@ -150,7 +154,6 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	}
 
 	///// END SANITIZE BROWSER PARAMETERS /////
-
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
 
 	// For now, these are just bools and we will just copy them
@@ -163,6 +166,11 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	st.CodeCoverage = t.Data.CodeCoverage
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
+	///// BEGIN SANITIZE OUTPUT PARAMETERS /////
+
+	st.OutputPath = t.Output.Path
+
+	///// END SANITIZE OUTPUT PARAMETERS /////
 
 	if t.MaxAttempts <= 1 {
 		st.MaxAttempts = 1

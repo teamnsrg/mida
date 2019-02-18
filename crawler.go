@@ -5,11 +5,9 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/phayes/freeport"
-	"github.com/prometheus/common/log"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"sync"
@@ -56,6 +54,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	rawResult := RawMIDAResult{}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
 
+	requestMap := make(map[string]network.Request)
+	var requestMapLock sync.Mutex
+
 	rawResultLock.Lock()
 	rawResult.Stats.StartTime = time.Now()
 	rawResult.SanitizedTask = st
@@ -65,13 +66,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	cxt, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Generates a random identifier which will be used to name the user data directory, if not given
-	// Set the length of this identifier with DefaultIdentifierLength in default.go
-	randomIdentifier := GenRandomIdentifier()
-
 	// Create our user data directory, if it does not yet exist
 	if st.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(TempDirectory, randomIdentifier)
+		st.UserDataDirectory = path.Join(TempDirectory, st.RandomIdentifier)
 	}
 
 	_, err := os.Stat(st.UserDataDirectory)
@@ -83,7 +80,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}
 
 	// Create our temporary results directory within the user data directory
-	resultsDir := path.Join(st.UserDataDirectory, randomIdentifier)
+	resultsDir := path.Join(st.UserDataDirectory, st.RandomIdentifier)
 	_, err = os.Stat(resultsDir)
 	if err != nil {
 		err = os.MkdirAll(resultsDir, 0755)
@@ -190,7 +187,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		// If we are gathering network request metadata or gathering all files, we need to store all this info
 		data := param.(*network.EventRequestWillBeSent)
-		Log.Debug(data)
+		requestMapLock.Lock()
+		requestMap[data.RequestID.String()] = *data.Request
+		requestMapLock.Unlock()
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -203,7 +202,12 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			if err != nil {
 				// The browser was unable to provide the content of this particular resource
 				// TODO: Count how many times this happens, figure out what types of resources it is happening for
-				log.Warn("Failed to get response Body for resource: ", data.RequestID)
+				Log.Warn("Failed to get response Body for resource: ", data.RequestID)
+				requestMapLock.Lock()
+				if val, ok := requestMap[data.RequestID.String()]; ok {
+					Log.Warn(val.URL)
+				}
+				requestMapLock.Unlock()
 			} else {
 				err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 				if err != nil {
@@ -273,14 +277,4 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	return rawResult, nil
 
-}
-
-func GenRandomIdentifier() string {
-	// https://stackoverflow.com/questions/22892120/how-to-generate-a-random-string-of-a-fixed-length-in-go
-	b := ""
-	rand.Seed(time.Now().UTC().UnixNano())
-	for i := 0; i < DefaultIdentifierLength; i++ {
-		b = b + string(AlphaNumChars[rand.Intn(len(AlphaNumChars))])
-	}
-	return b
 }
