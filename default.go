@@ -11,9 +11,9 @@ const (
 
 const (
 	// MIDA Configuration Defaults
-	DefaultNumWorkers     = 1
+	DefaultNumCrawlers    = 1
 	DefaultNumStorers     = 1
-	DefaultTaskLocation   = "MIDA_task.json"
+	DefaultTaskLocation   = "examples/MIDA_task.json"
 	DefaultPrometheusPort = 8001
 
 	DefaultMaximumTaskAttempts = 10

@@ -13,7 +13,7 @@ func BuildTask(cmd *cobra.Command) {
 
 	var t CompressedMIDATaskSet
 
-	// Get URLs from URL file
+	// Get URL from URL file
 	fname, err := cmd.Flags().GetString("urlfile")
 	if err != nil {
 		log.Fatal(err)
@@ -27,8 +27,8 @@ func BuildTask(cmd *cobra.Command) {
 
 	scanner := bufio.NewScanner(urlfile)
 	for scanner.Scan() {
-		// TODO: Validate URLs here
-		t.URLs = append(t.URLs, scanner.Text())
+		// TODO: Validate URL here
+		t.URL = append(t.URL, scanner.Text())
 	}
 
 	// Fill in browser settings

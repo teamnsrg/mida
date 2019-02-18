@@ -2,6 +2,7 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"os"
 	"sync"
 )
@@ -25,15 +26,42 @@ type MIDAConfig struct {
 	PrometheusPort   int
 }
 
-func InitPipeline() {
+func InitPipeline(cmd *cobra.Command) {
 
-	mConfig := MIDAConfig{
-		NumCrawlers:      3,
-		NumStorers:       2,
-		UseAMPQForTasks:  false,
-		TaskLocation:     "examples/exampleTask.json",
-		EnableMonitoring: true,
-		PrometheusPort:   DefaultPrometheusPort,
+	// Construct our config from the cobra command
+	mConfig := MIDAConfig{}
+	crawlers, err := cmd.Flags().GetInt("crawlers")
+	if err != nil {
+		log.Fatal(err)
+	}
+	storers, err := cmd.Flags().GetInt("storers")
+	if err != nil {
+		log.Fatal(err)
+	}
+	monitor, err := cmd.Flags().GetBool("monitor")
+	if err != nil {
+		log.Fatal(err)
+	}
+	promPort, err := cmd.Flags().GetInt("prom-port")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mConfig.NumCrawlers = crawlers
+	mConfig.NumStorers = storers
+	mConfig.EnableMonitoring = monitor
+	mConfig.PrometheusPort = promPort
+
+	if cmd.Name() == "file" {
+		mConfig.UseAMPQForTasks = false
+		taskfile, err := cmd.Flags().GetString("taskfile")
+		if err != nil {
+			log.Fatal(err)
+		}
+		mConfig.TaskLocation = taskfile
+	} else if cmd.Name() == "client" {
+		mConfig.UseAMPQForTasks = true
+		// TODO: When we put in AMQP, add the right config here
 	}
 
 	// Create channels for the pipeline
@@ -82,7 +110,7 @@ func InitPipeline() {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	err := os.RemoveAll(TempDirectory)
+	err = os.RemoveAll(TempDirectory)
 	if err != nil {
 		log.Warn(err)
 	}

@@ -57,7 +57,7 @@ type MIDATask struct {
 type MIDATaskSet []MIDATask
 
 type CompressedMIDATaskSet struct {
-	URLs []string `json:"urls"`
+	URL []string `json:"url"`
 
 	Browser    BrowserSettings    `json:"browser"`
 	Completion CompletionSettings `json:"completion"`
@@ -111,20 +111,22 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 
 	err = json.Unmarshal(data, &tasks)
 	if err == nil {
+		log.Info("Parsed MIDATaskSet from file")
 		return tasks, nil
 	}
 
 	singleTask := MIDATask{}
 	err = json.Unmarshal(data, &singleTask)
 	if err == nil {
+		log.Info("Parsed single MIDATask from file")
 		return append(tasks, singleTask), nil
 	}
 
 	compressedTaskSet := CompressedMIDATaskSet{}
 	err = json.Unmarshal(data, &compressedTaskSet)
 	if err == nil {
-		// Decompress by iterating through URLs
-		for _, v := range compressedTaskSet.URLs {
+		// Decompress by iterating through URL
+		for _, v := range compressedTaskSet.URL {
 			newTask := MIDATask{
 				URL:         v,
 				Browser:     compressedTaskSet.Browser,
@@ -136,6 +138,7 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 			tasks = append(tasks, newTask)
 		}
 
+		log.Info("Parsed CompressedMIDATaskSet from file")
 		return tasks, nil
 
 	}
@@ -179,7 +182,6 @@ func TaskIntake(rtc chan<- MIDATask, mConfig MIDAConfig) {
 
 	// Start the process of closing up the pipeline and exit
 	close(rtc)
-
 }
 
 // Run a series of checks on a raw task to ensure it is valid for a crawl.
