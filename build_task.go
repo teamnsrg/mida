@@ -68,13 +68,9 @@ func BuildTask(cmd *cobra.Command) {
 
 	// Fill in data settings
 	// TODO: Allow cmdline option for data gathering settings somehow
-	t.Data.AllFiles = DefaultAllFiles
+	t.Data.AllResources = DefaultAllFiles
 	t.Data.AllScripts = DefaultAllScripts
 	t.Data.JSTrace = DefaultJSTrace
-	t.Data.Certificates = DefaultCertificates
-	t.Data.Cookies = DefaultCookies
-	t.Data.CodeCoverage = DefaultCodeCoverage
-	t.Data.Screenshot = DefaultScreenshot
 
 	// Fill in output settings
 	t.Output.Path, err = cmd.Flags().GetString("results-output-path")

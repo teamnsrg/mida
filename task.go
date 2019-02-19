@@ -22,13 +22,9 @@ type CompletionSettings struct {
 }
 
 type DataSettings struct {
-	AllFiles     bool `json:"all_files"`
+	AllResources bool `json:"all_files"`
 	AllScripts   bool `json:"all_scripts"`
 	JSTrace      bool `json:"js_trace"`
-	Screenshot   bool `json:"screenshot"`
-	Cookies      bool `json:"cookies"`
-	Certificates bool `json:"certificates"`
-	CodeCoverage bool `json:"code_coverage"`
 }
 
 type OutputSettings struct {

@@ -157,13 +157,9 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
 
 	// For now, these are just bools and we will just copy them
-	st.AllFiles = t.Data.AllFiles
+	st.AllFiles = t.Data.AllResources
 	st.AllScripts = t.Data.AllScripts
 	st.JSTrace = t.Data.JSTrace
-	st.Screenshot = t.Data.Screenshot
-	st.Cookies = t.Data.Cookies
-	st.Certificates = t.Data.Certificates
-	st.CodeCoverage = t.Data.CodeCoverage
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

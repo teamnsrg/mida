@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/pkg/errors"
+	"github.com/prometheus/common/log"
 	"net/url"
 	"os"
 	"path"
@@ -82,12 +83,15 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 	if r.SanitizedTask.AllFiles {
 		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir))
 		if err != nil {
-			Log.Error("AllFiles requested but no files directory exists within temporary results directory")
+			Log.Error("AllResources requested but no files directory exists within temporary results directory")
 			Log.Error("Files will not be stored")
 			return errors.New("files temporary directory does not exist")
 		} else {
-			os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir),
+			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir),
 				path.Join(outpath, DefaultFileSubdir))
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 

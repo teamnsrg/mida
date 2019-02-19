@@ -155,7 +155,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			Log.Warn("Duplicate load event")
 		}
 		rawResultLock.Unlock()
-
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -190,6 +189,13 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		requestMapLock.Lock()
 		requestMap[data.RequestID.String()] = *data.Request
 		requestMapLock.Unlock()
+		Log.Info(data.DocumentURL)
+		Log.Info(data.Initiator.Type)
+		Log.Info(data.Initiator.URL)
+		Log.Info(data.Type)
+		Log.Info(data.FrameID)
+		Log.Info(data.LoaderID)
+		Log.Info(data.Request.HasPostData)
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -206,6 +212,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 				requestMapLock.Lock()
 				if val, ok := requestMap[data.RequestID.String()]; ok {
 					Log.Warn(val.URL)
+				} else {
+					Log.Warn("This was an unknown request")
 				}
 				requestMapLock.Unlock()
 			} else {
