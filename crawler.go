@@ -51,11 +51,16 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 
 func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
-	rawResult := RawMIDAResult{}
+	rawResult := RawMIDAResult{
+		Requests:  make(map[string][]network.EventRequestWillBeSent),
+		Responses: make(map[string][]network.EventResponseReceived),
+		Scripts:   make(map[string]*debugger.EventScriptParsed),
+	}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
 
-	requestMap := make(map[string]network.Request)
 	var requestMapLock sync.Mutex
+	var responseMapLock sync.Mutex
+	var scriptsMapLock sync.Mutex
 
 	rawResultLock.Lock()
 	rawResult.Stats.StartTime = time.Now()
@@ -104,7 +109,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
-		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, DefaultLogFileName))
+		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, DefaultBrowserLogFileName))
 		if err != nil {
 			Log.Fatal(err)
 		}
@@ -184,18 +189,20 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
-		// If we are gathering network request metadata or gathering all files, we need to store all this info
 		data := param.(*network.EventRequestWillBeSent)
 		requestMapLock.Lock()
-		requestMap[data.RequestID.String()] = *data.Request
+		rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
 		requestMapLock.Unlock()
-		Log.Info(data.DocumentURL)
-		Log.Info(data.Initiator.Type)
-		Log.Info(data.Initiator.URL)
-		Log.Info(data.Type)
-		Log.Info(data.FrameID)
-		Log.Info(data.LoaderID)
-		Log.Info(data.Request.HasPostData)
+	}))
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	err = c.Run(cxt, chromedp.CallbackFunc("Network.responseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
+		data := param.(*network.EventResponseReceived)
+		responseMapLock.Lock()
+		rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
+		responseMapLock.Unlock()
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -209,13 +216,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 				// The browser was unable to provide the content of this particular resource
 				// TODO: Count how many times this happens, figure out what types of resources it is happening for
 				Log.Warn("Failed to get response Body for resource: ", data.RequestID)
-				requestMapLock.Lock()
-				if val, ok := requestMap[data.RequestID.String()]; ok {
-					Log.Warn(val.URL)
-				} else {
-					Log.Warn("This was an unknown request")
-				}
-				requestMapLock.Unlock()
 			} else {
 				err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 				if err != nil {
@@ -232,7 +232,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
 		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		Log.Info("Loading Failed: ", data.BlockedReason, " : ", data.ErrorText)
+		Log.Info("Loading Failed: ", data.Type, " : ", data.BlockedReason, " : ", data.ErrorText)
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -240,8 +240,10 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*debugger.EventScriptParsed)
+		scriptsMapLock.Lock()
+		rawResult.Scripts[data.ScriptID.String()] = data
+		scriptsMapLock.Unlock()
 		_, _ = debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
-
 	}))
 	if err != nil {
 		Log.Fatal(err)

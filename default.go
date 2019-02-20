@@ -20,11 +20,11 @@ const (
 	DefaultNavTimeout          = 7
 
 	// Browser-Related Parameters
-	DefaultOSXChromePath     = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
-	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
-	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
-	DefaultLogFileName       = "chrome.log"
+	DefaultOSXChromePath      = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	DefaultOSXChromiumPath    = "/Applications/Chromium.app/Contents/MacOS/Chromium"
+	DefaultLinuxChromePath    = "/usr/bin/google-chrome-stable"
+	DefaultLinuxChromiumPath  = "/usr/bin/chromium-browser"
+	DefaultBrowserLogFileName = "browser.log"
 
 	// Output Parameters
 	DefaultLocalOutputPath  = "results"

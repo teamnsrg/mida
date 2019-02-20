@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/chromedp/cdproto/debugger"
+	"github.com/chromedp/cdproto/network"
 	"time"
 )
 
@@ -17,25 +19,13 @@ type RawMIDAResult struct {
 	SanitizedTask SanitizedMIDATask
 	Stats         TaskStats
 	Timing        TimingResult
+	Requests      map[string][]network.EventRequestWillBeSent
+	Responses     map[string][]network.EventResponseReceived
+	Scripts       map[string]*debugger.EventScriptParsed
 }
 
 type FinalMIDAResult struct {
 	SanitizedTask SanitizedMIDATask
 	Stats         TaskStats
 	Timing        TimingResult
-}
-
-func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<- FinalMIDAResult) {
-	for rawResult := range rawResultChan {
-		finalResult := FinalMIDAResult{
-			SanitizedTask: rawResult.SanitizedTask,
-			Stats:         rawResult.Stats,
-			Timing:        rawResult.Timing,
-		}
-		finalResult.Stats.TimeAfterValidation = time.Now()
-		finalResultChan <- finalResult
-	}
-
-	// All Postprocessed results have been sent so close the channel
-	close(finalResultChan)
 }
