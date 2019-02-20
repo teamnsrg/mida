@@ -16,14 +16,15 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		finalResult := FinalMIDAResult{
 			SanitizedTask: rawResult.SanitizedTask,
 			Stats:         rawResult.Stats,
-			Timing:        rawResult.Timing,
 		}
+
+		finalResult.Stats.Timing.BeginPostprocess = time.Now()
 
 		Log.Info("Requests Made: ", len(rawResult.Requests))
 		Log.Info("Responses Received: ", len(rawResult.Responses))
 		Log.Info("Scripts Parsed: ", len(rawResult.Scripts))
 
-		finalResult.Stats.TimeAfterValidation = time.Now()
+		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult
 	}
 

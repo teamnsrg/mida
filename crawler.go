@@ -63,7 +63,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	var scriptsMapLock sync.Mutex
 
 	rawResultLock.Lock()
-	rawResult.Stats.StartTime = time.Now()
+	rawResult.Stats.Timing.BeginCrawl = time.Now()
 	rawResult.SanitizedTask = st
 	rawResultLock.Unlock()
 
@@ -139,7 +139,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Log.Fatal(err)
 	}
 	rawResultLock.Lock()
-	rawResult.Timing.BrowserOpen = time.Now()
+	rawResult.Stats.Timing.BrowserOpen = time.Now()
 	rawResultLock.Unlock()
 
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
@@ -147,14 +147,14 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Log.Fatal(err)
 	}
 	rawResultLock.Lock()
-	rawResult.Timing.DevtoolsConnect = time.Now()
+	rawResult.Stats.Timing.DevtoolsConnect = time.Now()
 	rawResultLock.Unlock()
 
 	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
 		rawResultLock.Lock()
-		if rawResult.Timing.LoadEvent.IsZero() {
-			rawResult.Timing.LoadEvent = time.Now()
+		if rawResult.Stats.Timing.LoadEvent.IsZero() {
+			rawResult.Stats.Timing.LoadEvent = time.Now()
 			Log.Info("Load Event")
 		} else {
 			Log.Warn("Duplicate load event")
@@ -168,8 +168,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.domContentEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
 		rawResultLock.Lock()
-		if rawResult.Timing.DOMContentEvent.IsZero() {
-			rawResult.Timing.DOMContentEvent = time.Now()
+		if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
+			rawResult.Stats.Timing.DOMContentEvent = time.Now()
 			Log.Info("DOMContentLoaded Event")
 		} else {
 			Log.Warn("Duplicate DOMContentLoaded event")
@@ -257,7 +257,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}()
 	select {
 	case err = <-navChan:
-		Log.Debug("Navigation completed")
+		Log.Debug("Connection Established")
+		rawResult.Stats.Timing.ConnectionEstablished = time.Now()
 	case <-time.After(DefaultNavTimeout * time.Second):
 		Log.Warn("Navigation timeout")
 		// TODO: Handle navigation errors, build a corresponding results, etc.
@@ -265,6 +266,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		if err.Error() == "net::ERR_NAME_NOT_RESOLVED" {
 			Log.Warn("DNS did not resolve")
+		} else if err.Error() == "net::ERR_INVALID_HTTP_RESPONSE" {
+			Log.Warn("Received invalid HTTP response")
 		} else {
 			Log.Warn("Unknown navigation error: ", err.Error())
 		}
@@ -281,9 +284,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		Log.Fatal("Client Shutdown:", err)
 	}
+	rawResult.Stats.Timing.BrowserClose = time.Now()
 
-	// Record how long the browser was open
-	rawResult.Stats.TimeAfterBrowserClose = time.Now()
+	rawResult.Stats.Timing.EndCrawl = time.Now()
 
 	return rawResult, nil
 

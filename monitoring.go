@@ -8,6 +8,21 @@ import (
 	"time"
 )
 
+type TaskTiming struct {
+	BeginCrawl            time.Time
+	BrowserOpen           time.Time
+	DevtoolsConnect       time.Time
+	ConnectionEstablished time.Time
+	LoadEvent             time.Time
+	DOMContentEvent       time.Time
+	BrowserClose          time.Time
+	EndCrawl              time.Time
+	BeginPostprocess      time.Time
+	EndPostprocess        time.Time
+	BeginStorage          time.Time
+	EndStorage            time.Time
+}
+
 // Statistics from the execution of a single task, used for monitoring
 // the performance of MIDA through Prometheus/Grafana
 type TaskStats struct {
@@ -17,10 +32,7 @@ type TaskStats struct {
 	SanitizedTask SanitizedMIDATask
 
 	///// TIMING METRICS /////
-	StartTime             time.Time
-	TimeAfterStorage      time.Time
-	TimeAfterBrowserClose time.Time
-	TimeAfterValidation   time.Time
+	Timing TaskTiming
 
 	///// RESULTS METRICS /////
 	RawJSTraceSize uint // Size of raw JS trace (Log from browser) in bytes
@@ -42,7 +54,7 @@ func RunPrometheusClient(monitoringChan <-chan TaskStats, port int) {
 	go func() {
 		for t := range monitoringChan {
 			// Update all of our Prometheus metrics using the TaskStats object
-			browserDurationHistogram.Observe(t.TimeAfterBrowserClose.Sub(t.StartTime).Seconds())
+			browserDurationHistogram.Observe(t.Timing.EndStorage.Sub(t.Timing.BeginCrawl).Seconds())
 		}
 	}()
 

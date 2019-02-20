@@ -14,6 +14,8 @@ import (
 func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, monitoringChan chan<- TaskStats, retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup) {
 	for r := range finalResultChan {
 
+		r.Stats.Timing.BeginStorage = time.Now()
+
 		if !r.SanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
 			outputPathURL, err := url.Parse(r.SanitizedTask.OutputPath)
@@ -21,7 +23,10 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 				Log.Error(err)
 			} else {
 				if outputPathURL.Host == "" {
-					StoreResultsLocalFS(r)
+					err = StoreResultsLocalFS(r)
+					if err != nil {
+						log.Error("Failed to store results: ", err)
+					}
 				} else {
 					// Remote storage not yet implemented
 					Log.Info("Remote storage not yet implemented")
@@ -51,9 +56,11 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 			}
 		}
 
+		r.Stats.Timing.EndStorage = time.Now()
+
 		// Send stats to Prometheus
 		if mConfig.EnableMonitoring {
-			r.Stats.TimeAfterStorage = time.Now()
+			r.Stats.Timing.EndStorage = time.Now()
 			monitoringChan <- r.Stats
 		}
 
@@ -72,11 +79,11 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		err = os.MkdirAll(outpath, 0755)
 		if err != nil {
 			Log.Error("Failed to create local output directory")
-			return errors.New("Failed to create local output directory")
+			return errors.New("failed to create local output directory")
 		}
 	} else {
 		Log.Error("Output directory for task already exists")
-		return errors.New("Output directory for task already exists")
+		return errors.New("output directory for task already exists")
 	}
 
 	// Place all relevant results within that directory

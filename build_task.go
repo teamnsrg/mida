@@ -111,6 +111,11 @@ func BuildTask(cmd *cobra.Command) {
 	}
 
 	err = ioutil.WriteFile(fname, outData, 0644)
+	if err != nil {
+		Log.Error("Failed to write task file: ", err)
+	} else {
+		Log.Info("Successfully wrote task file to ", fname)
+	}
 
 	return
 }
