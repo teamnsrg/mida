@@ -102,5 +102,20 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		}
 	}
 
+	if r.SanitizedTask.AllScripts {
+		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultScriptSubdir))
+		if err != nil {
+			Log.Error("AllScripts requested but no files directory exists within temporary results directory")
+			Log.Error("Scripts will not be stored")
+			return errors.New("scripts temporary directory does not exist")
+		} else {
+			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultScriptSubdir),
+				path.Join(outpath, DefaultScriptSubdir))
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+
 	return nil
 }

@@ -31,6 +31,7 @@ const (
 	DefaultRemoteOutputPath = ""
 	TempDirectory           = ".tmp"
 	DefaultFileSubdir       = "files"
+	DefaultScriptSubdir     = "scripts"
 	DefaultGroupID          = "default"
 
 	// Task completion

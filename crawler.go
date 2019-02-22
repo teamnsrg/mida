@@ -107,6 +107,17 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		}
 	}
 
+	if st.AllScripts {
+		// Create a subdirectory where we will store all scripts parsed by browser
+		_, err = os.Stat(path.Join(resultsDir, DefaultScriptSubdir))
+		if err != nil {
+			err = os.MkdirAll(path.Join(resultsDir, DefaultScriptSubdir), 0744)
+			if err != nil {
+				Log.Fatal(err)
+			}
+		}
+	}
+
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, DefaultBrowserLogFileName))
@@ -243,7 +254,21 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		scriptsMapLock.Lock()
 		rawResult.Scripts[data.ScriptID.String()] = data
 		scriptsMapLock.Unlock()
-		_, _ = debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
+		if st.AllScripts {
+			source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
+			if err != nil && err.Error() != "context canceled" {
+				Log.Error("Failed to get script source")
+				Log.Error(err)
+			} else {
+				err = ioutil.WriteFile(path.Join(resultsDir, DefaultScriptSubdir, data.Hash), []byte(source), os.ModePerm)
+				if err != nil {
+					Log.Fatal(err)
+				}
+			}
+		} else {
+			Log.Info("Not enabled")
+		}
+
 	}))
 	if err != nil {
 		Log.Fatal(err)
