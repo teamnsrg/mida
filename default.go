@@ -27,12 +27,13 @@ const (
 	DefaultBrowserLogFileName = "browser.log"
 
 	// Output Parameters
-	DefaultLocalOutputPath  = "results"
-	DefaultRemoteOutputPath = ""
-	TempDirectory           = ".tmp"
-	DefaultFileSubdir       = "files"
-	DefaultScriptSubdir     = "scripts"
-	DefaultGroupID          = "default"
+	DefaultLocalOutputPath      = "results"
+	TempDirectory               = ".tmp"
+	DefaultFileSubdir           = "files"
+	DefaultScriptSubdir         = "scripts"
+	DefaultResourceMetadataFile = "resource_metadata.json"
+	DefaultScriptMetadataFile   = "script_metadata.json"
+	DefaultGroupID              = "default"
 
 	// Task completion
 	DefaultProtocolPrefix      = "http://"
@@ -40,13 +41,11 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Defaults for data gathering settings
-	DefaultAllFiles     = true
-	DefaultAllScripts   = true
-	DefaultJSTrace      = true
-	DefaultCertificates = true
-	DefaultCookies      = true
-	DefaultCodeCoverage = true
-	DefaultScreenshot   = true
+	DefaultAllFiles         = true
+	DefaultAllScripts       = true
+	DefaultJSTrace          = true
+	DefaultResourceMetadata = true
+	DefaultScriptMetadata   = true
 
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"

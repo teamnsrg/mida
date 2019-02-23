@@ -54,7 +54,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	rawResult := RawMIDAResult{
 		Requests:  make(map[string][]network.EventRequestWillBeSent),
 		Responses: make(map[string][]network.EventResponseReceived),
-		Scripts:   make(map[string]*debugger.EventScriptParsed),
+		Scripts:   make(map[string]debugger.EventScriptParsed),
 	}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
 
@@ -252,7 +252,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*debugger.EventScriptParsed)
 		scriptsMapLock.Lock()
-		rawResult.Scripts[data.ScriptID.String()] = data
+		rawResult.Scripts[data.ScriptID.String()] = *data
 		scriptsMapLock.Unlock()
 		if st.AllScripts {
 			source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
@@ -260,7 +260,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 				Log.Error("Failed to get script source")
 				Log.Error(err)
 			} else {
-				err = ioutil.WriteFile(path.Join(resultsDir, DefaultScriptSubdir, data.Hash), []byte(source), os.ModePerm)
+				err = ioutil.WriteFile(path.Join(resultsDir, DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
 				if err != nil {
 					Log.Fatal(err)
 				}
@@ -286,7 +286,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		rawResult.Stats.Timing.ConnectionEstablished = time.Now()
 	case <-time.After(DefaultNavTimeout * time.Second):
 		Log.Warn("Navigation timeout")
-		// TODO: Handle navigation errors, build a corresponding results, etc.
+		// TODO: Handle navigation errors, build a corresponding result, etc.
 	}
 	if err != nil {
 		if err.Error() == "net::ERR_NAME_NOT_RESOLVED" {

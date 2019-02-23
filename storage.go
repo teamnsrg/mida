@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/prometheus/common/log"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
@@ -86,7 +88,21 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		return errors.New("output directory for task already exists")
 	}
 
-	// Place all relevant results within that directory
+	// Store resource metadata from crawl (DevTools requestWillBeSent and responseReceived data)
+	if r.SanitizedTask.ResourceMetadata {
+		data, err := json.Marshal(r.ResourceMetadata)
+		if err != nil {
+			Log.Error(err)
+		}
+		err = ioutil.WriteFile(path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier,
+			DefaultResourceMetadataFile), data, 0644)
+		if err != nil {
+			Log.Error(err)
+		}
+
+	}
+
+	// Store raw resources downloaded during crawl (named for their request IDs)
 	if r.SanitizedTask.AllFiles {
 		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir))
 		if err != nil {
@@ -102,6 +118,19 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		}
 	}
 
+	if r.SanitizedTask.ScriptMetadata {
+		data, err := json.Marshal(r.ScriptMetadata)
+		if err != nil {
+			Log.Error(err)
+		}
+		err = ioutil.WriteFile(path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier,
+			DefaultScriptMetadataFile), data, 0644)
+		if err != nil {
+			Log.Error(err)
+		}
+	}
+
+	// Store raw scripts parsed by the browser during crawl (named by hashes)
 	if r.SanitizedTask.AllScripts {
 		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultScriptSubdir))
 		if err != nil {

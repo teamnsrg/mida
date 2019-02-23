@@ -160,6 +160,8 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	st.AllFiles = t.Data.AllResources
 	st.AllScripts = t.Data.AllScripts
 	st.JSTrace = t.Data.JSTrace
+	st.ResourceMetadata = t.Data.ResourceMetadata
+	st.ScriptMetadata = t.Data.ScriptMetadata
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

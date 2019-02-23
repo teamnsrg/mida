@@ -22,9 +22,11 @@ type CompletionSettings struct {
 }
 
 type DataSettings struct {
-	AllResources bool `json:"all_files"`
-	AllScripts   bool `json:"all_scripts"`
-	JSTrace      bool `json:"js_trace"`
+	AllResources     bool `json:"all_files"`
+	AllScripts       bool `json:"all_scripts"`
+	JSTrace          bool `json:"js_trace"`
+	ResourceMetadata bool `json:"resource_metadata"`
+	ScriptMetadata   bool `json:"script_metadata"`
 }
 
 type OutputSettings struct {
@@ -71,14 +73,11 @@ type SanitizedMIDATask struct {
 	Timeout int
 
 	// Data settings
-	AllFiles        bool
-	AllScripts      bool
-	Cookies         bool
-	Certificates    bool
-	CodeCoverage    bool
-	JSTrace         bool
-	RequestMetadata bool
-	Screenshot      bool
+	AllFiles         bool
+	AllScripts       bool
+	JSTrace          bool
+	ResourceMetadata bool
+	ScriptMetadata   bool
 
 	// Output Settings
 	OutputPath       string

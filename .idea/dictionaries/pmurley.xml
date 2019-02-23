@@ -3,6 +3,7 @@
     <words>
       <w>abcdefghijklmnopqrstuvwxyz</w>
       <w>chromedp</w>
+      <w>fname</w>
       <w>mida</w>
       <w>outpath</w>
       <w>postprocessed</w>
@@ -13,6 +14,7 @@
       <w>taskfile</w>
       <w>teamnsrg</w>
       <w>unmarshals</w>
+      <w>urlfile</w>
     </words>
   </dictionary>
 </component>

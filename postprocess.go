@@ -4,13 +4,6 @@ import (
 	"time"
 )
 
-type ResourceTreeNode struct {
-	RequestID string
-	URL       string
-	Type      string
-	Children  []*ResourceTreeNode
-}
-
 func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<- FinalMIDAResult) {
 	for rawResult := range rawResultChan {
 		finalResult := FinalMIDAResult{
@@ -19,6 +12,20 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		}
 
 		finalResult.Stats.Timing.BeginPostprocess = time.Now()
+
+		// Ignore any requests/responses which do not have a matching request/response
+		finalResult.ResourceMetadata = make(map[string]Resource)
+
+		for k := range rawResult.Requests {
+			if _, ok := rawResult.Responses[k]; ok {
+				finalResult.ResourceMetadata[k] = Resource{
+					rawResult.Requests[k],
+					rawResult.Responses[k],
+				}
+			}
+		}
+
+		finalResult.ScriptMetadata = rawResult.Scripts
 
 		Log.Info("Requests Made: ", len(rawResult.Requests))
 		Log.Info("Responses Received: ", len(rawResult.Responses))

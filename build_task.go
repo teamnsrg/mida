@@ -71,6 +71,8 @@ func BuildTask(cmd *cobra.Command) {
 	t.Data.AllResources = DefaultAllFiles
 	t.Data.AllScripts = DefaultAllScripts
 	t.Data.JSTrace = DefaultJSTrace
+	t.Data.ResourceMetadata = DefaultResourceMetadata
+	t.Data.ScriptMetadata = DefaultScriptMetadata
 
 	// Fill in output settings
 	t.Output.Path, err = cmd.Flags().GetString("results-output-path")
