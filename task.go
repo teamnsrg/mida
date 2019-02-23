@@ -142,7 +142,7 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 // Retrieves raw tasks, either from a queue or a file
 func TaskIntake(rtc chan<- MIDATask) {
 	if viper.GetBool("UseAMQP") {
-		Log.Info("AMPQ not yet supported")
+		Log.Info("AMQP not yet supported")
 	} else {
 		rawTasks, err := ReadTasksFromFile(viper.GetString("Taskfile"))
 		if err != nil {
