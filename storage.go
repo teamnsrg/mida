@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/prometheus/common/log"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -13,7 +14,7 @@ import (
 )
 
 // Takes validated results and stores them as the task specifies, either locally, remotely, or both
-func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, monitoringChan chan<- TaskStats, retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup) {
+func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- TaskStats, retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup) {
 	for r := range finalResultChan {
 
 		r.Stats.Timing.BeginStorage = time.Now()
@@ -61,7 +62,7 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, mConfig MIDAConfig, mo
 		r.Stats.Timing.EndStorage = time.Now()
 
 		// Send stats to Prometheus
-		if mConfig.EnableMonitoring {
+		if viper.GetBool("EnableMonitoring") {
 			r.Stats.Timing.EndStorage = time.Now()
 			monitoringChan <- r.Stats
 		}

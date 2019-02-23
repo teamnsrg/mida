@@ -27,9 +27,9 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 
 		finalResult.ScriptMetadata = rawResult.Scripts
 
-		Log.Info("Requests Made: ", len(rawResult.Requests))
-		Log.Info("Responses Received: ", len(rawResult.Responses))
-		Log.Info("Scripts Parsed: ", len(rawResult.Scripts))
+		Log.WithField("URL", finalResult.SanitizedTask.Url).Info("Requests Made: ", len(rawResult.Requests))
+		Log.WithField("URL", finalResult.SanitizedTask.Url).Info("Responses Received: ", len(rawResult.Responses))
+		Log.WithField("URL", finalResult.SanitizedTask.Url).Info("Scripts Parsed: ", len(rawResult.Scripts))
 
 		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult

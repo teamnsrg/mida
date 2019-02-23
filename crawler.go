@@ -5,6 +5,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/phayes/freeport"
+	"github.com/spf13/viper"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -14,7 +15,7 @@ import (
 	"time"
 )
 
-func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan chan<- RawMIDAResult, retryChan <-chan SanitizedMIDATask, mConfig MIDAConfig, crawlerWG *sync.WaitGroup) {
+func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan chan<- RawMIDAResult, retryChan <-chan SanitizedMIDATask, crawlerWG *sync.WaitGroup) {
 
 	for sanitizedTaskChan != nil {
 		select {
@@ -73,7 +74,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	// Create our user data directory, if it does not yet exist
 	if st.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(TempDirectory, st.RandomIdentifier)
+		st.UserDataDirectory = path.Join(viper.GetString("TempDir"), st.RandomIdentifier)
 	}
 
 	_, err := os.Stat(st.UserDataDirectory)

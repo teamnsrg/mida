@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/spf13/viper"
 	"net/url"
 	"os"
 	"path"
@@ -11,7 +12,7 @@ import (
 )
 
 // Takes raw tasks from input channel and produces sanitized tasks for the output channel
-func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, mConfig MIDAConfig, pipelineWG *sync.WaitGroup) {
+func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, pipelineWG *sync.WaitGroup) {
 	for r := range rawTaskChan {
 		st, err := SanitizeTask(r)
 		if err != nil {
@@ -114,7 +115,7 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	// Sanitize user data directory to use
 	if t.Browser.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(TempDirectory, st.RandomIdentifier)
+		st.UserDataDirectory = path.Join(viper.GetString("TempDir"), st.RandomIdentifier)
 	} else {
 		// Chrome will create any directories required
 		st.UserDataDirectory = t.Browser.UserDataDirectory
@@ -136,7 +137,6 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 			} else {
 				st.BrowserFlags = append(st.BrowserFlags, ff)
 			}
-
 		}
 	} else {
 		// Add flags, checking to see that they have not been removed

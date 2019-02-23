@@ -3,9 +3,10 @@ package main
 // Sets up logging and hands off control to command.go, which is responsible
 // for parsing args/flags and initiating the appropriate functionality
 func main() {
+	InitConfig()
 	InitLogger()
 
-	Log.Info("MIDA starting")
+	Log.Info("MIDA Starting")
 
 	rootCmd := BuildCommands()
 	err := rootCmd.Execute()

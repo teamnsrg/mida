@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/spf13/viper"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
 )
@@ -139,11 +140,11 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 }
 
 // Retrieves raw tasks, either from a queue or a file
-func TaskIntake(rtc chan<- MIDATask, mConfig MIDAConfig) {
-	if mConfig.UseAMPQForTasks {
+func TaskIntake(rtc chan<- MIDATask) {
+	if viper.GetBool("UseAMQP") {
 		Log.Info("AMPQ not yet supported")
 	} else {
-		rawTasks, err := ReadTasksFromFile(mConfig.TaskLocation)
+		rawTasks, err := ReadTasksFromFile(viper.GetString("Taskfile"))
 		if err != nil {
 			Log.Fatal(err)
 		}

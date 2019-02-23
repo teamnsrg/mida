@@ -1,5 +1,7 @@
 package main
 
+import "github.com/spf13/viper"
+
 // Crawl Completion Conditions
 type CompletionCondition int
 
@@ -9,12 +11,24 @@ const (
 	CompleteOnTimeoutAfterLoad CompletionCondition = 2
 )
 
+func InitConfig() {
+	SetDefaults()
+
+}
+
+func SetDefaults() {
+	// MIDA-Wide Configuration Defaults
+	viper.SetDefault("crawlers", 1)
+	viper.SetDefault("storers", 1)
+	viper.SetDefault("temp-dir", ".tmp")
+	viper.SetDefault("prom-port", 8001)
+	viper.SetDefault("monitor", false)
+	viper.SetDefault("amqp", false)
+	viper.SetDefault("taskfile", "examples/MIDA_task.json")
+}
+
 const (
 	// MIDA Configuration Defaults
-	DefaultNumCrawlers    = 1
-	DefaultNumStorers     = 1
-	DefaultTaskLocation   = "examples/MIDA_task.json"
-	DefaultPrometheusPort = 8001
 
 	DefaultMaximumTaskAttempts = 10
 	DefaultNavTimeout          = 7
@@ -28,7 +42,6 @@ const (
 
 	// Output Parameters
 	DefaultLocalOutputPath      = "results"
-	TempDirectory               = ".tmp"
 	DefaultFileSubdir           = "files"
 	DefaultScriptSubdir         = "scripts"
 	DefaultResourceMetadataFile = "resource_metadata.json"

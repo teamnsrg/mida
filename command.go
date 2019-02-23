@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func BuildCommands() *cobra.Command {
@@ -59,15 +60,15 @@ func BuildCommands() *cobra.Command {
 	cmdBuild.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
 
-	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "c", "CompleteOnTimeoutOnly",
+	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "y", "CompleteOnTimeoutOnly",
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
 	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "p", DefaultLocalOutputPath,
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", DefaultTaskLocation,
+	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("Taskfile"),
 		"Path to write the newly-created JSON task file")
 	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
@@ -82,35 +83,26 @@ func BuildCommands() *cobra.Command {
 		Short: "Read and execute tasks from file",
 		Long: `MIDA reads and executes tasks from a pre-created task
 file, exiting when all tasks in the file are completed.`,
+		Args: cobra.MaximumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			InitPipeline(cmd)
 		},
 	}
 
-	var (
-		taskfile    string
-		monitor     bool
-		promPort    int
-		numCrawlers int
-		numStorers  int
-	)
+	var taskfile string
 
-	cmdFile.Flags().StringVarP(&taskfile, "taskfile", "f", DefaultTaskLocation,
+	cmdFile.Flags().StringVarP(&taskfile, "taskfile", "f", viper.GetString("Taskfile"),
 		"Task file to process")
-	cmdFile.Flags().BoolVarP(&monitor, "monitor", "m", false,
-		"Enable monitoring via Prometheus by hosting a HTTP server")
-	cmdFile.Flags().IntVarP(&promPort, "prom-port", "p", DefaultPrometheusPort,
-		"Port used for hosting metrics for a Prometheus server")
-	cmdFile.Flags().IntVarP(&numCrawlers, "crawlers", "c", DefaultNumCrawlers,
-		"Number of parallel browser instances to use for crawling")
-	cmdFile.Flags().IntVarP(&numStorers, "storers", "s", DefaultNumStorers,
-		"Number of parallel goroutines working to store task results")
+	err := viper.BindPFlag("Taskfile", cmdFile.Flags().Lookup("taskfile"))
+	if err != nil {
+		Log.Fatal(err)
+	}
 
-	_ = cmdBuild.MarkFlagFilename("taskfile")
+	_ = cmdFile.MarkFlagFilename("taskfile")
 
-	var cmdEnqueue = &cobra.Command{
+	var cmdLoad = &cobra.Command{
 		Use:   "load",
-		Short: "Load tasks into RabbitMQ",
+		Short: "Load/Enqueue tasks into RabbitMQ",
 		Long:  `Read tasks from a file and enqueue these tasks using AMPQ`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -132,7 +124,28 @@ lost.`,
 
 	var cmdRoot = &cobra.Command{Use: "mida"}
 
-	cmdRoot.AddCommand(cmdEnqueue)
+	var (
+		numCrawlers int
+		numStorers  int
+		monitor     bool
+		promPort    int
+	)
+
+	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("NumCrawlers"),
+		"Number of parallel browser instances to use for crawling")
+	cmdRoot.PersistentFlags().IntVarP(&numStorers, "storers", "s", viper.GetInt("NumStorers"),
+		"Number of parallel goroutines working to store task results")
+	cmdRoot.PersistentFlags().BoolVarP(&monitor, "monitor", "m", false,
+		"Enable monitoring via Prometheus by hosting a HTTP server")
+	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "p", viper.GetInt("PromPort"),
+		"Port used for hosting metrics for a Prometheus server")
+
+	err = viper.BindPFlags(cmdRoot.PersistentFlags())
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	cmdRoot.AddCommand(cmdLoad)
 	cmdRoot.AddCommand(cmdClient)
 	cmdRoot.AddCommand(cmdFile)
 	cmdRoot.AddCommand(cmdBuild)
