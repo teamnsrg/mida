@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -119,17 +120,7 @@ func ReadTasks(data []byte) ([]MIDATask, error) {
 	if compressedTaskSet.URL == nil || len(*compressedTaskSet.URL) == 0 {
 		return tasks, errors.New("no URLs given in task set")
 	}
-	for _, v := range *compressedTaskSet.URL {
-		newTask := MIDATask{
-			URL:         &v,
-			Browser:     compressedTaskSet.Browser,
-			Completion:  compressedTaskSet.Completion,
-			Data:        compressedTaskSet.Data,
-			Output:      compressedTaskSet.Output,
-			MaxAttempts: compressedTaskSet.MaxAttempts,
-		}
-		tasks = append(tasks, newTask)
-	}
+	tasks = ExpandCompressedTaskSet(compressedTaskSet)
 
 	Log.Debug("Parsed CompressedMIDATaskSet from file")
 	return tasks, nil
@@ -154,17 +145,43 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 	return tasks, nil
 }
 
-// Retrieves raw tasks, either from a queue or a file
-func TaskIntake(rtc chan<- MIDATask) {
-	if viper.GetBool("UseAMQP") {
+func ExpandCompressedTaskSet(t CompressedMIDATaskSet) []MIDATask {
+	var rawTasks []MIDATask
+	for _, v := range *t.URL {
+		urlString := v
+		newTask := MIDATask{
+			URL:         &urlString,
+			Browser:     t.Browser,
+			Completion:  t.Completion,
+			Data:        t.Data,
+			Output:      t.Output,
+			MaxAttempts: t.MaxAttempts,
+		}
+		rawTasks = append(rawTasks, newTask)
+	}
+	return rawTasks
+}
+
+// Retrieves raw tasks, either from a queue, file, or pre-built set
+func TaskIntake(rtc chan<- MIDATask, cmd *cobra.Command, args []string) {
+	if cmd.Name() == "client" {
 		Log.Info("AMQP not yet supported")
-	} else {
-		rawTasks, err := ReadTasksFromFile(viper.GetString("Taskfile"))
+	} else if cmd.Name() == "file" {
+		rawTasks, err := ReadTasksFromFile(viper.GetString("taskfile"))
 		if err != nil {
 			Log.Fatal(err)
 		}
 
 		// Put raw tasks in the channel
+		for _, rt := range rawTasks {
+			rtc <- rt
+		}
+	} else if cmd.Name() == "go" {
+		compressedTaskSet, err := BuildCompressedTaskSet(cmd, args)
+		if err != nil {
+			Log.Fatal(err)
+		}
+		rawTasks := ExpandCompressedTaskSet(compressedTaskSet)
 		for _, rt := range rawTasks {
 			rtc <- rt
 		}

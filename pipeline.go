@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-func InitPipeline(cmd *cobra.Command) {
+func InitPipeline(cmd *cobra.Command, args []string) {
 
 	// Create channels for the pipeline
 	monitoringChan := make(chan TaskStats)
@@ -44,7 +44,7 @@ func InitPipeline(cmd *cobra.Command) {
 	// Start goroutine which sanitizes input tasks
 	go SanitizeTasks(rawTaskChan, sanitizedTaskChan, &pipelineWG)
 
-	go TaskIntake(rawTaskChan)
+	go TaskIntake(rawTaskChan, cmd, args)
 
 	// Once all crawlers have completed, we can close the Raw Result Channel
 	crawlerWG.Wait()

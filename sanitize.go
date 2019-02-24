@@ -2,11 +2,9 @@ package main
 
 import (
 	"errors"
-	"net/url"
 	"os"
 	"path"
 	"runtime"
-	"strings"
 	"sync"
 )
 
@@ -33,6 +31,7 @@ func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- Sanitiz
 func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	var st SanitizedMIDATask
+	var err error
 
 	// Generate our random identifier for this task
 	st.RandomIdentifier = GenRandomIdentifier()
@@ -43,19 +42,10 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	}
 
 	// Do what we can to ensure a valid URL
-	u, err := url.ParseRequestURI(*t.URL)
+	st.Url, err = ValidateURL(*t.URL)
 	if err != nil {
-		if !strings.Contains(*t.URL, "://") {
-			u, err = url.ParseRequestURI(DefaultProtocolPrefix + *t.URL)
-			if err != nil {
-				Log.Fatal("Bad URL in task: ", t.URL)
-			}
-		} else {
-			Log.Fatal("Bad URL in task: ", t.URL)
-		}
+		return st, err
 	}
-
-	st.Url = u.String()
 
 	///// END SANITIZE AND BUILD URL /////
 	///// BEGIN SANITIZE TASK COMPLETION SETTINGS
@@ -232,15 +222,14 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// END SANITIZE OUTPUT PARAMETERS /////
 
 	if t.MaxAttempts == nil {
-		st.MaxAttempts = 1
-	} else if *t.MaxAttempts <= 1 {
-		st.MaxAttempts = 1
+		st.MaxAttempts = DefaultTaskAttempts
+	} else if *t.MaxAttempts <= DefaultTaskAttempts {
+		st.MaxAttempts = DefaultTaskAttempts
 	} else if *t.MaxAttempts > DefaultMaximumTaskAttempts {
 		Log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
 	} else {
 		st.MaxAttempts = *t.MaxAttempts
 	}
-
 	st.CurrentAttempt = 1
 
 	return st, nil

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/teamnsrg/chromedp/runner"
 	"math/rand"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -48,4 +49,21 @@ func IsRemoved(toRemove []string, candidate string) bool {
 	}
 
 	return false
+}
+
+func ValidateURL(s string) (string, error) {
+	var result string
+	u, err := url.ParseRequestURI(s)
+	if err != nil {
+		if !strings.Contains(s, "://") {
+			u, err = url.ParseRequestURI(DefaultProtocolPrefix + s)
+			if err != nil {
+				return result, errors.New("bad url: " + s)
+			}
+		} else {
+			return result, errors.New("bad url: " + s)
+		}
+	}
+
+	return u.String(), nil
 }
