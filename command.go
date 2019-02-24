@@ -65,7 +65,7 @@ func BuildCommands() *cobra.Command {
 	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultLocalOutputPath,
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
 	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("Taskfile"),

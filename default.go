@@ -20,7 +20,6 @@ func SetDefaults() {
 	// MIDA-Wide Configuration Defaults
 	viper.SetDefault("crawlers", 1)
 	viper.SetDefault("storers", 1)
-	viper.SetDefault("temp-dir", ".tmp")
 	viper.SetDefault("prom-port", 8001)
 	viper.SetDefault("monitor", false)
 	viper.SetDefault("amqp", false)
@@ -30,6 +29,7 @@ func SetDefaults() {
 const (
 	// MIDA Configuration Defaults
 
+	DefaultTaskAttempts        = 1
 	DefaultMaximumTaskAttempts = 10
 	DefaultNavTimeout          = 7
 
@@ -41,7 +41,7 @@ const (
 	DefaultBrowserLogFileName = "browser.log"
 
 	// Output Parameters
-	DefaultLocalOutputPath      = "results"
+	DefaultOutputPath           = "results"
 	DefaultFileSubdir           = "files"
 	DefaultScriptSubdir         = "scripts"
 	DefaultResourceMetadataFile = "resource_metadata.json"
@@ -54,7 +54,7 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Defaults for data gathering settings
-	DefaultAllFiles         = true
+	DefaultAllResources     = true
 	DefaultAllScripts       = true
 	DefaultJSTrace          = true
 	DefaultResourceMetadata = true
@@ -64,6 +64,7 @@ const (
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 	DefaultIdentifierLength = 16 // Random identifier for each crawl
 	MIDALogFile             = "mida.log"
+	TempDir                 = ".tmp"
 )
 
 var DefaultBrowserFlags = []string{

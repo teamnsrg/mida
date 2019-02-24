@@ -10,7 +10,7 @@ import (
 
 func BuildTask(cmd *cobra.Command) {
 
-	var t CompressedMIDATaskSet
+	t := InitializeCompressedTaskSet()
 
 	// Get URL from URL file
 	fname, err := cmd.Flags().GetString("urlfile")
@@ -27,65 +27,65 @@ func BuildTask(cmd *cobra.Command) {
 	scanner := bufio.NewScanner(urlfile)
 	for scanner.Scan() {
 		// TODO: Validate URL here
-		t.URL = append(t.URL, scanner.Text())
+		*t.URL = append(*t.URL, scanner.Text())
 	}
 
 	// Fill in browser settings
-	t.Browser.BrowserBinary, err = cmd.Flags().GetString("browser")
+	*t.Browser.BrowserBinary, err = cmd.Flags().GetString("browser")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Browser.UserDataDirectory, err = cmd.Flags().GetString("user-data-dir")
+	*t.Browser.UserDataDirectory, err = cmd.Flags().GetString("user-data-dir")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Browser.AddBrowserFlags, err = cmd.Flags().GetStringSlice("add-browser-flags")
+	*t.Browser.AddBrowserFlags, err = cmd.Flags().GetStringSlice("add-browser-flags")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Browser.RemoveBrowserFlags, err = cmd.Flags().GetStringSlice("remove-browser-flags")
+	*t.Browser.RemoveBrowserFlags, err = cmd.Flags().GetStringSlice("remove-browser-flags")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Browser.SetBrowserFlags, err = cmd.Flags().GetStringSlice("set-browser-flags")
+	*t.Browser.SetBrowserFlags, err = cmd.Flags().GetStringSlice("set-browser-flags")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Browser.Extensions, err = cmd.Flags().GetStringSlice("extensions")
+	*t.Browser.Extensions, err = cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
 		Log.Fatal(err)
 	}
 
 	// Fill in completion settings
-	t.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
+	*t.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Completion.CompletionCondition, err = cmd.Flags().GetString("completion")
+	*t.Completion.CompletionCondition, err = cmd.Flags().GetString("completion")
 	if err != nil {
 		Log.Fatal(err)
 	}
 
 	// Fill in data settings
 	// TODO: Allow cmdline option for data gathering settings somehow
-	t.Data.AllResources = DefaultAllFiles
-	t.Data.AllScripts = DefaultAllScripts
-	t.Data.JSTrace = DefaultJSTrace
-	t.Data.ResourceMetadata = DefaultResourceMetadata
-	t.Data.ScriptMetadata = DefaultScriptMetadata
+	*t.Data.AllResources = DefaultAllResources
+	*t.Data.AllScripts = DefaultAllScripts
+	*t.Data.JSTrace = DefaultJSTrace
+	*t.Data.ResourceMetadata = DefaultResourceMetadata
+	*t.Data.ScriptMetadata = DefaultScriptMetadata
 
 	// Fill in output settings
-	t.Output.Path, err = cmd.Flags().GetString("results-output-path")
+	*t.Output.Path, err = cmd.Flags().GetString("results-output-path")
 	if err != nil {
 		Log.Fatal(err)
 	}
-	t.Output.GroupID, err = cmd.Flags().GetString("group")
+	*t.Output.GroupID, err = cmd.Flags().GetString("group")
 	if err != nil {
 		Log.Fatal(err)
 	}
 
 	// Fill in miscellaneous other settings
-	t.MaxAttempts, err = cmd.Flags().GetInt("attempts")
+	*t.MaxAttempts, err = cmd.Flags().GetInt("attempts")
 	if err != nil {
 		Log.Fatal(err)
 	}
@@ -120,4 +120,36 @@ func BuildTask(cmd *cobra.Command) {
 	}
 
 	return
+}
+
+func InitializeCompressedTaskSet() CompressedMIDATaskSet {
+
+	t := CompressedMIDATaskSet{
+		URL: new([]string),
+		Browser: &BrowserSettings{
+			BrowserBinary:      new(string),
+			UserDataDirectory:  new(string),
+			AddBrowserFlags:    new([]string),
+			RemoveBrowserFlags: new([]string),
+			SetBrowserFlags:    new([]string),
+			Extensions:         new([]string),
+		},
+		Completion: &CompletionSettings{
+			Timeout:             new(int),
+			CompletionCondition: new(string),
+		},
+		Data: &DataSettings{
+			AllResources:     new(bool),
+			AllScripts:       new(bool),
+			JSTrace:          new(bool),
+			ResourceMetadata: new(bool),
+			ScriptMetadata:   new(bool),
+		},
+		Output: &OutputSettings{
+			Path:    new(string),
+			GroupID: new(string),
+		},
+		MaxAttempts: new(int),
+	}
+	return t
 }

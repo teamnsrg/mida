@@ -97,7 +97,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Log.Fatal("Results directory already existed within user data directory")
 	}
 
-	if st.AllFiles {
+	if st.AllResources {
 		// Create a subdirectory where we will store all the files
 		_, err = os.Stat(path.Join(resultsDir, DefaultFileSubdir))
 		if err != nil {
@@ -167,7 +167,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		rawResultLock.Lock()
 		if rawResult.Stats.Timing.LoadEvent.IsZero() {
 			rawResult.Stats.Timing.LoadEvent = time.Now()
-			Log.Info("Load Event")
 		} else {
 			Log.Warn("Duplicate load event")
 		}
@@ -182,7 +181,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		rawResultLock.Lock()
 		if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
 			rawResult.Stats.Timing.DOMContentEvent = time.Now()
-			Log.Info("DOMContentLoaded Event")
 		} else {
 			Log.Warn("Duplicate DOMContentLoaded event")
 		}
@@ -222,7 +220,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFinished)
-		if st.AllFiles {
+		if st.AllResources {
 			respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
 			if err != nil {
 				// The browser was unable to provide the content of this particular resource

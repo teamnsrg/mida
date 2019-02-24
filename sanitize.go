@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"github.com/spf13/viper"
 	"net/url"
 	"os"
 	"path"
@@ -39,15 +38,15 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	st.RandomIdentifier = GenRandomIdentifier()
 
 	///// BEGIN SANITIZE AND BUILD URL /////
-	if t.URL == "" {
+	if t.URL == nil || *t.URL == "" {
 		return st, errors.New("no URL to crawl given in task")
 	}
 
 	// Do what we can to ensure a valid URL
-	u, err := url.ParseRequestURI(t.URL)
+	u, err := url.ParseRequestURI(*t.URL)
 	if err != nil {
-		if !strings.Contains(t.URL, "://") {
-			u, err = url.ParseRequestURI(DefaultProtocolPrefix + t.URL)
+		if !strings.Contains(*t.URL, "://") {
+			u, err = url.ParseRequestURI(DefaultProtocolPrefix + *t.URL)
 			if err != nil {
 				Log.Fatal("Bad URL in task: ", t.URL)
 			}
@@ -61,32 +60,45 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// END SANITIZE AND BUILD URL /////
 	///// BEGIN SANITIZE TASK COMPLETION SETTINGS
 
-	if t.Completion.CompletionCondition == "CompleteOnTimeoutOnly" {
-		st.CCond = CompleteOnTimeoutOnly
-	} else if t.Completion.CompletionCondition == "CompleteOnLoadEvent" {
-		st.CCond = CompleteOnLoadEvent
-	} else if t.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
-		st.CCond = CompleteOnTimeoutAfterLoad
-	} else if t.Completion.CompletionCondition == "" {
+	if t.Completion == nil {
+		t.Completion = new(CompletionSettings)
+	}
+
+	if t.Completion.CompletionCondition == nil {
 		st.CCond = DefaultCompletionCondition
+	} else if *t.Completion.CompletionCondition == "CompleteOnTimeoutOnly" {
+		st.CCond = CompleteOnTimeoutOnly
+	} else if *t.Completion.CompletionCondition == "CompleteOnLoadEvent" {
+		st.CCond = CompleteOnLoadEvent
+	} else if *t.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
+		st.CCond = CompleteOnTimeoutAfterLoad
 	} else {
 		return st, errors.New("invalid completion condition value given")
 	}
 
 	// If we don't get a value for timeout (or get zero), and we NEED that
 	// value, just set it to the default
-	if t.Completion.Timeout == 0 && st.CCond != CompleteOnLoadEvent {
+	if t.Completion.Timeout == nil && st.CCond != CompleteOnLoadEvent {
 		Log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
 		st.Timeout = DefaultTimeout
+	} else if t.Completion.Timeout != nil && st.CCond == CompleteOnLoadEvent {
+		Log.Warn("Task timeout value ignored due to CompleteOnLoadEvent")
+		st.Timeout = 0
+	} else if *t.Completion.Timeout < 0 {
+		return st, errors.New("invalid negative value for task timeout")
 	} else {
-		st.Timeout = t.Completion.Timeout
+		st.Timeout = *t.Completion.Timeout
 	}
 
 	///// END SANITIZE TASK COMPLETION SETTINGS /////
 	///// BEGIN SANITIZE BROWSER PARAMETERS /////
 
+	if t.Browser == nil {
+		t.Browser = new(BrowserSettings)
+	}
+
 	// Make sure we have a valid browser binary path, or select a default one
-	if t.Browser.BrowserBinary == "" {
+	if t.Browser.BrowserBinary == nil || *t.Browser.BrowserBinary == "" {
 		// Set to system default.
 		if runtime.GOOS == "darwin" {
 			if _, err := os.Stat(DefaultOSXChromiumPath); err == nil {
@@ -105,32 +117,41 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 		}
 	} else {
 		// Validate that this binary exists
-		if _, err := os.Stat(t.Browser.BrowserBinary); err != nil {
+		if _, err := os.Stat(*t.Browser.BrowserBinary); err != nil {
 			// We won't crawl if the user specified a browser that does not exist
 			Log.Fatal("No such browser binary: ", t.Browser.BrowserBinary)
 		} else {
-			st.BrowserBinary = t.Browser.BrowserBinary
+			st.BrowserBinary = *t.Browser.BrowserBinary
 		}
 	}
 
 	// Sanitize user data directory to use
-	if t.Browser.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(viper.GetString("TempDir"), st.RandomIdentifier)
+	if t.Browser.UserDataDirectory == nil || *t.Browser.UserDataDirectory == "" {
+		st.UserDataDirectory = path.Join(TempDir, st.RandomIdentifier)
 	} else {
 		// Chrome will create any directories required
-		st.UserDataDirectory = t.Browser.UserDataDirectory
+		st.UserDataDirectory = *t.Browser.UserDataDirectory
 	}
 
 	// Sanitize browser flags/command line options
-	if len(t.Browser.SetBrowserFlags) != 0 {
-		if len(t.Browser.AddBrowserFlags) != 0 {
+	if t.Browser.SetBrowserFlags == nil {
+		t.Browser.SetBrowserFlags = new([]string)
+	}
+	if t.Browser.AddBrowserFlags == nil {
+		t.Browser.AddBrowserFlags = new([]string)
+	}
+	if t.Browser.RemoveBrowserFlags == nil {
+		t.Browser.RemoveBrowserFlags = new([]string)
+	}
+	if len(*t.Browser.SetBrowserFlags) != 0 {
+		if len(*t.Browser.AddBrowserFlags) != 0 {
 			Log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
 		}
-		if len(t.Browser.RemoveBrowserFlags) != 0 {
+		if len(*t.Browser.RemoveBrowserFlags) != 0 {
 			Log.Warn("SetBrowserFlags option is overriding RemoveBrowserFlags option")
 		}
 
-		for _, flag := range t.Browser.SetBrowserFlags {
+		for _, flag := range *t.Browser.SetBrowserFlags {
 			ff, err := FormatFlag(flag)
 			if err != nil {
 				Log.Warn(err)
@@ -140,8 +161,8 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 		}
 	} else {
 		// Add flags, checking to see that they have not been removed
-		for _, flag := range append(DefaultBrowserFlags, t.Browser.AddBrowserFlags...) {
-			if IsRemoved(t.Browser.RemoveBrowserFlags, flag) {
+		for _, flag := range append(DefaultBrowserFlags, *t.Browser.AddBrowserFlags...) {
+			if IsRemoved(*t.Browser.RemoveBrowserFlags, flag) {
 				continue
 			}
 			ff, err := FormatFlag(flag)
@@ -153,29 +174,71 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 		}
 	}
 
+	// TODO: Extensions
+
 	///// END SANITIZE BROWSER PARAMETERS /////
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
 
-	// For now, these are just bools and we will just copy them
-	st.AllFiles = t.Data.AllResources
-	st.AllScripts = t.Data.AllScripts
-	st.JSTrace = t.Data.JSTrace
-	st.ResourceMetadata = t.Data.ResourceMetadata
-	st.ScriptMetadata = t.Data.ScriptMetadata
+	if t.Data == nil {
+		t.Data = new(DataSettings)
+	}
+
+	// Check if a value was provided. If not, set to default
+	if t.Data.AllResources != nil {
+		st.AllResources = *t.Data.AllResources
+	} else {
+		st.AllResources = DefaultAllResources
+	}
+	if t.Data.AllScripts != nil {
+		st.AllScripts = *t.Data.AllScripts
+	} else {
+		st.AllScripts = DefaultAllScripts
+	}
+	if t.Data.JSTrace != nil {
+		st.JSTrace = *t.Data.JSTrace
+	} else {
+		st.JSTrace = DefaultJSTrace
+	}
+	if t.Data.ResourceMetadata != nil {
+		st.ResourceMetadata = *t.Data.ResourceMetadata
+	} else {
+		st.ResourceMetadata = DefaultResourceMetadata
+	}
+	if t.Data.ScriptMetadata != nil {
+		st.ScriptMetadata = *t.Data.ScriptMetadata
+	} else {
+		st.ScriptMetadata = DefaultScriptMetadata
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////
 
-	st.OutputPath = t.Output.Path
+	if t.Output == nil {
+		t.Output = new(OutputSettings)
+	}
+
+	if t.Output.Path == nil || *t.Output.Path == "" {
+		st.OutputPath = DefaultOutputPath
+	} else {
+		st.OutputPath = *t.Output.Path
+	}
+
+	if t.Output.GroupID == nil || *t.Output.GroupID == "" {
+		st.GroupID = DefaultGroupID
+	} else {
+		st.GroupID = *t.Output.GroupID
+	}
 
 	///// END SANITIZE OUTPUT PARAMETERS /////
 
-	if t.MaxAttempts <= 1 {
+	if t.MaxAttempts == nil {
 		st.MaxAttempts = 1
-	} else if t.MaxAttempts > DefaultMaximumTaskAttempts {
+	} else if *t.MaxAttempts <= 1 {
+		st.MaxAttempts = 1
+	} else if *t.MaxAttempts > DefaultMaximumTaskAttempts {
 		Log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
 	} else {
-		st.MaxAttempts = t.MaxAttempts
+		st.MaxAttempts = *t.MaxAttempts
 	}
 
 	st.CurrentAttempt = 1

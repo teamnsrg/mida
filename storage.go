@@ -104,7 +104,7 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 	}
 
 	// Store raw resources downloaded during crawl (named for their request IDs)
-	if r.SanitizedTask.AllFiles {
+	if r.SanitizedTask.AllResources {
 		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir))
 		if err != nil {
 			Log.Error("AllResources requested but no files directory exists within temporary results directory")
