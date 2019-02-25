@@ -21,6 +21,7 @@ type BrowserSettings struct {
 type CompletionSettings struct {
 	CompletionCondition *string `json:"completion_condition"`
 	Timeout             *int    `json:"timeout"`
+	TimeAfterLoad       *int    `json:"time_after_load"`
 }
 
 type DataSettings struct {
@@ -73,8 +74,9 @@ type SanitizedMIDATask struct {
 	BrowserFlags      []runner.CommandLineOption
 
 	// Completion Settings
-	CCond   CompletionCondition
-	Timeout int
+	CCond         CompletionCondition
+	Timeout       int
+	TimeAfterLoad int
 
 	// Data settings
 	AllResources     bool
@@ -89,10 +91,11 @@ type SanitizedMIDATask struct {
 	RandomIdentifier string // Randomly generated task identifier
 
 	// Parameters for retrying a task if it fails to complete
-	MaxAttempts    int
-	CurrentAttempt int
-	TaskFailed     bool   // Nothing else should be done on the task once this flag is set
-	FailureCode    string // Should be appended whenever a task is set to fail
+	MaxAttempts      int
+	CurrentAttempt   int
+	TaskFailed       bool   // Nothing else should be done on the task once this flag is set
+	FailureCode      string // Should be appended whenever a task is set to fail
+	PastFailureCodes []string
 }
 
 // Reads in a single task or task list from a byte array
@@ -172,7 +175,6 @@ func TaskIntake(rtc chan<- MIDATask, cmd *cobra.Command, args []string) {
 			Log.Fatal(err)
 		}
 
-		// Put raw tasks in the channel
 		for _, rt := range rawTasks {
 			rtc <- rt
 		}
@@ -181,6 +183,7 @@ func TaskIntake(rtc chan<- MIDATask, cmd *cobra.Command, args []string) {
 		if err != nil {
 			Log.Fatal(err)
 		}
+
 		rawTasks := ExpandCompressedTaskSet(compressedTaskSet)
 		for _, rt := range rawTasks {
 			rtc <- rt

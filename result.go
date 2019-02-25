@@ -5,6 +5,9 @@ import (
 	"github.com/chromedp/cdproto/network"
 )
 
+// The metadata for a single resource. May contain multiple requests
+// and multiple responses, so they are each given as arrays. In general,
+// they will usually (but not always) both have a length of 1.
 type Resource struct {
 	Requests  []network.EventRequestWillBeSent `json:"requests"`
 	Responses []network.EventResponseReceived  `json:"responses"`

@@ -36,6 +36,7 @@ func BuildCommands() *cobra.Command {
 		// Completion settings
 		completionCondition string
 		timeout             int
+		timeAfterLoad       int
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -67,6 +68,8 @@ func BuildCommands() *cobra.Command {
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
 	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
+	cmdBuild.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
+		"Time after load event to remain on page (overridden by timeout if reached first)")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -114,6 +117,8 @@ to crawl, using default parameters where not specified`,
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
 	cmdGo.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
+	cmdGo.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
+		"Time after load event to remain on page (overridden by timeout if reached first)")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

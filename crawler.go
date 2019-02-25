@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/phayes/freeport"
@@ -53,15 +54,16 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	rawResult := RawMIDAResult{
-		Requests:  make(map[string][]network.EventRequestWillBeSent),
-		Responses: make(map[string][]network.EventResponseReceived),
-		Scripts:   make(map[string]debugger.EventScriptParsed),
+		Requests:      make(map[string][]network.EventRequestWillBeSent),
+		Responses:     make(map[string][]network.EventResponseReceived),
+		Scripts:       make(map[string]debugger.EventScriptParsed),
+		SanitizedTask: st,
 	}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
 
-	var requestMapLock sync.Mutex
-	var responseMapLock sync.Mutex
-	var scriptsMapLock sync.Mutex
+	navChan := make(chan error, 1)
+	timeoutChan := time.After(time.Duration(st.Timeout) * time.Second)
+	loadEventChan := make(chan bool, 5)
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
@@ -171,6 +173,16 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			Log.Warn("Duplicate load event")
 		}
 		rawResultLock.Unlock()
+
+		var sendLoadEvent bool
+		rawResultLock.Lock()
+		if rawResult.SanitizedTask.CCond == CompleteOnTimeoutAfterLoad || rawResult.SanitizedTask.CCond == CompleteOnLoadEvent {
+			sendLoadEvent = true
+		}
+		rawResultLock.Unlock()
+		if sendLoadEvent {
+			loadEventChan <- true
+		}
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -200,9 +212,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventRequestWillBeSent)
-		requestMapLock.Lock()
+		rawResultLock.Lock()
 		rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
-		requestMapLock.Unlock()
+		rawResultLock.Unlock()
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -210,9 +222,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.responseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventResponseReceived)
-		responseMapLock.Lock()
+		rawResultLock.Lock()
 		rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
-		responseMapLock.Unlock()
+		rawResultLock.Unlock()
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -250,9 +262,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*debugger.EventScriptParsed)
-		scriptsMapLock.Lock()
+		rawResultLock.Lock()
 		rawResult.Scripts[data.ScriptID.String()] = *data
-		scriptsMapLock.Unlock()
+		rawResultLock.Unlock()
 		if st.AllScripts {
 			source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
 			if err != nil && err.Error() != "context canceled" {
@@ -273,44 +285,81 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Log.Fatal(err)
 	}
 
-	// Navigate to specified URL, timing out if no connection to the site
-	// can be made
-	navChan := make(chan error, 1)
+	// Below is the MIDA navigation logic. Since MIDA offers several different
+	// termination conditions (Terminate on timout, terminate on load event, etc.),
+	// this logic gets a little complex.
 	go func() {
 		navChan <- c.Run(cxt, chromedp.Navigate(st.Url))
 	}()
 	select {
 	case err = <-navChan:
-		Log.Debug("Connection Established")
 		rawResult.Stats.Timing.ConnectionEstablished = time.Now()
 	case <-time.After(DefaultNavTimeout * time.Second):
-		Log.Warn("Navigation timeout")
-		// TODO: Handle navigation errors, build a corresponding result, etc.
+		// This usually happens because we successfully resolved DNS,
+		// but we could not connect to the server
+		err = errors.New("nav timeout during connection to site")
+	case <-timeoutChan:
+		// Timeout is set shorter than DefaultNavTimeout, so we are just done
+		err = errors.New("full timeout during connection to site")
 	}
 	if err != nil {
-		if err.Error() == "net::ERR_NAME_NOT_RESOLVED" {
-			Log.Warn("DNS did not resolve")
-		} else if err.Error() == "net::ERR_INVALID_HTTP_RESPONSE" {
-			Log.Warn("Received invalid HTTP response")
-		} else {
-			Log.Warn("Unknown navigation error: ", err.Error())
+		// We failed to connect to the site. Shut things down.
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
+		err = c.Shutdown(cxt)
+		if err != nil {
+			Log.Fatal("Browser Shutdown Failed: ", err)
+		}
+
+		rawResultLock.Lock()
+		rawResult.Stats.Timing.BrowserClose = time.Now()
+		rawResult.Stats.Timing.EndCrawl = time.Now()
+		rawResultLock.Unlock()
+
+		return rawResult, nil
+
+	} else {
+		// We successfully connected to the site. At this point, we WILL gather results.
+		// Wait for our termination condition.
+		select {
+		// This will only arrive if we are using a completion condition that requires load events
+		case <-loadEventChan:
+			var ccond CompletionCondition
+			var timeAfterLoad int
+			rawResultLock.Lock()
+			ccond = rawResult.SanitizedTask.CCond
+			timeAfterLoad = rawResult.SanitizedTask.TimeAfterLoad
+			rawResultLock.Unlock()
+			if ccond == CompleteOnTimeoutAfterLoad {
+				select {
+				case <-timeoutChan:
+					// We did not make it to the TimeAfterLoad. Too Bad.
+				case <-time.After(time.Duration(timeAfterLoad) * time.Second):
+					// We made it to TimeAfterLoad. Nothing else to wait on.
+				}
+			} else if ccond == CompleteOnLoadEvent {
+				// Do nothing here -- The load event happened already, we are done
+			} else if ccond == CompleteOnTimeoutOnly {
+				Log.Error("Unexpectedly received load event through channel on TimeoutOnly crawl")
+			}
+		case <-timeoutChan:
+			// Overall timeout, shut down now
 		}
 	}
 
-	// Wait for specified termination condition. This logic is dependent on
-	// the completion condition specified in the task.
-	err = c.Run(cxt, chromedp.Sleep(time.Duration(st.Timeout)*time.Second))
-	if err != nil {
-		Log.Fatal(err)
-	}
-
+	// Clean up
 	err = c.Shutdown(cxt)
 	if err != nil {
-		Log.Fatal("Client Shutdown:", err)
+		Log.Fatal("Browser Shutdown Failed: ", err)
 	}
-	rawResult.Stats.Timing.BrowserClose = time.Now()
 
+	rawResultLock.Lock()
+	rawResult.Stats.Timing.BrowserClose = time.Now()
 	rawResult.Stats.Timing.EndCrawl = time.Now()
+	rawResultLock.Unlock()
 
 	return rawResult, nil
 

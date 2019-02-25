@@ -49,7 +49,6 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 				// We are abandoning trying this task. Too bad.
 				Log.Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
-
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
 				Log.Debug("Retrying task...")
@@ -62,7 +61,7 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 		r.Stats.Timing.EndStorage = time.Now()
 
 		// Send stats to Prometheus
-		if viper.GetBool("EnableMonitoring") {
+		if viper.GetBool("monitoring") {
 			r.Stats.Timing.EndStorage = time.Now()
 			monitoringChan <- r.Stats
 		}

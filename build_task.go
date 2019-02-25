@@ -82,6 +82,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (CompressedMIDATa
 	if err != nil {
 		return t, err
 	}
+	*t.Completion.TimeAfterLoad, err = cmd.Flags().GetInt("time-after-load")
+	if err != nil {
+		return t, err
+	}
 	*t.Completion.CompletionCondition, err = cmd.Flags().GetString("completion")
 	if err != nil {
 		return t, err
@@ -162,8 +166,9 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			Extensions:         new([]string),
 		},
 		Completion: &CompletionSettings{
-			Timeout:             new(int),
 			CompletionCondition: new(string),
+			Timeout:             new(int),
+			TimeAfterLoad:       new(int),
 		},
 		Data: &DataSettings{
 			AllResources:     new(bool),

@@ -71,13 +71,20 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	if t.Completion.Timeout == nil && st.CCond != CompleteOnLoadEvent {
 		Log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
 		st.Timeout = DefaultTimeout
-	} else if t.Completion.Timeout != nil && st.CCond == CompleteOnLoadEvent {
-		Log.Warn("Task timeout value ignored due to CompleteOnLoadEvent")
-		st.Timeout = 0
 	} else if *t.Completion.Timeout < 0 {
 		return st, errors.New("invalid negative value for task timeout")
 	} else {
 		st.Timeout = *t.Completion.Timeout
+	}
+
+	if t.Completion.TimeAfterLoad == nil {
+		if st.CCond == CompleteOnTimeoutAfterLoad {
+			return st, errors.New("TimeoutAfterLoad specified but no value given")
+		}
+	} else if *t.Completion.TimeAfterLoad < 0 {
+		return st, errors.New("invalid value for TimeoutAfterLoad")
+	} else {
+		st.TimeAfterLoad = *t.Completion.TimeAfterLoad
 	}
 
 	///// END SANITIZE TASK COMPLETION SETTINGS /////

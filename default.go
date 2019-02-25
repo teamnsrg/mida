@@ -39,6 +39,7 @@ const (
 	DefaultLinuxChromePath    = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath  = "/usr/bin/chromium-browser"
 	DefaultBrowserLogFileName = "browser.log"
+	DefaultProtocolPrefix     = "http://"
 
 	// Output Parameters
 	DefaultOutputPath           = "results"
@@ -49,7 +50,7 @@ const (
 	DefaultGroupID              = "default"
 
 	// Task completion
-	DefaultProtocolPrefix      = "http://"
+	DefaultTimeAfterLoad       = 0
 	DefaultTimeout             = 5 // Default time (in seconds) to remain on a page before exiting browser
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
