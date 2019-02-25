@@ -11,7 +11,7 @@ func main() {
 	rootCmd := BuildCommands()
 	err := rootCmd.Execute()
 	if err != nil {
-		Log.Error(err)
+		Log.Debug(err)
 	}
 
 	Log.Info("MIDA exiting")

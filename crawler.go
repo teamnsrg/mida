@@ -6,7 +6,6 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/phayes/freeport"
-	"github.com/spf13/viper"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -76,7 +75,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	// Create our user data directory, if it does not yet exist
 	if st.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(viper.GetString("TempDir"), st.RandomIdentifier)
+		st.UserDataDirectory = path.Join(TempDir, st.RandomIdentifier)
 	}
 
 	_, err := os.Stat(st.UserDataDirectory)
@@ -139,6 +138,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}
 
 	// Add these the port and the user data directory as arguments to the browser as we start it up
+	// No other flags should be added here unless there is a good reason they can't be put in
+	// the pipeline earlier.
 	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
 		runner.Flag("remote-debugging-port", port),
 		runner.Flag("user-data-dir", st.UserDataDirectory),

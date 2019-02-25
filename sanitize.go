@@ -140,6 +140,39 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	if t.Browser.RemoveBrowserFlags == nil {
 		t.Browser.RemoveBrowserFlags = new([]string)
 	}
+	if t.Browser.Extensions == nil {
+		t.Browser.Extensions = new([]string)
+	}
+
+	if len(*t.Browser.Extensions) != 0 {
+		// Check that each extension exists
+		for _, e := range *t.Browser.Extensions {
+			x, err := os.Stat(e)
+			if err != nil {
+				return st, err
+			}
+			if !x.IsDir() {
+				return st, errors.New("given extension [ " + e + " ] is not a directory")
+			}
+		}
+
+		// Create the extensions flag
+		extensionsFlag := "--disable-extensions-except="
+		extensionsFlag += (*t.Browser.Extensions)[0]
+		if len(*t.Browser.Extensions) > 1 {
+			for _, e := range (*t.Browser.Extensions)[1:] {
+				extensionsFlag += ","
+				extensionsFlag += e
+			}
+		}
+
+		*t.Browser.AddBrowserFlags = append(*t.Browser.AddBrowserFlags, extensionsFlag)
+
+		// Remove the --incognito and --disable-extensions (both prevent extensions)
+		*t.Browser.RemoveBrowserFlags = append(*t.Browser.RemoveBrowserFlags, "--incognito")
+		*t.Browser.RemoveBrowserFlags = append(*t.Browser.RemoveBrowserFlags, "--disable-extensions")
+	}
+
 	if len(*t.Browser.SetBrowserFlags) != 0 {
 		if len(*t.Browser.AddBrowserFlags) != 0 {
 			Log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
@@ -170,8 +203,6 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 			}
 		}
 	}
-
-	// TODO: Extensions
 
 	///// END SANITIZE BROWSER PARAMETERS /////
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
@@ -232,8 +263,6 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 		st.MaxAttempts = DefaultTaskAttempts
 	} else if *t.MaxAttempts <= DefaultTaskAttempts {
 		st.MaxAttempts = DefaultTaskAttempts
-	} else if *t.MaxAttempts > DefaultMaximumTaskAttempts {
-		Log.Fatal("A task may not have more than ", DefaultMaximumTaskAttempts, " attempts")
 	} else {
 		st.MaxAttempts = *t.MaxAttempts
 	}

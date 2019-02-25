@@ -54,7 +54,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	err := os.RemoveAll(viper.GetString("temp-dir"))
+	err := os.RemoveAll(TempDir)
 	if err != nil {
 		Log.Warn(err)
 	}

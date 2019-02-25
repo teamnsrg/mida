@@ -97,7 +97,7 @@ to crawl, using default parameters where not specified`,
 
 	cmdGo.Flags().StringVarP(&urlfile, "urlfile", "f",
 		"", "File containing URL to visit (1 per line)")
-	cmdGo.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTimeout,
+	cmdGo.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTaskAttempts,
 		"Maximum attempts for a task before it fails")
 
 	cmdGo.Flags().StringVarP(&browser, "browser", "b",
@@ -155,7 +155,7 @@ file, exiting when all tasks in the file are completed.`,
 		Long:  `Read tasks from a file and enqueue these tasks using AMQP`,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			Log.Info("Running enqueue.")
+			Log.Warn("Load not yet implemented")
 		},
 	}
 
