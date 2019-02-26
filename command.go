@@ -153,9 +153,17 @@ file, exiting when all tasks in the file are completed.`,
 		Use:   "load",
 		Short: "Load/Enqueue tasks into an AMQP instance",
 		Long:  `Read tasks from a file and enqueue these tasks using AMQP`,
-		Args:  cobra.MinimumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			Log.Warn("Load not yet implemented")
+			tasks, err := ReadTasksFromFile(args[0])
+			if err != nil {
+				Log.Fatal(err)
+			}
+			numTasksLoaded, err := AMQPLoadTasks(tasks)
+			if err != nil {
+				Log.Fatal(err)
+			}
+			Log.Infof("Loaded %d tasks into queue.", numTasksLoaded)
 		},
 	}
 

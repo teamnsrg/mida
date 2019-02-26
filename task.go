@@ -168,7 +168,43 @@ func ExpandCompressedTaskSet(t CompressedMIDATaskSet) []MIDATask {
 // Retrieves raw tasks, either from a queue, file, or pre-built set
 func TaskIntake(rtc chan<- MIDATask, cmd *cobra.Command, args []string) {
 	if cmd.Name() == "client" {
-		Log.Info("AMQP not yet supported")
+		// TODO: Figure out how to close connection gracefully here
+		taskAMQPConn, taskDeliveryChan, err := NewAMQPTasksConsumer()
+		if err != nil {
+			Log.Fatal(err)
+		}
+		defer taskAMQPConn.Shutdown()
+
+		broadcastAMQPConn, broadcastAMQPDeliveryChan, err := NewAMQPBroadcastConsumer()
+		if err != nil {
+			Log.Fatal(err)
+		}
+		defer broadcastAMQPConn.Shutdown()
+
+		breakFlag := false
+		for {
+			select {
+			case broadcastMsg := <-broadcastAMQPDeliveryChan:
+				Log.Warnf("BROADCAST RECEIVED: [ %s ]", string(broadcastMsg.Body))
+				breakFlag = true
+			default:
+			}
+			select {
+			case broadcastMsg := <-broadcastAMQPDeliveryChan:
+				Log.Warnf("BROADCAST RECEIVED: [ %s ]", string(broadcastMsg.Body))
+				breakFlag = true
+			case amqpMsg := <-taskDeliveryChan:
+				rawTask, err := DecodeAMQPMessageToRawTask(amqpMsg)
+				if err != nil {
+					Log.Fatal(err)
+				}
+				rtc <- rawTask
+			}
+			if breakFlag {
+				break
+			}
+		}
+
 	} else if cmd.Name() == "file" {
 		rawTasks, err := ReadTasksFromFile(viper.GetString("taskfile"))
 		if err != nil {

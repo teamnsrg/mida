@@ -12,18 +12,26 @@ const (
 )
 
 func InitConfig() {
+	// Initialize the defaults below
 	SetDefaults()
 
+	// We will read environment variables with this prefix
+	viper.SetEnvPrefix("MIDA")
+	viper.AutomaticEnv()
 }
 
 func SetDefaults() {
 	// MIDA-Wide Configuration Defaults
 	viper.SetDefault("crawlers", 1)
 	viper.SetDefault("storers", 1)
-	viper.SetDefault("prom-port", 8001)
+	viper.SetDefault("promport", 8001)
 	viper.SetDefault("monitor", false)
-	viper.SetDefault("amqp", false)
 	viper.SetDefault("taskfile", "examples/MIDA_task.json")
+	viper.SetDefault("rabbitmqurl", "localhost:5672")
+	viper.SetDefault("rabbitmquser", "")
+	viper.SetDefault("rabbitmqpass", "")
+	viper.SetDefault("rabbitmqtaskqueue", "tasks")
+	viper.SetDefault("rabbitmqbroadcastqueue", "broadcast")
 }
 
 const (
@@ -59,6 +67,8 @@ const (
 	DefaultJSTrace          = true
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true
+
+	// RabbitMQDefaults
 
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"

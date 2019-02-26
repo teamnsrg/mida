@@ -14,6 +14,7 @@ func InitLogger() {
 
 	fileFormatter := new(prefixed.TextFormatter)
 	fileFormatter.FullTimestamp = true
+	fileFormatter.DisableColors = true
 
 	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
 		Filename:   MIDALogFile,

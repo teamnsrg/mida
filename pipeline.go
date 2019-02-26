@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 	"sync"
 )
 
@@ -23,7 +22,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
-		go RunPrometheusClient(monitoringChan, viper.GetInt("prom-port"))
+		go RunPrometheusClient(monitoringChan, viper.GetInt("promport"))
 	}
 
 	// Start goroutine(s) that handles crawl results storage
@@ -54,10 +53,10 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	err := os.RemoveAll(TempDir)
-	if err != nil {
-		Log.Warn(err)
-	}
+	//err := os.RemoveAll(TempDir)
+	//if err != nil {
+	//	Log.Warn(err)
+	//}
 
 	return
 

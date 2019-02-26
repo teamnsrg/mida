@@ -49,10 +49,14 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 				// We are abandoning trying this task. Too bad.
 				Log.Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
+				Log.Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
 				Log.Debug("Retrying task...")
 				r.SanitizedTask.CurrentAttempt++
+				r.SanitizedTask.TaskFailed = false
+				r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
+				r.SanitizedTask.FailureCode = ""
 				pipelineWG.Add(1)
 				retryChan <- r.SanitizedTask
 			}
