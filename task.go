@@ -181,6 +181,8 @@ func TaskIntake(rtc chan<- MIDATask, cmd *cobra.Command, args []string) {
 		}
 		defer broadcastAMQPConn.Shutdown()
 
+		// Remain as a client to the AMQP server until a broadcast is received which
+		// causes us to exit
 		breakFlag := false
 		for {
 			select {

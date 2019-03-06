@@ -127,6 +127,7 @@ to crawl, using default parameters where not specified`,
 		"Group ID used for identifying experiments")
 
 	// TODO: Look into combining 'go' and 'build' flags somehow - maybe just unify under root
+	// New thought: Might want to keep these separate in case the need to be customized in some way
 
 	var cmdFile = &cobra.Command{
 		Use:   "file",

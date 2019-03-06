@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 	"sync"
 )
 
@@ -53,10 +54,10 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	storageWG.Wait()
 
 	// Cleanup remaining artifacts
-	//err := os.RemoveAll(TempDir)
-	//if err != nil {
-	//	Log.Warn(err)
-	//}
+	err := os.RemoveAll(TempDir)
+	if err != nil {
+		Log.Warn(err)
+	}
 
 	return
 

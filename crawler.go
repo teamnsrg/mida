@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/phayes/freeport"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
@@ -205,7 +206,15 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.frameNavigated", func(param interface{}, handler *chromedp.TargetHandler) {
 		// data := param.(*page.EventFrameNavigated)
-		// Log.Info(data.Frame.URL, " : ", data.Frame.ID," : ", data.Frame.Name," : ", data.Frame.State.String())
+		// Log.Warn("FrameNavigated: ", data.Frame.URL, " : ", data.Frame.ID," : ", data.Frame.Name," : ", data.Frame.State.String())
+	}))
+	if err != nil {
+		Log.Fatal(err)
+	}
+
+	err = c.Run(cxt, chromedp.CallbackFunc("Page.lifecycleEvent", func(param interface{}, handler *chromedp.TargetHandler) {
+		data := param.(*page.EventLifecycleEvent)
+		Log.Warn(data.Name, "    ", data.Timestamp.Time().String(), "    ", data.FrameID.String())
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -234,11 +243,18 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFinished)
 		if st.AllResources {
+			rawResultLock.Lock()
+			if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
+				Log.Debug("Will not get response body for unknown RequestID")
+				rawResultLock.Unlock()
+				return
+			}
+			rawResultLock.Unlock()
 			respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
 			if err != nil {
 				// The browser was unable to provide the content of this particular resource
 				// TODO: Count how many times this happens, figure out what types of resources it is happening for
-				Log.Warn("Failed to get response Body for resource: ", data.RequestID)
+				Log.Warn("Failed to get response Body for known resource: ", data.RequestID)
 			} else {
 				err = ioutil.WriteFile(path.Join(resultsDir, DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 				if err != nil {
