@@ -30,6 +30,7 @@ type DataSettings struct {
 	JSTrace          *bool `json:"js_trace"`
 	ResourceMetadata *bool `json:"resource_metadata"`
 	ScriptMetadata   *bool `json:"script_metadata"`
+	ResourceTree     *bool `json:"resource_tree"`
 }
 
 type OutputSettings struct {
@@ -84,6 +85,7 @@ type SanitizedMIDATask struct {
 	JSTrace          bool
 	ResourceMetadata bool
 	ScriptMetadata   bool
+	ResourceTree     bool
 
 	// Output Settings
 	OutputPath       string

@@ -98,6 +98,7 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (CompressedMIDATa
 	*t.Data.JSTrace = DefaultJSTrace
 	*t.Data.ResourceMetadata = DefaultResourceMetadata
 	*t.Data.ScriptMetadata = DefaultScriptMetadata
+	*t.Data.ResourceTree = DefaultResourceTree
 
 	// Fill in output settings
 	*t.Output.Path, err = cmd.Flags().GetString("results-output-path")

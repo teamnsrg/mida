@@ -237,6 +237,11 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	} else {
 		st.ScriptMetadata = DefaultScriptMetadata
 	}
+	if t.Data.ResourceTree != nil {
+		st.ResourceTree = *t.Data.ResourceTree
+	} else {
+		st.ResourceTree = DefaultResourceTree
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -64,6 +65,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	navChan := make(chan error, 1)
 	timeoutChan := time.After(time.Duration(st.Timeout) * time.Second)
 	loadEventChan := make(chan bool, 5)
+	postCrawlActionsChan := make(chan bool, 1)
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
@@ -185,12 +187,13 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		if sendLoadEvent {
 			loadEventChan <- true
 		}
+
+		postCrawlActionsChan <- true
 	}))
 	if err != nil {
 		Log.Fatal(err)
 	}
 
-	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.domContentEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
 		rawResultLock.Lock()
 		if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
@@ -362,12 +365,41 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			} else if ccond == CompleteOnTimeoutOnly {
 				Log.Error("Unexpectedly received load event through channel on TimeoutOnly crawl")
 			}
+		case <-postCrawlActionsChan:
+			// We are free to begin post crawl data gathering which requires the browser
+			// Examples: Screenshot, DOM snapshot, code coverage, etc.
+			// These actions may or may not finish -- We still have to observe the timeout
+			go func() {
+				Log.Info("Start post crawl")
+				Log.Info("Begin post crawl data gathering")
+				var tree *page.FrameTree
+				err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+					ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
+					defer cancel()
+					Log.Info("Started call")
+					tree, err = page.GetFrameTree().Do(ctxt, h)
+					Log.Info("Finished call")
+					return err
+				}))
+				if err != nil {
+					Log.Error(err)
+				}
+				Log.Info("Locking")
+				rawResultLock.Lock()
+				rawResult.FrameTree = tree
+				rawResultLock.Unlock()
+				Log.Info("End post crawl data gathering")
+
+			}()
+			<-timeoutChan
 		case <-timeoutChan:
-			// Overall timeout, shut down now
+			// Overall timeout, shut down now, no post-crawl data gathering for you
+			Log.Info("Timeout (no post crawl activities")
 		}
 	}
 
 	// Clean up
+	Log.Info("Shutdown")
 	err = c.Shutdown(cxt)
 	if err != nil {
 		Log.Fatal("Browser Shutdown Failed: ", err)

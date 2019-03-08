@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 )
 
 // The metadata for a single resource. May contain multiple requests
@@ -19,6 +20,7 @@ type RawMIDAResult struct {
 	Requests      map[string][]network.EventRequestWillBeSent
 	Responses     map[string][]network.EventResponseReceived
 	Scripts       map[string]debugger.EventScriptParsed
+	FrameTree     *page.FrameTree
 }
 
 type FinalMIDAResult struct {

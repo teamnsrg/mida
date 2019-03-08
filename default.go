@@ -67,6 +67,7 @@ const (
 	DefaultJSTrace          = true
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true
+	DefaultResourceTree     = true
 
 	// RabbitMQDefaults
 
@@ -83,6 +84,7 @@ var DefaultBrowserFlags = []string{
 	"--disable-backgrounding-occluded-windows",
 	"--disable-client-side-phishing-detection",
 	"--disable-extensions",
+	"--disable-features=IsolateOrigins,site-per-process",
 	"--disable-ipc-flooding-protection",
 	"--disable-popup-blocking",
 	"--disable-prompt-on-repost",
