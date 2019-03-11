@@ -177,6 +177,7 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			JSTrace:          new(bool),
 			ResourceMetadata: new(bool),
 			ScriptMetadata:   new(bool),
+			ResourceTree:     new(bool),
 		},
 		Output: &OutputSettings{
 			Path:    new(string),
