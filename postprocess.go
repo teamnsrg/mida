@@ -34,8 +34,7 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		if err != nil {
 			Log.Error(err)
 		}
-
-		Log.Info(tree)
+		Log.Debug(tree) // TODO: Store tree
 
 		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult

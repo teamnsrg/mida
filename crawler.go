@@ -274,7 +274,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
 		data := param.(*network.EventLoadingFailed)
 		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		Log.Info("Loading Failed: ", data.Type, " : ", data.BlockedReason, " : ", data.ErrorText)
+		Log.Debug("Loading Failed: ", data.Type, " : ", data.BlockedReason, " : ", data.ErrorText)
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -296,10 +296,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 					Log.Fatal(err)
 				}
 			}
-		} else {
-			Log.Info("Not enabled")
 		}
-
 	}))
 	if err != nil {
 		Log.Fatal(err)
@@ -370,25 +367,19 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
 			// These actions may or may not finish -- We still have to observe the timeout
 			go func() {
-				Log.Info("Start post crawl")
-				Log.Info("Begin post crawl data gathering")
 				var tree *page.FrameTree
 				err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
 					ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
 					defer cancel()
-					Log.Info("Started call")
 					tree, err = page.GetFrameTree().Do(ctxt, h)
-					Log.Info("Finished call")
 					return err
 				}))
 				if err != nil {
 					Log.Error(err)
 				}
-				Log.Info("Locking")
 				rawResultLock.Lock()
 				rawResult.FrameTree = tree
 				rawResultLock.Unlock()
-				Log.Info("End post crawl data gathering")
 
 			}()
 			<-timeoutChan
@@ -399,7 +390,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}
 
 	// Clean up
-	Log.Info("Shutdown")
 	err = c.Shutdown(cxt)
 	if err != nil {
 		Log.Fatal("Browser Shutdown Failed: ", err)

@@ -3,18 +3,33 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/sftp"
 	"github.com/prometheus/common/log"
 	"github.com/spf13/viper"
+	"golang.org/x/crypto/ssh"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
+// Holds information about an SSH session to another host,
+// used for storing results
+type SSHConn struct {
+	sync.Mutex
+	Client *ssh.Client
+}
+
 // Takes validated results and stores them as the task specifies, either locally, remotely, or both
-func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- TaskStats, retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup) {
+func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- TaskStats,
+	retryChan chan<- SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup,
+	connInfo *ConnInfo) {
 	for r := range finalResultChan {
 
 		r.Stats.Timing.BeginStorage = time.Now()
@@ -26,13 +41,37 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 				Log.Error(err)
 			} else {
 				if outputPathURL.Host == "" {
-					err = StoreResultsLocalFS(r)
+					outpath := path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier)
+					err = StoreResultsLocalFS(r, outpath)
 					if err != nil {
 						log.Error("Failed to store results: ", err)
 					}
 				} else {
-					// Remote storage not yet implemented
-					Log.Info("Remote storage not yet implemented")
+					// Check if connection info exists already for host
+					connInfo.Lock()
+					if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
+						newConn, err := CreateRemoteConnection(outputPathURL.Host)
+						if err != nil {
+							Log.Error(err)
+							connInfo.Unlock()
+							continue
+						} else {
+							connInfo.SSHConnInfo[outputPathURL.Host] = newConn
+							Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
+						}
+					}
+
+					activeConn := connInfo.SSHConnInfo[outputPathURL.Host]
+					connInfo.Unlock()
+
+					activeConn.Lock()
+					// Store our results remotely given that SSH connection exists
+					err = StoreResultsSSH(r, activeConn, outputPathURL.Path)
+					if err != nil {
+						Log.Error(err)
+						Log.Error(r.SanitizedTask.Url)
+					}
+					activeConn.Unlock()
 				}
 			}
 
@@ -76,10 +115,75 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 	storageWG.Done()
 }
 
+// Stores a result directory (via SSH/SFTP) to a remote host, given
+// an already active SSH connection
+func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) error {
+	// We store all the results to the local file system first in a temporary directory
+	tempPath := path.Join(TempDir, r.SanitizedTask.RandomIdentifier+"-results")
+	err := StoreResultsLocalFS(r, tempPath)
+	if err != nil {
+		return err
+	}
+
+	sftpClient, err := sftp.NewClient(activeConn.Client)
+	if err != nil {
+		return err
+	}
+	defer sftpClient.Close()
+
+	// Walk the temporary results directory and write everything to our new remote file location
+	err = CopyDirRemote(sftpClient, tempPath, remotePath+r.SanitizedTask.RandomIdentifier)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CopyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname string) error {
+	err := filepath.Walk(localDirname, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if p == localDirname {
+			return nil
+		}
+		localizedPath := strings.TrimPrefix(p, localDirname+"/")
+
+		if info.IsDir() {
+			err = sftpConn.MkdirAll(path.Join(remoteDirname, info.Name()))
+			if err != nil {
+				return err
+			}
+
+		} else {
+			srcFile, err := os.Open(p)
+			if err != nil {
+				return err
+			}
+			defer srcFile.Close()
+
+			dstFile, err := sftpConn.Create(path.Join(remoteDirname, localizedPath))
+			if err != nil {
+				return err
+			}
+			defer dstFile.Close()
+
+			_, err = io.Copy(dstFile, srcFile)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	return err
+}
+
 // Given a valid FinalMIDAResult, stores it according to the output
 // path specified in the sanitized task within the result
-func StoreResultsLocalFS(r FinalMIDAResult) error {
-	outpath := path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier)
+func StoreResultsLocalFS(r FinalMIDAResult, outpath string) error {
 	_, err := os.Stat(outpath)
 	if err != nil {
 		err = os.MkdirAll(outpath, 0755)
@@ -98,8 +202,7 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		if err != nil {
 			Log.Error(err)
 		}
-		err = ioutil.WriteFile(path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier,
-			DefaultResourceMetadataFile), data, 0644)
+		err = ioutil.WriteFile(path.Join(outpath, DefaultResourceMetadataFile), data, 0644)
 		if err != nil {
 			Log.Error(err)
 		}
@@ -127,8 +230,7 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 		if err != nil {
 			Log.Error(err)
 		}
-		err = ioutil.WriteFile(path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier,
-			DefaultScriptMetadataFile), data, 0644)
+		err = ioutil.WriteFile(path.Join(outpath, DefaultScriptMetadataFile), data, 0644)
 		if err != nil {
 			Log.Error(err)
 		}
@@ -151,4 +253,39 @@ func StoreResultsLocalFS(r FinalMIDAResult) error {
 	}
 
 	return nil
+}
+
+func CreateRemoteConnection(host string) (*SSHConn, error) {
+	// First, get our private key
+
+	var c SSHConn
+
+	h, err := homedir.Dir()
+	if err != nil {
+		return &c, err
+	}
+	privateKeyBytes, err := ioutil.ReadFile(h + "/.ssh/id_rsa") // TODO
+	if err != nil {
+		return &c, err
+	}
+
+	privateKey, err := ssh.ParsePrivateKey(privateKeyBytes)
+	if err != nil {
+		return &c, err
+	}
+
+	config := &ssh.ClientConfig{
+		User: "pmurley", // TODO
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(privateKey),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	c.Client, err = ssh.Dial("tcp", host+":22", config)
+	if err != nil {
+		return &c, err
+	}
+
+	return &c, nil
 }

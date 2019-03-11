@@ -3,9 +3,13 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 	"sync"
 )
+
+type ConnInfo struct {
+	sync.Mutex
+	SSHConnInfo map[string]*SSHConn
+}
 
 func InitPipeline(cmd *cobra.Command, args []string) {
 
@@ -21,6 +25,10 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	var storageWG sync.WaitGroup  // Tracks active storage workers
 	var pipelineWG sync.WaitGroup // Tracks tasks currently in pipeline
 
+	// Initialize directory for SSH connections, which are effectively global
+	var connInfo ConnInfo
+	connInfo.SSHConnInfo = make(map[string]*SSHConn)
+
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
 		go RunPrometheusClient(monitoringChan, viper.GetInt("promport"))
@@ -29,7 +37,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// Start goroutine(s) that handles crawl results storage
 	storageWG.Add(viper.GetInt("storers"))
 	for i := 0; i < viper.GetInt("storers"); i++ {
-		go StoreResults(finalResultChan, monitoringChan, retryChan, &storageWG, &pipelineWG)
+		go StoreResults(finalResultChan, monitoringChan, retryChan, &storageWG, &pipelineWG, &connInfo)
 	}
 
 	// Start goroutine that handles crawl results sanitization
@@ -53,11 +61,24 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// We are done when all storage has completed
 	storageWG.Wait()
 
-	// Cleanup remaining artifacts
-	err := os.RemoveAll(TempDir)
-	if err != nil {
-		Log.Warn(err)
+	// Nicely close any SSH connections open
+	connInfo.Lock()
+	for k, v := range connInfo.SSHConnInfo {
+		v.Lock()
+		err := v.Client.Close()
+		if err != nil {
+			Log.Error(err)
+		}
+		Log.Info("Closed SSH connection to: ", k)
+		v.Unlock()
 	}
+	connInfo.Unlock()
+
+	// Cleanup remaining artifacts
+	//err := os.RemoveAll(TempDir)
+	//if err != nil {
+	//	Log.Warn(err)
+	//}
 
 	return
 
