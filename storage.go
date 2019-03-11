@@ -48,31 +48,46 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 						log.Error("Failed to store results: ", err)
 					}
 				} else {
+					// Begin remote storage
 					// Check if connection info exists already for host
+					var activeConn *SSHConn
 					connInfo.Lock()
 					if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
 						newConn, err := CreateRemoteConnection(outputPathURL.Host)
-						if err != nil {
+						connInfo.Unlock()
+						exponentialBackoff := 1
+						for err != nil {
+							Log.WithField("Backoff", exponentialBackoff).Error(err)
+							time.Sleep(time.Duration(exponentialBackoff) * time.Second)
+							connInfo.Lock()
+							newConn, err = CreateRemoteConnection(outputPathURL.Host)
 							connInfo.Unlock()
-							Log.Error(err)
-							r.SanitizedTask.TaskFailed = true
-							r.SanitizedTask.FailureCode = "Failed to create SSH connection for new host: " + outputPathURL.Host
-						} else {
-							connInfo.SSHConnInfo[outputPathURL.Host] = newConn
-							connInfo.Unlock()
-							Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
-
-							// Now that our new connection is in place, proceed with storage
-							newConn.Lock()
-							err = StoreResultsSSH(r, newConn, outputPathURL.Path)
-							if err != nil {
-								r.SanitizedTask.TaskFailed = true
-								r.SanitizedTask.FailureCode = "Failed to store results via SSH"
-								Log.Error(err)
-							}
-							newConn.Unlock()
+							exponentialBackoff *= DefaultSSHBackoffMultiplier
 						}
+
+						connInfo.SSHConnInfo[outputPathURL.Host] = newConn
+						activeConn = newConn
+						Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
+					} else {
+						activeConn = connInfo.SSHConnInfo[outputPathURL.Host]
+						connInfo.Unlock()
 					}
+
+					if activeConn == nil {
+						Log.Error("Failed to correctly set activeConn")
+					}
+
+					// Now that our new connection is in place, proceed with storage
+					activeConn.Lock()
+					exponentialBackoff := 1
+					err = StoreResultsSSH(r, activeConn, outputPathURL.Path)
+					for err != nil {
+						Log.WithField("Backoff", exponentialBackoff).Error(err)
+						time.Sleep(time.Duration(exponentialBackoff) * time.Second)
+						err = StoreResultsSSH(r, activeConn, outputPathURL.Path)
+						exponentialBackoff *= DefaultSSHBackoffMultiplier
+					}
+					activeConn.Unlock()
 				}
 			}
 		}
@@ -116,7 +131,8 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 }
 
 // Stores a result directory (via SSH/SFTP) to a remote host, given
-// an already active SSH connection
+// an already active SSH connection. Ensure that you lock the relevant SSH connection
+// Before calling this.
 func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) error {
 	// We store all the results to the local file system first in a temporary directory
 	tempPath := path.Join(TempDir, r.SanitizedTask.RandomIdentifier+"-results")

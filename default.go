@@ -37,8 +37,9 @@ func SetDefaults() {
 const (
 	// MIDA Configuration Defaults
 
-	DefaultTaskAttempts = 2
-	DefaultNavTimeout   = 7
+	DefaultTaskAttempts         = 2
+	DefaultNavTimeout           = 7
+	DefaultSSHBackoffMultiplier = 5
 
 	// Browser-Related Parameters
 	DefaultOSXChromePath      = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
