@@ -34,8 +34,8 @@ func InitLogger() {
 	consoleFormatter.ForceFormatting = true
 
 	Log.SetLevel(logLevel)
-	Log.SetReportCaller(true)
 	Log.SetOutput(os.Stdout)
 	Log.SetFormatter(consoleFormatter)
+	Log.SetReportCaller(true)
 	Log.AddHook(rotateFileHook)
 }

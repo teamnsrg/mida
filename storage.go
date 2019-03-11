@@ -137,6 +137,11 @@ func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) 
 		return err
 	}
 
+	err = os.RemoveAll(tempPath)
+	if err != nil {
+		Log.Error(err)
+	}
+
 	return nil
 }
 
@@ -257,7 +262,6 @@ func StoreResultsLocalFS(r FinalMIDAResult, outpath string) error {
 
 func CreateRemoteConnection(host string) (*SSHConn, error) {
 	// First, get our private key
-
 	var c SSHConn
 
 	h, err := homedir.Dir()
