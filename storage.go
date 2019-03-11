@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -52,29 +53,28 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 					if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
 						newConn, err := CreateRemoteConnection(outputPathURL.Host)
 						if err != nil {
-							Log.Error(err)
 							connInfo.Unlock()
-							continue
+							Log.Error(err)
+							r.SanitizedTask.TaskFailed = true
+							r.SanitizedTask.FailureCode = "Failed to create SSH connection for new host: " + outputPathURL.Host
 						} else {
 							connInfo.SSHConnInfo[outputPathURL.Host] = newConn
+							connInfo.Unlock()
 							Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
+
+							// Now that our new connection is in place, proceed with storage
+							newConn.Lock()
+							err = StoreResultsSSH(r, newConn, outputPathURL.Path)
+							if err != nil {
+								r.SanitizedTask.TaskFailed = true
+								r.SanitizedTask.FailureCode = "Failed to store results via SSH"
+								Log.Error(err)
+							}
+							newConn.Unlock()
 						}
 					}
-
-					activeConn := connInfo.SSHConnInfo[outputPathURL.Host]
-					connInfo.Unlock()
-
-					activeConn.Lock()
-					// Store our results remotely given that SSH connection exists
-					err = StoreResultsSSH(r, activeConn, outputPathURL.Path)
-					if err != nil {
-						Log.Error(err)
-						Log.Error(r.SanitizedTask.Url)
-					}
-					activeConn.Unlock()
 				}
 			}
-
 		}
 
 		// Remove all data from crawl
@@ -278,8 +278,14 @@ func CreateRemoteConnection(host string) (*SSHConn, error) {
 		return &c, err
 	}
 
+	// Get current username for use in ssh
+	u, err := user.Current()
+	if err != nil {
+		return &c, err
+	}
+
 	config := &ssh.ClientConfig{
-		User: "pmurley", // TODO
+		User: u.Username, // TODO
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(privateKey),
 		},
