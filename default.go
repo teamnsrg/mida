@@ -67,6 +67,7 @@ const (
 	DefaultAllResources     = true
 	DefaultAllScripts       = true
 	DefaultJSTrace          = true
+	DefaultSaveRawTrace		= false
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true
 	DefaultResourceTree     = true

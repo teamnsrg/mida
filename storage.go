@@ -283,8 +283,10 @@ func StoreResultsLocalFS(r FinalMIDAResult, outpath string) error {
 			Log.Error(err)
 		}
 
+		if r.SanitizedTask.SaveRawTrace {
 		err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
 			path.Join(outpath, DefaultBrowserLogFileName))
+		}
 	}
 
 	return nil

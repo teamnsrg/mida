@@ -96,6 +96,7 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (CompressedMIDATa
 	*t.Data.AllResources = DefaultAllResources
 	*t.Data.AllScripts = DefaultAllScripts
 	*t.Data.JSTrace = DefaultJSTrace
+	*t.Data.SaveRawTrace = DefaultSaveRawTrace
 	*t.Data.ResourceMetadata = DefaultResourceMetadata
 	*t.Data.ScriptMetadata = DefaultScriptMetadata
 	*t.Data.ResourceTree = DefaultResourceTree
@@ -175,6 +176,7 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			AllResources:     new(bool),
 			AllScripts:       new(bool),
 			JSTrace:          new(bool),
+			SaveRawTrace: 	  new(bool),
 			ResourceMetadata: new(bool),
 			ScriptMetadata:   new(bool),
 			ResourceTree:     new(bool),

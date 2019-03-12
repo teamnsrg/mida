@@ -227,6 +227,11 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	} else {
 		st.JSTrace = DefaultJSTrace
 	}
+	if t.Data.SaveRawTrace != nil {
+		st.SaveRawTrace = *t.Data.SaveRawTrace
+	} else {
+		st.SaveRawTrace = DefaultSaveRawTrace
+	}
 	if t.Data.ResourceMetadata != nil {
 		st.ResourceMetadata = *t.Data.ResourceMetadata
 	} else {

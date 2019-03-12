@@ -42,11 +42,13 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 			}
 		}
 
-		tree, err := BuildResourceTree(rawResult)
-		if err != nil {
-			Log.Error(err)
+		if rawResult.SanitizedTask.ResourceTree {
+			tree, err := BuildResourceTree(rawResult)
+			if err != nil {
+				Log.Error(err)
+			}
+			Log.Debug(tree) // TODO: Store tree
 		}
-		Log.Debug(tree) // TODO: Store tree
 
 		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult
