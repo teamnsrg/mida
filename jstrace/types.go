@@ -2,41 +2,46 @@ package jstrace
 
 // A single argument (or return value) from an API call
 type Arg struct {
-	t   string
-	val string
+	T   string `json:"type"`
+	Val string `json:"val"`
 }
 
 // A single API call
-type call struct {
-	T    string // Type
-	C    string // Class
-	F    string // Function
-	Args []string
-	Ret  Arg
+type Call struct {
+	T    string `json:"type"`
+	C    string `json:"class"`
+	F    string `json:"func"`
+	Args []Arg  `json:"args"`
+	Ret  Arg    `json:"ret"`
 }
 
 // A single execution of a single script. A script may
 // have multiple executions through callbacks
 type Execution struct {
-	Calls []call
+	Isolate  string  `json:"isolate"`
+	ScriptId string  `json:"script_id"`
+	TS       string  `json:"timestamp"`
+	Calls    []*Call `json:"calls"`
 }
+
+type ExecutionStack []Execution
 
 // A single script, identified by a unique script ID
 type Script struct {
-	ScriptId   string
-	BaseUrl    string
-	Executions []Execution
+	ScriptId   string      `json:"script_id"`
+	BaseUrl    string      `json:"base_url"`
+	Executions []Execution `json:"executions"`
 }
 
 // The trace from a single isolate. Script IDs are only
 // guaranteed unique per-isolate
 type Isolate struct {
-	Scripts map[string]*Script
+	Scripts map[string]*Script `json:"scripts"`
 }
 
 // A full trace, parsed and ready to be stored or processed further
 type JSTrace struct {
-	Isolates map[string]*Isolate
+	Isolates map[string]*Isolate `json:"isolates"`
 }
 
 type LineType int
@@ -65,4 +70,5 @@ type Line struct {
 	ScriptId   string
 	IsCallback bool
 	IsBegin    bool
+	TS         string // Timestamp
 }

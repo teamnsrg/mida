@@ -94,10 +94,10 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 
 		// Remove all data from crawl
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
-		//err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
-		//if err != nil {
-		//	Log.Fatal(err)
-		//}
+		err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
+		if err != nil {
+			Log.Fatal(err)
+		}
 
 		if r.SanitizedTask.TaskFailed {
 			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
@@ -153,10 +153,10 @@ func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) 
 		return err
 	}
 
-	//err = os.RemoveAll(tempPath)
-	//if err != nil {
-	//	Log.Error(err)
-	//}
+	err = os.RemoveAll(tempPath)
+	if err != nil {
+		Log.Error(err)
+	}
 
 	return nil
 }
@@ -271,6 +271,20 @@ func StoreResultsLocalFS(r FinalMIDAResult, outpath string) error {
 				log.Fatal(err)
 			}
 		}
+	}
+
+	if r.SanitizedTask.JSTrace {
+		data, err := json.Marshal(r.JSTrace)
+		if err != nil {
+			Log.Error(err)
+		}
+		err = ioutil.WriteFile(path.Join(outpath, DefaultJSTracePath), data, 0644)
+		if err != nil {
+			Log.Error(err)
+		}
+
+		err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
+			path.Join(outpath, DefaultBrowserLogFileName))
 	}
 
 	return nil

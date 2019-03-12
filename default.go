@@ -55,6 +55,7 @@ const (
 	DefaultScriptSubdir         = "scripts"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultScriptMetadataFile   = "script_metadata.json"
+	DefaultJSTracePath          = "js_trace.json"
 	DefaultGroupID              = "default"
 
 	// Task completion
