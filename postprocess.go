@@ -4,6 +4,8 @@ import (
 	"errors"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/pmurley/mida/jstrace"
+	"path"
 	"time"
 )
 
@@ -29,6 +31,16 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		}
 
 		finalResult.ScriptMetadata = rawResult.Scripts
+
+		if rawResult.SanitizedTask.JSTrace {
+			trace, err := jstrace.ParseTraceFromFile(path.Join(rawResult.SanitizedTask.UserDataDirectory,
+				rawResult.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName))
+			if err != nil {
+				Log.Info(err)
+			} else {
+				finalResult.JSTrace = trace
+			}
+		}
 
 		tree, err := BuildResourceTree(rawResult)
 		if err != nil {

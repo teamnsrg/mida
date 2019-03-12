@@ -4,6 +4,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/pmurley/mida/jstrace"
 )
 
 // The metadata for a single resource. May contain multiple requests
@@ -28,4 +29,5 @@ type FinalMIDAResult struct {
 	SanitizedTask    SanitizedMIDATask
 	ScriptMetadata   map[string]debugger.EventScriptParsed
 	Stats            TaskStats
+	JSTrace          *jstrace.JSTrace
 }

@@ -94,10 +94,10 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 
 		// Remove all data from crawl
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
-		err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
-		if err != nil {
-			Log.Fatal(err)
-		}
+		//err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
+		//if err != nil {
+		//	Log.Fatal(err)
+		//}
 
 		if r.SanitizedTask.TaskFailed {
 			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
@@ -153,10 +153,10 @@ func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) 
 		return err
 	}
 
-	err = os.RemoveAll(tempPath)
-	if err != nil {
-		Log.Error(err)
-	}
+	//err = os.RemoveAll(tempPath)
+	//if err != nil {
+	//	Log.Error(err)
+	//}
 
 	return nil
 }
