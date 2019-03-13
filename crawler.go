@@ -59,6 +59,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Requests:      make(map[string][]network.EventRequestWillBeSent),
 		Responses:     make(map[string][]network.EventResponseReceived),
 		Scripts:       make(map[string]debugger.EventScriptParsed),
+		WebsocketData: make(map[string]*WSConnection),
 		SanitizedTask: st,
 	}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
@@ -281,6 +282,90 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	}))
 	if err != nil {
 		Log.Fatal(err)
+	}
+
+	// Websocket instrumentation
+	if st.WebsocketTraffic {
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketCreated", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketCreated)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
+				// Create our new websocket connection
+				wsc := WSConnection{
+					Url:            data.URL,
+					Initiator:      data.Initiator,
+					FramesSent:     make([]*network.EventWebSocketFrameSent, 0),
+					FramesReceived: make([]*network.EventWebSocketFrameReceived, 0),
+					FrameErrors:    make([]*network.EventWebSocketFrameError, 0),
+					TSStart:        time.Now().String(),
+					TSSEnd:         "",
+				}
+				rawResult.WebsocketData[data.RequestID.String()] = &wsc
+			}
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameSent", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketFrameSent)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FramesSent = append(
+					rawResult.WebsocketData[data.RequestID.String()].FramesSent, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameReceived", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketFrameReceived)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FramesReceived = append(
+					rawResult.WebsocketData[data.RequestID.String()].FramesReceived, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameError", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketFrameError)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FrameErrors = append(
+					rawResult.WebsocketData[data.RequestID.String()].FrameErrors, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketClosed", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketClosed)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].TSSEnd = data.Timestamp.Time().String()
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
 	}
 
 	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {

@@ -247,6 +247,11 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	} else {
 		st.ResourceTree = DefaultResourceTree
 	}
+	if t.Data.WebsocketTraffic != nil {
+		st.WebsocketTraffic = *t.Data.WebsocketTraffic
+	} else {
+		st.WebsocketTraffic = DefaultWebsocketTraffic
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

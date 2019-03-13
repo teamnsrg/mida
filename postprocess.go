@@ -42,6 +42,10 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 			}
 		}
 
+		if rawResult.SanitizedTask.WebsocketTraffic {
+			finalResult.WebsocketData = rawResult.WebsocketData
+		}
+
 		if rawResult.SanitizedTask.ResourceTree {
 			tree, err := BuildResourceTree(rawResult)
 			if err != nil {

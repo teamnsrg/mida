@@ -284,8 +284,20 @@ func StoreResultsLocalFS(r FinalMIDAResult, outpath string) error {
 		}
 
 		if r.SanitizedTask.SaveRawTrace {
-		err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
-			path.Join(outpath, DefaultBrowserLogFileName))
+			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
+				path.Join(outpath, DefaultBrowserLogFileName))
+		}
+	}
+
+	// Store Websocket data (if specified)
+	if r.SanitizedTask.WebsocketTraffic {
+		data, err := json.Marshal(r.WebsocketData)
+		if err != nil {
+			Log.Error(err)
+		}
+		err = ioutil.WriteFile(path.Join(outpath, DefaultWebSocketTrafficFile), data, 0644)
+		if err != nil {
+			Log.Error(err)
 		}
 	}
 

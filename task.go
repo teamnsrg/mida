@@ -28,10 +28,11 @@ type DataSettings struct {
 	AllResources     *bool `json:"all_files"`
 	AllScripts       *bool `json:"all_scripts"`
 	JSTrace          *bool `json:"js_trace"`
-	SaveRawTrace	 *bool `json:"save_raw_trace"`
+	SaveRawTrace     *bool `json:"save_raw_trace"`
 	ResourceMetadata *bool `json:"resource_metadata"`
 	ScriptMetadata   *bool `json:"script_metadata"`
 	ResourceTree     *bool `json:"resource_tree"`
+	WebsocketTraffic *bool `json:"websocket_traffic"`
 }
 
 type OutputSettings struct {
@@ -84,10 +85,11 @@ type SanitizedMIDATask struct {
 	AllResources     bool
 	AllScripts       bool
 	JSTrace          bool
-	SaveRawTrace	 bool
+	SaveRawTrace     bool
 	ResourceMetadata bool
 	ScriptMetadata   bool
 	ResourceTree     bool
+	WebsocketTraffic bool
 
 	// Output Settings
 	OutputPath       string

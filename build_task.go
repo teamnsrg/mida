@@ -176,10 +176,11 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			AllResources:     new(bool),
 			AllScripts:       new(bool),
 			JSTrace:          new(bool),
-			SaveRawTrace: 	  new(bool),
+			SaveRawTrace:     new(bool),
 			ResourceMetadata: new(bool),
 			ScriptMetadata:   new(bool),
 			ResourceTree:     new(bool),
+			WebsocketTraffic: new(bool),
 		},
 		Output: &OutputSettings{
 			Path:    new(string),

@@ -56,7 +56,9 @@ const (
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultScriptMetadataFile   = "script_metadata.json"
 	DefaultJSTracePath          = "js_trace.json"
-	DefaultGroupID              = "default"
+	DefaultWebSocketTrafficFile = "websocket_data.json"
+
+	DefaultGroupID = "default"
 
 	// Task completion
 	DefaultTimeAfterLoad       = 0
@@ -64,13 +66,14 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Defaults for data gathering settings
-	DefaultAllResources     = true
-	DefaultAllScripts       = true
+	DefaultAllResources     = false
+	DefaultAllScripts       = false
 	DefaultJSTrace          = true
-	DefaultSaveRawTrace		= false
+	DefaultSaveRawTrace     = false
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true
 	DefaultResourceTree     = false
+	DefaultWebsocketTraffic = false
 
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"

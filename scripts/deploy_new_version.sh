@@ -7,7 +7,7 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     LINUX_HASH=$(sha256sum mida_linux_amd64)
     DARWIN_HASH=$(sha256sum mida_darwin_amd64)
     SETUP_SCRIPT_HASH=$(sha256sum scripts/mida_setup.py)
-elif [[ "$OSTYPE" == "darwin"* ]]; then
+elif [[ "$OSTYPE" == "darwin" ]]; then
     LINUX_HASH=$(gsha256sum mida_linux_amd64)
     DARWIN_HASH=$(gsha256sum mida_darwin_amd64)
     SETUP_SCRIPT_HASH=$(gsha256sum scripts/mida_setup.py)
