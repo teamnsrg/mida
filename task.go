@@ -141,7 +141,7 @@ func ReadTasksFromFile(fName string) ([]MIDATask, error) {
 
 	data, err := ioutil.ReadFile(fName)
 	if err != nil {
-		return tasks, err
+		return tasks, errors.New("failed to read task file: " + fName)
 	}
 
 	tasks, err = ReadTasks(data)

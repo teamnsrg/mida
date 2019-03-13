@@ -9,9 +9,9 @@ import shutil
 import hashlib
 import zipfile
 
-LATEST_MIDA_BINARY = 'https://files.mida.sprai.org/mida'
+LATEST_MIDA_BINARY_LINUX = 'https://files.mida.sprai.org/mida_linux_amd64'
+LATEST_MIDA_BINARY_MAC = 'https://files.mida.sprai.org/mida_darwin_amd64'
 LATEST_INSTR_BROWSER_PACKAGE = 'https://files.mida.sprai.org/chromium.zip'
-
 
 def main():
     if os.geteuid() != 0:
@@ -79,10 +79,17 @@ def hash_file(fname):
 def install_mida_binary():
     sys.stdout.write('Downloading MIDA executable...')
     sys.stdout.flush()
-    urllib.request.urlretrieve(LATEST_MIDA_BINARY, '.mida.tmp')
+    if platform.system() == 'Linux':
+        urllib.request.urlretrieve(LATEST_MIDA_BINARY_LINUX, '.mida.tmp')
+    elif platform.system() == 'Darwin':
+        urllib.request.urlretrieve(LATEST_MIDA_BINARY_MAC, '.mida.tmp')
+    else:
+        print('Unsupported system type: %s' % platform.system())
+        return
+
     # TODO: Verify hash here or something maybe
-    os.rename('.mida.tmp', '/usr/bin/mida')
-    subprocess.call(['chmod', '0755','/usr/bin/mida'])
+    os.rename('.mida.tmp', '/usr/local/bin/mida')
+    subprocess.call(['chmod', '0755','/usr/local/bin/mida'])
     print('Done.')
 
 def install_xvfb():
