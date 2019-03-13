@@ -16,13 +16,15 @@ type Resource struct {
 }
 
 type WSConnection struct {
-	Url            string                                 `json:"url"`
-	Initiator      *network.Initiator                     `json:"initiator"`
-	FramesSent     []*network.EventWebSocketFrameSent     `json:"frames_sent"`
-	FramesReceived []*network.EventWebSocketFrameReceived `json:"frames_received"`
-	FrameErrors    []*network.EventWebSocketFrameError    `json:"frame_errors"`
-	TSOpen         string                                 `json:"ts_open"`
-	TSClose        string                                 `json:"ts_close"`
+	Url                string                                             `json:"url"`
+	Initiator          *network.Initiator                                 `json:"initiator"`
+	HandshakeRequests  []*network.EventWebSocketWillSendHandshakeRequest  `json:"handshake_requests"`
+	HandshakeResponses []*network.EventWebSocketHandshakeResponseReceived `json:"handshake_responses"`
+	FramesSent         []*network.EventWebSocketFrameSent                 `json:"frames_sent"`
+	FramesReceived     []*network.EventWebSocketFrameReceived             `json:"frames_received"`
+	FrameErrors        []*network.EventWebSocketFrameError                `json:"frame_errors"`
+	TSOpen             string                                             `json:"ts_open"`
+	TSClose            string                                             `json:"ts_close"`
 }
 
 type RawMIDAResult struct {

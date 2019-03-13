@@ -283,13 +283,15 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
 				// Create our new websocket connection
 				wsc := WSConnection{
-					Url:            data.URL,
-					Initiator:      data.Initiator,
-					FramesSent:     make([]*network.EventWebSocketFrameSent, 0),
-					FramesReceived: make([]*network.EventWebSocketFrameReceived, 0),
-					FrameErrors:    make([]*network.EventWebSocketFrameError, 0),
-					TSOpen:         time.Now().String(),
-					TSClose:        "",
+					Url:                data.URL,
+					Initiator:          data.Initiator,
+					HandshakeRequests:  make([]*network.EventWebSocketWillSendHandshakeRequest, 0),
+					HandshakeResponses: make([]*network.EventWebSocketHandshakeResponseReceived, 0),
+					FramesSent:         make([]*network.EventWebSocketFrameSent, 0),
+					FramesReceived:     make([]*network.EventWebSocketFrameReceived, 0),
+					FrameErrors:        make([]*network.EventWebSocketFrameError, 0),
+					TSOpen:             time.Now().String(),
+					TSClose:            "",
 				}
 				rawResult.WebsocketData[data.RequestID.String()] = &wsc
 			}
@@ -350,6 +352,36 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
 				rawResult.WebsocketData[data.RequestID.String()].TSClose = data.Timestamp.Time().String()
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketWillSendHandshakeRequest", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketWillSendHandshakeRequest)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests = append(
+					rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}))
+		if err != nil {
+			Log.Fatal(err)
+		}
+
+		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketHandshakeResponseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*network.EventWebSocketHandshakeResponseReceived)
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses = append(
+					rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses, data)
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()

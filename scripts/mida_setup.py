@@ -8,10 +8,13 @@ import urllib.request
 import shutil
 import hashlib
 import zipfile
+import argparse
 
 LATEST_MIDA_BINARY_LINUX = 'https://files.mida.sprai.org/mida_linux_amd64'
 LATEST_MIDA_BINARY_MAC = 'https://files.mida.sprai.org/mida_darwin_amd64'
 LATEST_INSTR_BROWSER_PACKAGE = 'https://files.mida.sprai.org/chromium.zip'
+SHA256SUMS = 'https://files.mida.sprai.org/sha256sums.txt'
+
 
 def main():
     if os.geteuid() != 0:
@@ -22,23 +25,56 @@ def main():
     OS = platform.system()
     if OS == 'Linux':
         print('Running config for linux system')
+        OS_SPECIFIC_NAME = "mida_linux_amd64"
     elif OS == 'Darwin':
         print('Running config for OS X system')
+        OS_SPECIFIC_NAME = "mida_darwin_amd64"
     else:
         print('Unsupported operating system: %s' % OS)
         return
 
-    # Check whether MIDA is installed
-    # If not, install it
+    # Download and parse sha256sums
+    sha256sums = {}
+    try:
+        urllib.request.urlretrieve(SHA256SUMS, '.sha256sums.txt')
+    except:
+        print('Unable to get SHA256 sums from web server')
+        return
+    f = open('.sha256sums.txt', 'r')
+    for line in f:
+        pieces = line.split()
+        if len(pieces) != 2:
+            continue
+        sha256sums[pieces[1].strip()] = pieces[0].strip()
+    f.close()
+    os.remove('.sha256sums.txt')
+
+    # Check whether MIDA is installed. If not, install it.
     path = shutil.which('mida')
-    if path == None:
-        print('Did not find existing mida installation. Installing...')
+    if path is None:
+        sys.stdout.write('Did not find existing mida installation. Installing...')
+        sys.stdout.flush()
         install_mida_binary()
-        print('Installed!')
+        sys.stdout.write('Installed!\n')
+        sys.stdout.flush()
     else:
         h = hash_file(path)
-        print('mida already installed (hash: %s)' % h)
-
+        if OS_SPECIFIC_NAME in sha256sums and h == sha256sums[OS_SPECIFIC_NAME]:
+            sys.stdout.write('MIDA is already up-to-date (Hash: %s)\n' % h)
+            sys.stdout.flush()
+        elif OS_SPECIFIC_NAME not in sha256sums:
+            sys.stdout.write('Did not find a hash for this OS\n')
+            sys.stdout.flush()
+            return
+        else:
+            sys.stdout.write('Newer version of MIDA available. Installing...')
+            sys.stdout.flush()
+            result = install_mida_binary()
+            if result is None:
+                sys.stdout.write('Installed!\n')
+            else:
+                sys.stdout.write('Error:\n' + result + '\n')
+            sys.stdout.flush()
 
     # If we are on Linux (Ubuntu), make sure Xvfb is installed
     if OS == 'Linux' and not is_installed('xvfb-run'):
@@ -53,10 +89,10 @@ def main():
     if OS == 'Linux':
         install_instr_chromium()
 
-
     print('Setup Complete!')
-    print('Run "mida help" to get started.')
+    print('Type "mida help" to get started.')
     return
+
 
 def hash_file(fname):
     HASH_BUF_SIZE = 65536
@@ -76,21 +112,24 @@ def hash_file(fname):
     f.close()
     return m.hexdigest()
 
+
 def install_mida_binary():
-    sys.stdout.write('Downloading MIDA executable...')
     sys.stdout.flush()
     if platform.system() == 'Linux':
         urllib.request.urlretrieve(LATEST_MIDA_BINARY_LINUX, '.mida.tmp')
     elif platform.system() == 'Darwin':
         urllib.request.urlretrieve(LATEST_MIDA_BINARY_MAC, '.mida.tmp')
     else:
-        print('Unsupported system type: %s' % platform.system())
-        return
+        return 'Unsupported system type: %s' % platform.system()
 
     # TODO: Verify hash here or something maybe
-    os.rename('.mida.tmp', '/usr/local/bin/mida')
-    subprocess.call(['chmod', '0755','/usr/local/bin/mida'])
-    print('Done.')
+    try:
+        os.rename('.mida.tmp', '/usr/local/bin/mida')
+        subprocess.call(['chmod', '0755', '/usr/local/bin/mida'])
+    except:
+        os.remove('.mida.tmp')
+        return "Successful download but failed to install"
+    return None
 
 def install_xvfb():
     import apt
