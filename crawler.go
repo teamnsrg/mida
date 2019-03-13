@@ -8,6 +8,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/phayes/freeport"
+	"github.com/prometheus/common/log"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -162,7 +163,9 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
-		Log.Fatal(err)
+		Log.Error(err)
+		log.Error("If running without a display, preface command with \"xvfb-run\"")
+		Log.Fatal("Exiting")
 	}
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.DevtoolsConnect = time.Now()

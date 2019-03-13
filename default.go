@@ -70,9 +70,7 @@ const (
 	DefaultSaveRawTrace		= false
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true
-	DefaultResourceTree     = true
-
-	// RabbitMQDefaults
+	DefaultResourceTree     = false
 
 	// Other/Util
 	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"

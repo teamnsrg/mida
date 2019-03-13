@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/snowzach/rotatefilehook"
-	"github.com/x-cray/logrus-prefixed-formatter"
+	//"github.com/x-cray/logrus-prefixed-formatter"
 	"os"
 )
 
@@ -12,7 +12,8 @@ var Log = logrus.New()
 func InitLogger() {
 	logLevel := logrus.InfoLevel
 
-	fileFormatter := new(prefixed.TextFormatter)
+	//fileFormatter := new(prefixed.TextFormatter)
+	fileFormatter := new(logrus.TextFormatter)
 	fileFormatter.FullTimestamp = true
 	fileFormatter.DisableColors = true
 
@@ -28,14 +29,15 @@ func InitLogger() {
 		Log.Fatal(err)
 	}
 
-	consoleFormatter := new(prefixed.TextFormatter)
-	consoleFormatter.FullTimestamp = true
+	//consoleFormatter := new(prefixed.TextFormatter)
+	consoleFormatter := new(logrus.TextFormatter)
+	consoleFormatter.FullTimestamp = false
 	consoleFormatter.ForceColors = true
-	consoleFormatter.ForceFormatting = true
+	//consoleFormatter.ForceFormatting = true
 
 	Log.SetLevel(logLevel)
 	Log.SetOutput(os.Stdout)
 	Log.SetFormatter(consoleFormatter)
-	Log.SetReportCaller(true)
+	Log.SetReportCaller(false)
 	Log.AddHook(rotateFileHook)
 }
