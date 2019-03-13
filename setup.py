@@ -24,10 +24,10 @@ def main(args):
     # Check which platform we are running on
     OS = platform.system()
     if OS == 'Linux':
-        print('Running config for linux system')
+        print('Running setup for linux system')
         OS_SPECIFIC_NAME = "mida_linux_amd64"
     elif OS == 'Darwin':
-        print('Running config for OS X system')
+        print('Running setup for OS X system')
         OS_SPECIFIC_NAME = "mida_darwin_amd64"
     else:
         print('Unsupported operating system: %s' % OS)
@@ -150,7 +150,7 @@ def install_instr_chromium(p):
         sys.stdout.write('Failed!')
         sys.stdout.flush()
         return
-    sys.stdout.write('Done.')
+    sys.stdout.write('Done.\n')
     sys.stdout.flush()
 
     u = ''
@@ -170,16 +170,20 @@ def install_instr_chromium(p):
     except:
         print('Did not remove testing directory')
 
-    if not os.path.isdir(os.path.join(p)):
-        os.makedirs(os.path.join(p))
+    try:
+        if not os.path.isdir(os.path.join(p)):
+            os.mkdir(os.path.join(p))
+        os.rename('.browser.tmp/out/release-1', os.path.join(p))
+        DEVNULL = open(os.devnull,'wb')
+        subprocess.call(['chown', '-R', u + ':' + u, os.path.join(p)], stdout=DEVNULL, stderr=DEVNULL)
+        subprocess.call(['chmod', '+x', os.path.join(p, 'chrome')], stdout=DEVNULL, stderr=DEVNULL)
+        DEVNULL.close()
+    except:
+        sys.stdout.write('Cannot create directory: %s\n' % p)
+        sys.stdout.flush()
 
-    os.rename('.browser.tmp/out/release-1', os.path.join(p))
     shutil.rmtree('.browser.tmp')
     os.remove('.browser.tmp.zip')
-    DEVNULL = open(os.devnull,'wb')
-    subprocess.call(['chown', '-R', u + ':' + u, os.path.join(p)], stdout=DEVNULL, stderr=DEVNULL)
-    subprocess.call(['chmod', '+x', os.path.join(p, 'chrome')], stdout=DEVNULL, stderr=DEVNULL)
-    DEVNULL.close()
 
 
 if __name__ == '__main__':
