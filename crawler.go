@@ -275,15 +275,6 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		Log.Fatal(err)
 	}
 
-	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFailed", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*network.EventLoadingFailed)
-		// TODO: Count how many times this happens, figure out what types of resources it is happening for
-		Log.Debug("Loading Failed: ", data.Type, " : ", data.BlockedReason, " : ", data.ErrorText)
-	}))
-	if err != nil {
-		Log.Fatal(err)
-	}
-
 	// Websocket instrumentation
 	if st.WebsocketTraffic {
 		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketCreated", func(param interface{}, handler *chromedp.TargetHandler) {
@@ -297,8 +288,8 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 					FramesSent:     make([]*network.EventWebSocketFrameSent, 0),
 					FramesReceived: make([]*network.EventWebSocketFrameReceived, 0),
 					FrameErrors:    make([]*network.EventWebSocketFrameError, 0),
-					TSStart:        time.Now().String(),
-					TSSEnd:         "",
+					TSOpen:         time.Now().String(),
+					TSClose:        "",
 				}
 				rawResult.WebsocketData[data.RequestID.String()] = &wsc
 			}
@@ -358,7 +349,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
-				rawResult.WebsocketData[data.RequestID.String()].TSSEnd = data.Timestamp.Time().String()
+				rawResult.WebsocketData[data.RequestID.String()].TSClose = data.Timestamp.Time().String()
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
@@ -368,26 +359,29 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 		}
 	}
 
-	err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*debugger.EventScriptParsed)
-		rawResultLock.Lock()
-		rawResult.Scripts[data.ScriptID.String()] = *data
-		rawResultLock.Unlock()
-		if st.AllScripts {
-			source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
-			if err != nil && err.Error() != "context canceled" {
-				Log.Error("Failed to get script source")
-				Log.Error(err)
-			} else {
-				err = ioutil.WriteFile(path.Join(resultsDir, DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
-				if err != nil {
-					Log.Fatal(err)
+	// Instrument the scriptParsed event if (and only if) we need data from it
+	if st.ScriptMetadata || st.AllScripts {
+		err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
+			data := param.(*debugger.EventScriptParsed)
+			rawResultLock.Lock()
+			rawResult.Scripts[data.ScriptID.String()] = *data
+			rawResultLock.Unlock()
+			if st.AllScripts {
+				source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
+				if err != nil && err.Error() != "context canceled" {
+					Log.Error("Failed to get script source")
+					Log.Error(err)
+				} else {
+					err = ioutil.WriteFile(path.Join(resultsDir, DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
+					if err != nil {
+						Log.Fatal(err)
+					}
 				}
 			}
+		}))
+		if err != nil {
+			Log.Fatal(err)
 		}
-	}))
-	if err != nil {
-		Log.Fatal(err)
 	}
 
 	// Below is the MIDA navigation logic. Since MIDA offers several different

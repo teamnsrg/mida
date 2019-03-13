@@ -21,8 +21,8 @@ type WSConnection struct {
 	FramesSent     []*network.EventWebSocketFrameSent     `json:"frames_sent"`
 	FramesReceived []*network.EventWebSocketFrameReceived `json:"frames_received"`
 	FrameErrors    []*network.EventWebSocketFrameError    `json:"frame_errors"`
-	TSStart        string                                 `json:"ts_start"`
-	TSSEnd         string                                 `json:"ts_end"`
+	TSOpen         string                                 `json:"ts_open"`
+	TSClose        string                                 `json:"ts_close"`
 }
 
 type RawMIDAResult struct {
