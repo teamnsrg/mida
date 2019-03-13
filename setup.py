@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import sys
 import subprocess
@@ -16,7 +16,7 @@ LATEST_INSTR_BROWSER_PACKAGE = 'https://files.mida.sprai.org/chromium.zip'
 SHA256SUMS = 'https://files.mida.sprai.org/sha256sums.txt'
 
 
-def main():
+def main(args):
     if os.geteuid() != 0:
         print('Please execute with root privileges.')
         return
@@ -76,21 +76,16 @@ def main():
                 sys.stdout.write('Error:\n' + result + '\n')
             sys.stdout.flush()
 
-    # If we are on Linux (Ubuntu), make sure Xvfb is installed
-    if OS == 'Linux' and not is_installed('xvfb-run'):
-        install_xvfb()
+    if args.instrumented_browser != "":
+        if OS == 'Linux':
+            install_instr_chromium(args.instrumented_browser)
+        else:
+            sys.stdout.write('Instrumented browser currently only supported on Linux\n')
+            sys.stdout.flush()
 
-    # Make sure chromium is installed
-    if OS == 'Linux' and not is_installed('chromium-browser --version'):
-        install_chromium()
-    else:
-        print('Vanilla chromium already installed')
-
-    if OS == 'Linux':
-        install_instr_chromium()
-
-    print('Setup Complete!')
-    print('Type "mida help" to get started.')
+    sys.stdout.write('Setup Complete.\n')
+    sys.stdout.write('Type "mida help" to get started.\n')
+    sys.stdout.flush()
     return
 
 
@@ -131,34 +126,6 @@ def install_mida_binary():
         return "Successful download but failed to install"
     return None
 
-def install_xvfb():
-    import apt
-    cache = apt.cache.Cache()
-    cache.open()
-    pkg = cache['xvfb']
-    pkg.mark_install()
-    try:
-        sys.stdout.write('Installing Xvfb...')
-        sys.stdout.flush()
-        cache.commit()
-        print('Done.')
-    except Exception as e:
-        print('Error installing Xvfb: %s' % e)
-
-
-def install_chromium():
-    import apt
-    cache = apt.cache.Cache()
-    cache.open()
-    pkg = cache['chromium-browser']
-    pkg.mark_install()
-    try:
-        sys.stdout.write('Installing Chromium...')
-        sys.stdout.flush()
-        cache.commit()
-        print('Done.')
-    except Exception as e:
-        print('Error installing Chromium: %s' % e)
 
 def is_installed(program):
     try:
@@ -173,17 +140,19 @@ def is_installed(program):
             raise
     return True
 
-def install_instr_chromium():
+
+def install_instr_chromium(p):
     sys.stdout.write('Downloading instrumented version of Chromium...')
     sys.stdout.flush()
     try:
         urllib.request.urlretrieve(LATEST_INSTR_BROWSER_PACKAGE, '.browser.tmp.zip')
     except:
-        print('Failed to download the latest instrumented browser package...')
+        sys.stdout.write('Failed!')
+        sys.stdout.flush()
         return
-    print('Done.')
+    sys.stdout.write('Done.')
+    sys.stdout.flush()
 
-    p = os.path.expanduser('~')
     u = ''
     if os.environ.get('SUDO_USER') is not None:
         u = os.environ.get('SUDO_USER')
@@ -201,21 +170,21 @@ def install_instr_chromium():
     except:
         print('Did not remove testing directory')
 
-    if not os.path.isdir(os.path.join(p, '.mida')):
-        os.makedirs(os.path.join(p, '.mida'))
+    if not os.path.isdir(os.path.join(p)):
+        os.makedirs(os.path.join(p))
 
-    if os.path.isdir(os.path.join(p, '.mida/browser')):
-        shutil.rmtree(os.path.join(p, '.mida/browser'))
-
-    os.rename('.browser.tmp/out/release-1', os.path.join(p, '.mida/browser'))
+    os.rename('.browser.tmp/out/release-1', os.path.join(p))
     shutil.rmtree('.browser.tmp')
     os.remove('.browser.tmp.zip')
     DEVNULL = open(os.devnull,'wb')
-    subprocess.call(['chown', '-R', u+':'+u, os.path.join(p, '.mida')], stdout=DEVNULL, stderr=DEVNULL)
-    subprocess.call(['chmod', '+x', os.path.join(p, '.mida/browser/chrome')], stdout=DEVNULL, stderr=DEVNULL)
+    subprocess.call(['chown', '-R', u + ':' + u, os.path.join(p)], stdout=DEVNULL, stderr=DEVNULL)
+    subprocess.call(['chmod', '+x', os.path.join(p, 'chrome')], stdout=DEVNULL, stderr=DEVNULL)
     DEVNULL.close()
 
 
 if __name__ == '__main__':
-    main()
-
+    parser = argparse.ArgumentParser(description='MIDA setup script')
+    parser.add_argument('-i', '--instrumented-browser', action="store", default="",
+                        help="Path to download and install instrumented browser")
+    args = parser.parse_args(sys.argv[1:])
+    main(args)
