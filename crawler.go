@@ -530,7 +530,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 	if err != nil {
 		Log.WithFields(log.Fields{
 			"URL": st.Url,
-		}).Fatal("Browser Shutdown Failed: ", err)
+		}).Error("Browser Shutdown Failed: ", err)
 	}
 
 	err = r.Wait()

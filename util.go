@@ -67,3 +67,15 @@ func ValidateURL(s string) (string, error) {
 
 	return u.String(), nil
 }
+
+func DirNameFromURL(s string) (string, error) {
+	u, err := url.ParseRequestURI(s)
+	if err != nil {
+		return "", err
+	}
+	return SanitizeStringForFilename(u.Host + u.EscapedPath()), nil
+}
+
+func SanitizeStringForFilename(s string) string {
+	return strings.Replace(s, "/", "-", -1)
+}

@@ -42,7 +42,12 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 				Log.Error(err)
 			} else {
 				if outputPathURL.Host == "" {
-					outpath := path.Join(r.SanitizedTask.OutputPath, r.SanitizedTask.RandomIdentifier)
+					dirName, err := DirNameFromURL(r.SanitizedTask.Url)
+					if err != nil {
+						Log.Fatal(err)
+					}
+					outpath := path.Join(r.SanitizedTask.OutputPath, dirName,
+						r.SanitizedTask.RandomIdentifier)
 					err = StoreResultsLocalFS(r, outpath)
 					if err != nil {
 						log.Error("Failed to store results: ", err)
@@ -167,8 +172,17 @@ func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) 
 	defer sftpClient.Close()
 
 	// Walk the temporary results directory and write everything to our new remote file location
-	err = CopyDirRemote(sftpClient, tempPath, remotePath+r.SanitizedTask.RandomIdentifier)
+	dirName, err := DirNameFromURL(r.SanitizedTask.Url)
 	if err != nil {
+		Log.Fatal(err)
+	}
+	err = CopyDirRemote(sftpClient, tempPath, path.Join(remotePath,
+		dirName, r.SanitizedTask.RandomIdentifier))
+	if err != nil {
+		err = os.RemoveAll(tempPath)
+		if err != nil {
+			Log.Error(err)
+		}
 		return err
 	}
 
@@ -181,7 +195,11 @@ func StoreResultsSSH(r FinalMIDAResult, activeConn *SSHConn, remotePath string) 
 }
 
 func CopyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname string) error {
-	err := filepath.Walk(localDirname, func(p string, info os.FileInfo, err error) error {
+	err := sftpConn.MkdirAll(remoteDirname)
+	if err != nil {
+		Log.Error(err)
+	}
+	err = filepath.Walk(localDirname, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -193,24 +211,28 @@ func CopyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname str
 		if info.IsDir() {
 			err = sftpConn.MkdirAll(path.Join(remoteDirname, info.Name()))
 			if err != nil {
+				Log.Debug(err)
 				return err
 			}
 
 		} else {
 			srcFile, err := os.Open(p)
 			if err != nil {
+				Log.Debug(err)
 				return err
 			}
 			defer srcFile.Close()
 
 			dstFile, err := sftpConn.Create(path.Join(remoteDirname, localizedPath))
 			if err != nil {
+				Log.Debug(err)
 				return err
 			}
 			defer dstFile.Close()
 
 			_, err = io.Copy(dstFile, srcFile)
 			if err != nil {
+				Log.Debug(err)
 				return err
 			}
 		}
