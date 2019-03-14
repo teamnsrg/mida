@@ -107,11 +107,11 @@ func NewAMQPTasksConsumer() (*Consumer, <-chan amqp.Delivery, error) {
 	// Check to make sure this queue is present -- If not, we just die
 	queue, err := c.channel.QueueDeclarePassive(
 		viper.GetString("rabbitmqtaskqueue"), // name of the queue
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // noWait
-		nil,   // arguments
+		true,                                 // durable
+		false,                                // delete when unused
+		false,                                // exclusive
+		false,                                // noWait
+		nil,                                  // arguments
 	)
 	if err != nil {
 		return nil, nil, err
@@ -229,7 +229,6 @@ func (c *Consumer) Shutdown() error {
 func DecodeAMQPMessageToRawTask(delivery amqp.Delivery) (MIDATask, error) {
 	var task MIDATask
 	err := json.Unmarshal(delivery.Body, &task)
-	Log.Info(task)
 	if err != nil {
 		return task, err
 	}

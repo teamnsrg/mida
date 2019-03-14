@@ -96,14 +96,15 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
 		err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
 		if err != nil {
+			Log.Errorf("Issue deleting User Data Dir: %s", r.SanitizedTask.Url)
 			Log.Fatal(err)
 		}
 
 		if r.SanitizedTask.TaskFailed {
 			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 				// We are abandoning trying this task. Too bad.
-				Log.Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
-				Log.Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
+				Log.WithField("URL", r.SanitizedTask.Url).Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
+				Log.WithField("URL", r.SanitizedTask.Url).Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
 				Log.Debug("Retrying task...")

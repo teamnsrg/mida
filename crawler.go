@@ -499,7 +499,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			<-timeoutChan
 		case <-timeoutChan:
 			// Overall timeout, shut down now, no post-crawl data gathering for you
-			Log.Info("Timeout (no post crawl activities")
+			Log.Debug("Timeout (no post crawl activities)")
 		}
 	}
 
