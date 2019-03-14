@@ -8,7 +8,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/phayes/freeport"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/chromedp/runner"
 	"io/ioutil"
@@ -26,7 +26,13 @@ func CrawlerInstance(sanitizedTaskChan <-chan SanitizedMIDATask, rawResultChan c
 			if !ok {
 				retryChan = nil
 			} else {
+				Log.WithFields(log.Fields{
+					"URL": st.Url,
+				}).Debug("Received from retry channel")
 				rawResult, err := ProcessSanitizedTask(st)
+				Log.WithFields(log.Fields{
+					"URL": st.Url,
+				}).Debug("Finished retrying task")
 				if err != nil {
 					Log.Fatal(err)
 				}
@@ -164,9 +170,23 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
 	if err != nil {
-		Log.Error(err)
-		log.Error("If running without a display, preface command with \"xvfb-run\"")
-		Log.Fatal("Exiting")
+		// Retry once
+		c, err = chromedp.New(cxt, chromedp.WithRunner(r))
+		if err != nil {
+			Log.Error(err)
+			Log.Error("If running without a display, preface command with \"xvfb-run\"")
+			rawResultLock.Lock()
+			rawResult.SanitizedTask.TaskFailed = true
+			rawResult.SanitizedTask.FailureCode = err.Error()
+			rawResultLock.Unlock()
+
+			rawResultLock.Lock()
+			rawResult.Stats.Timing.BrowserClose = time.Now()
+			rawResult.Stats.Timing.EndCrawl = time.Now()
+			rawResultLock.Unlock()
+
+			return rawResult, nil
+		}
 	}
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.DevtoolsConnect = time.Now()
@@ -442,7 +462,7 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 
 		err = c.Shutdown(cxt)
 		if err != nil {
-			Log.Fatal("Browser Shutdown Failed: ", err)
+			Log.Error("Browser Shutdown Failed: ", err)
 		}
 
 		rawResultLock.Lock()
@@ -499,15 +519,28 @@ func ProcessSanitizedTask(st SanitizedMIDATask) (RawMIDAResult, error) {
 			<-timeoutChan
 		case <-timeoutChan:
 			// Overall timeout, shut down now, no post-crawl data gathering for you
-			Log.Debug("Timeout (no post crawl activities)")
+			Log.WithFields(log.Fields{
+				"URL": st.Url,
+			}).Debug("Timeout (no post crawl activities)")
 		}
 	}
 
 	// Clean up
 	err = c.Shutdown(cxt)
 	if err != nil {
-		Log.Fatal("Browser Shutdown Failed: ", err)
+		Log.WithFields(log.Fields{
+			"URL": st.Url,
+		}).Fatal("Browser Shutdown Failed: ", err)
 	}
+
+	err = r.Wait()
+	if err != nil {
+		Log.Fatal("Error waiting for runner after shutdown")
+	}
+
+	// Make sure we free this memory -- danger of a leak
+	c = nil
+	r = nil
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()

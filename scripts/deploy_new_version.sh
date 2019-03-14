@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd ~/go/src/github.com/pmurley/mida
 GOOS=linux GOARCH=amd64 go build -o mida_linux_amd64

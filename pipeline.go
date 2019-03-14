@@ -20,7 +20,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	rawResultChan := make(chan RawMIDAResult)
 	sanitizedTaskChan := make(chan SanitizedMIDATask)
 	rawTaskChan := make(chan MIDATask)
-	retryChan := make(chan SanitizedMIDATask)
+	retryChan := make(chan SanitizedMIDATask, viper.GetInt("crawlers")+viper.GetInt("storers")+2)
 
 	var crawlerWG sync.WaitGroup  // Tracks active crawler workers
 	var storageWG sync.WaitGroup  // Tracks active storage workers

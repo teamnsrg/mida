@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/sftp"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -55,14 +55,14 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 					if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
 						newConn, err := CreateRemoteConnection(outputPathURL.Host)
 						connInfo.Unlock()
-						exponentialBackoff := 1
+						backoff := 1
 						for err != nil {
-							Log.WithField("Backoff", exponentialBackoff).Error(err)
-							time.Sleep(time.Duration(exponentialBackoff) * time.Second)
+							Log.WithField("Backoff", backoff).Error(err)
+							time.Sleep(time.Duration(backoff) * time.Second)
 							connInfo.Lock()
 							newConn, err = CreateRemoteConnection(outputPathURL.Host)
 							connInfo.Unlock()
-							exponentialBackoff *= DefaultSSHBackoffMultiplier
+							backoff *= DefaultSSHBackoffMultiplier
 						}
 
 						connInfo.SSHConnInfo[outputPathURL.Host] = newConn
@@ -94,10 +94,23 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 
 		// Remove all data from crawl
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
+		// TODO: Also fix this nonsense
+		// There's an issue where os.RemoveAll throws an error while trying to delete the Chromium
+		// User Data Directory sometimes. It's still unclear exactly why.
 		err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
 		if err != nil {
-			Log.Errorf("Issue deleting User Data Dir: %s", r.SanitizedTask.Url)
-			Log.Fatal(err)
+			Log.WithFields(log.Fields{
+				"URL": r.SanitizedTask.Url,
+			}).Errorf("Issue deleting User Data Dir: %s", r.SanitizedTask.UserDataDirectory)
+			Log.Error("Retrying in 1 sec...")
+			time.Sleep(time.Second)
+			err = os.RemoveAll(r.SanitizedTask.UserDataDirectory)
+			if err != nil {
+				Log.Error("Failure")
+				Log.Fatal(err)
+			} else {
+				Log.Error("Success!")
+			}
 		}
 
 		if r.SanitizedTask.TaskFailed {
@@ -107,13 +120,18 @@ func StoreResults(finalResultChan <-chan FinalMIDAResult, monitoringChan chan<- 
 				Log.WithField("URL", r.SanitizedTask.Url).Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
-				Log.Debug("Retrying task...")
+				Log.WithFields(log.Fields{
+					"URL": r.SanitizedTask.Url,
+				}).Debug("Retrying task...")
 				r.SanitizedTask.CurrentAttempt++
 				r.SanitizedTask.TaskFailed = false
 				r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
 				r.SanitizedTask.FailureCode = ""
 				pipelineWG.Add(1)
 				retryChan <- r.SanitizedTask
+				Log.WithFields(log.Fields{
+					"URL": r.SanitizedTask.Url,
+				}).Debug("Added to retry channel")
 			}
 		}
 

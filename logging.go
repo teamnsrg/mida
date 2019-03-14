@@ -10,7 +10,7 @@ import (
 var Log = logrus.New()
 
 func InitLogger() {
-	logLevel := logrus.InfoLevel
+	logLevel := logrus.DebugLevel
 
 	//fileFormatter := new(prefixed.TextFormatter)
 	fileFormatter := new(logrus.TextFormatter)
