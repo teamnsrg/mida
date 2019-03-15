@@ -42,7 +42,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// Start goroutine(s) that handles crawl results storage
 	storageWG.Add(viper.GetInt("storers"))
 	for i := 0; i < viper.GetInt("storers"); i++ {
-		go StoreResults(finalResultChan, monitoringChan, retryChan, &storageWG, &pipelineWG, &connInfo)
+		go Backend(finalResultChan, monitoringChan, retryChan, &storageWG, &pipelineWG, &connInfo)
 	}
 
 	// Start goroutine that handles crawl results sanitization

@@ -145,6 +145,11 @@ type Resource struct {
 	Responses []network.EventResponseReceived  `json:"responses"`
 }
 
+type ResourceTree struct {
+	RootNode *ResourceNode
+	Orphans  []*ResourceNode
+}
+
 type FinalMIDAResult struct {
 	ResourceMetadata map[string]Resource
 	SanitizedTask    SanitizedMIDATask
@@ -152,6 +157,7 @@ type FinalMIDAResult struct {
 	Stats            TaskStats
 	JSTrace          *jstrace.JSTrace
 	WebsocketData    map[string]*WSConnection
+	RTree            *ResourceTree
 }
 
 type TaskTiming struct {

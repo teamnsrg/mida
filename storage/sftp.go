@@ -19,7 +19,7 @@ import (
 // Stores a result directory (via SSH/SFTP) to a remote host, given
 // an already active SSH connection. Ensure that you lock the relevant SSH connection
 // Before calling this.
-func StoreResultsSSH(r t.FinalMIDAResult, activeConn *t.SSHConn, remotePath string) error {
+func StoreResultsSSH(r *t.FinalMIDAResult, activeConn *t.SSHConn, remotePath string) error {
 	// We store all the results to the local file system first in a temporary directory
 	tempPath := path.Join(TempDir, r.SanitizedTask.RandomIdentifier+"-results")
 	err := StoreResultsLocalFS(r, tempPath)

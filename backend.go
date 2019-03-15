@@ -14,7 +14,7 @@ import (
 )
 
 // Takes validated results and stores them as the task specifies, either locally, remotely, or both
-func StoreResults(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.TaskStats,
+func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.TaskStats,
 	retryChan chan<- t.SanitizedMIDATask, storageWG *sync.WaitGroup, pipelineWG *sync.WaitGroup,
 	connInfo *ConnInfo) {
 
@@ -37,7 +37,7 @@ func StoreResults(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<
 					}
 					outpath := path.Join(r.SanitizedTask.OutputPath, dirName,
 						r.SanitizedTask.RandomIdentifier)
-					err = storage.StoreResultsLocalFS(r, outpath)
+					err = storage.StoreResultsLocalFS(&r, outpath)
 					if err != nil {
 						log.Log.Error("Failed to store results: ", err)
 					}
@@ -74,11 +74,11 @@ func StoreResults(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<
 					// Now that our new connection is in place, proceed with storage
 					activeConn.Lock()
 					backoff := 1
-					err = storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
+					err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
 					for err != nil {
 						log.Log.WithField("BackOff", backoff).Error(err)
 						time.Sleep(time.Duration(backoff) * time.Second)
-						err = storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
+						err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
 						backoff *= DefaultSSHBackoffMultiplier
 					}
 					activeConn.Unlock()

@@ -524,11 +524,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		log.Log.Error("Browser Shutdown Failed: ", err)
 	}
 
-	err = r.Wait()
-	if err != nil {
-		log.Log.Fatal("Error waiting for runner after shutdown")
-	}
-
 	// Make sure we free this memory -- danger of a leak
 	c = nil
 	r = nil

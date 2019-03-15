@@ -12,7 +12,7 @@ import (
 
 // Given a valid FinalMIDAResult, stores it according to the output
 // path specified in the sanitized task within the result
-func StoreResultsLocalFS(r t.FinalMIDAResult, outpath string) error {
+func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 	_, err := os.Stat(outpath)
 	if err != nil {
 		err = os.MkdirAll(outpath, 0755)
@@ -94,6 +94,17 @@ func StoreResultsLocalFS(r t.FinalMIDAResult, outpath string) error {
 		if r.SanitizedTask.SaveRawTrace {
 			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
 				path.Join(outpath, DefaultBrowserLogFileName))
+		}
+	}
+
+	if r.SanitizedTask.ResourceTree {
+		data, err := json.Marshal(r.RTree)
+		if err != nil {
+			log.Log.Error(err)
+		}
+		err = ioutil.WriteFile(path.Join(outpath, DefaultResourceTreePath), data, 0644)
+		if err != nil {
+			log.Log.Error(err)
 		}
 	}
 
