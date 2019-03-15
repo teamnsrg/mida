@@ -1,6 +1,10 @@
 package main
 
 import (
+	"github.com/pmurley/mida/log"
+	"github.com/pmurley/mida/monitor"
+	"github.com/pmurley/mida/storage"
+	t "github.com/pmurley/mida/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
@@ -9,18 +13,18 @@ import (
 
 type ConnInfo struct {
 	sync.Mutex
-	SSHConnInfo map[string]*SSHConn
+	SSHConnInfo map[string]*t.SSHConn
 }
 
 func InitPipeline(cmd *cobra.Command, args []string) {
 
 	// Create channels for the pipeline
-	monitoringChan := make(chan TaskStats)
-	finalResultChan := make(chan FinalMIDAResult)
-	rawResultChan := make(chan RawMIDAResult)
-	sanitizedTaskChan := make(chan SanitizedMIDATask)
-	rawTaskChan := make(chan MIDATask)
-	retryChan := make(chan SanitizedMIDATask, viper.GetInt("crawlers")+viper.GetInt("storers")+2)
+	monitoringChan := make(chan t.TaskStats)
+	finalResultChan := make(chan t.FinalMIDAResult)
+	rawResultChan := make(chan t.RawMIDAResult)
+	sanitizedTaskChan := make(chan t.SanitizedMIDATask)
+	rawTaskChan := make(chan t.MIDATask)
+	retryChan := make(chan t.SanitizedMIDATask, viper.GetInt("crawlers")+viper.GetInt("storers")+2)
 
 	var crawlerWG sync.WaitGroup  // Tracks active crawler workers
 	var storageWG sync.WaitGroup  // Tracks active storage workers
@@ -28,11 +32,11 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 
 	// Initialize directory for SSH connections, which are effectively global
 	var connInfo ConnInfo
-	connInfo.SSHConnInfo = make(map[string]*SSHConn)
+	connInfo.SSHConnInfo = make(map[string]*t.SSHConn)
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
-		go RunPrometheusClient(monitoringChan, viper.GetInt("promport"))
+		go monitor.RunPrometheusClient(monitoringChan, viper.GetInt("promport"))
 	}
 
 	// Start goroutine(s) that handles crawl results storage
@@ -68,19 +72,18 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 		v.Lock()
 		err := v.Client.Close()
 		if err != nil {
-			Log.Error(err)
+			log.Log.Error(err)
 		}
-		Log.Info("Closed SSH connection to: ", k)
+		log.Log.Info("Closed SSH connection to: ", k)
 		v.Unlock()
 	}
 	connInfo.Unlock()
 
 	// Cleanup remaining artifacts
-	err := os.RemoveAll(TempDir)
+	err := os.RemoveAll(storage.TempDir)
 	if err != nil {
-		Log.Warn(err)
+		log.Log.Warn(err)
 	}
 
 	return
-
 }

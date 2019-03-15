@@ -1,4 +1,4 @@
-package main
+package log
 
 import (
 	"github.com/sirupsen/logrus"
@@ -18,7 +18,7 @@ func InitLogger() {
 	fileFormatter.DisableColors = true
 
 	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
-		Filename:   MIDALogFile,
+		Filename:   "mida.log",
 		MaxSize:    50, //megabytes
 		MaxBackups: 3,
 		MaxAge:     30, //days

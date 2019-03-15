@@ -2,13 +2,10 @@ package main
 
 import "github.com/spf13/viper"
 
-// Crawl Completion Conditions
-type CompletionCondition int
-
 const (
-	CompleteOnLoadEvent        CompletionCondition = 0
-	CompleteOnTimeoutOnly      CompletionCondition = 1
-	CompleteOnTimeoutAfterLoad CompletionCondition = 2
+	CompleteOnLoadEvent        = 0
+	CompleteOnTimeoutOnly      = 1
+	CompleteOnTimeoutAfterLoad = 2
 )
 
 func InitConfig() {
@@ -42,21 +39,10 @@ const (
 	DefaultSSHBackoffMultiplier = 5
 
 	// Browser-Related Parameters
-	DefaultOSXChromePath      = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	DefaultOSXChromiumPath    = "/Applications/Chromium.app/Contents/MacOS/Chromium"
-	DefaultLinuxChromePath    = "/usr/bin/google-chrome-stable"
-	DefaultLinuxChromiumPath  = "/usr/bin/chromium-browser"
-	DefaultBrowserLogFileName = "browser.log"
-	DefaultProtocolPrefix     = "http://"
-
-	// Output Parameters
-	DefaultOutputPath           = "results"
-	DefaultFileSubdir           = "files"
-	DefaultScriptSubdir         = "scripts"
-	DefaultResourceMetadataFile = "resource_metadata.json"
-	DefaultScriptMetadataFile   = "script_metadata.json"
-	DefaultJSTracePath          = "js_trace.json"
-	DefaultWebSocketTrafficFile = "websocket_data.json"
+	DefaultOSXChromePath     = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	DefaultOSXChromiumPath   = "/Applications/Chromium.app/Contents/MacOS/Chromium"
+	DefaultLinuxChromePath   = "/usr/bin/google-chrome-stable"
+	DefaultLinuxChromiumPath = "/usr/bin/chromium-browser"
 
 	DefaultGroupID = "default"
 
@@ -76,10 +62,7 @@ const (
 	DefaultWebsocketTraffic = false
 
 	// Other/Util
-	AlphaNumChars           = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-	DefaultIdentifierLength = 16 // Random identifier for each crawl
-	MIDALogFile             = "mida.log"
-	TempDir                 = ".tmp"
+
 )
 
 var DefaultBrowserFlags = []string{

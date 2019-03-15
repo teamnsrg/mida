@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/pmurley/mida/log"
+	"github.com/pmurley/mida/queue"
+	"github.com/pmurley/mida/storage"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -15,7 +18,7 @@ func BuildCommands() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			_, err := BuildCompressedTaskSet(cmd, args)
 			if err != nil {
-				Log.Error(err)
+				log.Log.Error(err)
 			}
 		},
 	}
@@ -71,7 +74,7 @@ func BuildCommands() *cobra.Command {
 	cmdBuild.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultOutputPath,
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
 	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("taskfile"),
@@ -120,7 +123,7 @@ to crawl, using default parameters where not specified`,
 	cmdGo.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
 
-	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", DefaultOutputPath,
+	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
 	cmdGo.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
@@ -145,7 +148,7 @@ file, exiting when all tasks in the file are completed.`,
 		"Task file to process")
 	err := viper.BindPFlag("taskfile", cmdFile.Flags().Lookup("taskfile"))
 	if err != nil {
-		Log.Fatal(err)
+		log.Log.Fatal(err)
 	}
 
 	_ = cmdFile.MarkFlagFilename("taskfile")
@@ -158,13 +161,13 @@ file, exiting when all tasks in the file are completed.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			tasks, err := ReadTasksFromFile(args[0])
 			if err != nil {
-				Log.Fatal(err)
+				log.Log.Fatal(err)
 			}
-			numTasksLoaded, err := AMQPLoadTasks(tasks)
+			numTasksLoaded, err := queue.AMQPLoadTasks(tasks)
 			if err != nil {
-				Log.Fatal(err)
+				log.Log.Fatal(err)
 			}
-			Log.Infof("Loaded %d tasks into queue.", numTasksLoaded)
+			log.Log.Infof("Loaded %d tasks into queue.", numTasksLoaded)
 		},
 	}
 
@@ -200,7 +203,7 @@ lost.`,
 
 	err = viper.BindPFlags(cmdRoot.PersistentFlags())
 	if err != nil {
-		Log.Fatal(err)
+		log.Log.Fatal(err)
 	}
 
 	cmdRoot.AddCommand(cmdLoad)

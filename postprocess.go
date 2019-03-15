@@ -5,13 +5,16 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/pmurley/mida/jstrace"
+	"github.com/pmurley/mida/log"
+	"github.com/pmurley/mida/storage"
+	t "github.com/pmurley/mida/types"
 	"path"
 	"time"
 )
 
-func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<- FinalMIDAResult) {
+func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan chan<- t.FinalMIDAResult) {
 	for rawResult := range rawResultChan {
-		finalResult := FinalMIDAResult{
+		finalResult := t.FinalMIDAResult{
 			SanitizedTask: rawResult.SanitizedTask,
 			Stats:         rawResult.Stats,
 		}
@@ -19,13 +22,13 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		finalResult.Stats.Timing.BeginPostprocess = time.Now()
 
 		// Ignore any requests/responses which do not have a matching request/response
-		finalResult.ResourceMetadata = make(map[string]Resource)
+		finalResult.ResourceMetadata = make(map[string]t.Resource)
 
 		for k := range rawResult.Requests {
 			if _, ok := rawResult.Responses[k]; ok {
-				finalResult.ResourceMetadata[k] = Resource{
-					rawResult.Requests[k],
-					rawResult.Responses[k],
+				finalResult.ResourceMetadata[k] = t.Resource{
+					Requests:  rawResult.Requests[k],
+					Responses: rawResult.Responses[k],
 				}
 			}
 		}
@@ -34,9 +37,9 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 
 		if rawResult.SanitizedTask.JSTrace {
 			trace, err := jstrace.ParseTraceFromFile(path.Join(rawResult.SanitizedTask.UserDataDirectory,
-				rawResult.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName))
+				rawResult.SanitizedTask.RandomIdentifier, storage.DefaultBrowserLogFileName))
 			if err != nil {
-				Log.Info(err)
+				log.Log.Info(err)
 			} else {
 				finalResult.JSTrace = trace
 			}
@@ -49,9 +52,9 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 		if rawResult.SanitizedTask.ResourceTree {
 			tree, err := BuildResourceTree(rawResult)
 			if err != nil {
-				Log.Error(err)
+				log.Log.Error(err)
 			}
-			Log.Debug(tree) // TODO: Store tree
+			log.Log.Debug(tree) // TODO: Store tree
 		}
 
 		finalResult.Stats.Timing.EndPostprocess = time.Now()
@@ -62,20 +65,11 @@ func PostprocessResult(rawResultChan <-chan RawMIDAResult, finalResultChan chan<
 	close(finalResultChan)
 }
 
-type ResourceNode struct {
-	RequestID   string
-	FrameID     string
-	IsFrameRoot bool
-	Url         string
-	Parent      *ResourceNode
-	Children    []*ResourceNode
-}
-
 // Using information from the Network Domain events, as well as the Debugger Domain
 // (for script info), construct a best-effort tree of resources. The idea here is to
 // be conservative, so if we are not sure about a resource, favor putting it closer to
 // the root of the tree in a more general spot.
-func BuildResourceTree(result RawMIDAResult) ([]*ResourceNode, error) {
+func BuildResourceTree(result t.RawMIDAResult) ([]*t.ResourceNode, error) {
 
 	// First, separate resources into the frames to which they belong
 	frameResources := make(map[string]map[string][]network.EventRequestWillBeSent)
@@ -84,7 +78,7 @@ func BuildResourceTree(result RawMIDAResult) ([]*ResourceNode, error) {
 		frameID := ""
 		for _, req := range reqs {
 			if frameID != "" && req.FrameID.String() != frameID {
-				Log.Warn("Inconsistent frame ID across same request ID")
+				log.Log.Warn("Inconsistent frame ID across same request ID")
 			}
 			frameID = req.FrameID.String()
 		}
@@ -96,24 +90,24 @@ func BuildResourceTree(result RawMIDAResult) ([]*ResourceNode, error) {
 			frameResources[frameID][reqID] = reqs
 		} else {
 			// For whatever reason, this resource did not have a frame ID, so we just add it as an orphan
-			Log.Warn("Failed to get frame ID for resource")
+			log.Log.Warn("Failed to get frame ID for resource")
 			orphans[reqID] = reqs
 		}
 	}
 
-	var tree []*ResourceNode
+	var tree []*t.ResourceNode
 	if result.FrameTree == nil {
 		return tree, errors.New("did not get frame tree from devtools")
 	}
 	tree, err := RecurseFrameResourceTree(result.FrameTree, frameResources, nil, 0)
 	if err != nil {
-		Log.Error(err)
+		log.Log.Error(err)
 	}
 
 	return tree, nil
 }
 
-func RecurseFrameResourceTree(frameTree *page.FrameTree, frameResources map[string]map[string][]network.EventRequestWillBeSent, parentNode *ResourceNode, depth int) ([]*ResourceNode, error) {
+func RecurseFrameResourceTree(frameTree *page.FrameTree, frameResources map[string]map[string][]network.EventRequestWillBeSent, parentNode *t.ResourceNode, depth int) ([]*t.ResourceNode, error) {
 	frameID := frameTree.Frame.ID.String()
 	rootNode, orphans, err := GetFrameResourceTree(frameID, frameResources[frameID], parentNode)
 	if err != nil {
@@ -140,7 +134,7 @@ func RecurseFrameResourceTree(frameTree *page.FrameTree, frameResources map[stri
 // trees, but if resources cannot be placed, we conservatively return them as their own subtrees.
 // NOTE: This function will set the parent nodes for all root nodes it returns (based on the parentNode arg),
 // but the caller must add all returned root nodes to the appropriate children array
-func GetFrameResourceTree(frameID string, resources map[string][]network.EventRequestWillBeSent, parentNode *ResourceNode) (*ResourceNode, []*ResourceNode, error) {
+func GetFrameResourceTree(frameID string, resources map[string][]network.EventRequestWillBeSent, parentNode *t.ResourceNode) (*t.ResourceNode, []*t.ResourceNode, error) {
 
 	// We generally expect only one document per frame, although some frames have zero documents
 	// If there IS a document, it is the root node of our frame
@@ -158,16 +152,16 @@ func GetFrameResourceTree(frameID string, resources map[string][]network.EventRe
 
 	// Maps URLs to ResourceNodes for this frame
 	// TODO: What happens if a single frame loads the same URL twice?
-	urlToNode := make(map[string]*ResourceNode)
+	urlToNode := make(map[string]*t.ResourceNode)
 
 	// Whether we find a single root node or many candidates, add them to the array of root nodes
 	// for the frame that we will return
-	var rootNode *ResourceNode
-	var orphans []*ResourceNode
+	var rootNode *t.ResourceNode
+	var orphans []*t.ResourceNode
 	if len(candidates) == 1 {
 		for reqID := range candidates {
-			var c []*ResourceNode
-			newNode := ResourceNode{
+			var c []*t.ResourceNode
+			newNode := t.ResourceNode{
 				RequestID:   reqID,
 				FrameID:     frameID,
 				IsFrameRoot: true,
@@ -184,8 +178,8 @@ func GetFrameResourceTree(frameID string, resources map[string][]network.EventRe
 		// There is no root node -- We give up trying to build a tree for this frame
 		// and simply return all of the nodes as root nodes
 		for reqID := range resources {
-			var c []*ResourceNode
-			newNode := ResourceNode{
+			var c []*t.ResourceNode
+			newNode := t.ResourceNode{
 				RequestID:   reqID,
 				FrameID:     frameID,
 				IsFrameRoot: false,
@@ -243,8 +237,8 @@ func GetFrameResourceTree(frameID string, resources map[string][]network.EventRe
 			// If we failed to get an initiator URL, we fail for this node. Add it as a root node and
 			// mark it placed.
 			if initiatorUrl == "" {
-				var c []*ResourceNode
-				newNode := ResourceNode{
+				var c []*t.ResourceNode
+				newNode := t.ResourceNode{
 					RequestID:   reqID,
 					FrameID:     frameID,
 					IsFrameRoot: false,
@@ -261,8 +255,8 @@ func GetFrameResourceTree(frameID string, resources map[string][]network.EventRe
 			// Determine whether we have a parent node available with the initiatorURL
 			if node, ok := urlToNode[initiatorUrl]; ok {
 				// If we do, add it as a child to that node and mark it as placed
-				var c []*ResourceNode
-				newNode := ResourceNode{
+				var c []*t.ResourceNode
+				newNode := t.ResourceNode{
 					RequestID:   reqID,
 					FrameID:     frameID,
 					IsFrameRoot: false,

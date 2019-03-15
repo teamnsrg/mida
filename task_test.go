@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/pmurley/mida/storage"
 	"path"
 	"strings"
 	"testing"
@@ -48,7 +49,7 @@ func TestSanitizeOne(t *testing.T) {
 	if st1.BrowserBinary == "" {
 		t.Fatal("Did not set binary")
 	}
-	if st1.UserDataDirectory != path.Join(TempDir, st1.RandomIdentifier) {
+	if st1.UserDataDirectory != path.Join(storage.TempDir, st1.RandomIdentifier) {
 		t.Fatal("Incorrect user data dir")
 	}
 	if len(st1.BrowserFlags) != len(DefaultBrowserFlags) {

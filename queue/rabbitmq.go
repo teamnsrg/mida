@@ -1,7 +1,10 @@
-package main
+package queue
 
 import (
 	"encoding/json"
+	"github.com/pmurley/mida/log"
+	t "github.com/pmurley/mida/types"
+	"github.com/pmurley/mida/util"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
 	"os"
@@ -16,7 +19,7 @@ type Consumer struct {
 
 // Takes an array of MIDATasks and loads them into a RabbitMQ queue
 // Requires the RabbitMQ URI (along with valid credentials)
-func AMQPLoadTasks(tasks []MIDATask) (int, error) {
+func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
 	tasksLoaded := 0
 
 	// Build our URI, including creds. User and pass can be set with, in order
@@ -30,18 +33,18 @@ func AMQPLoadTasks(tasks []MIDATask) (int, error) {
 	// TODO: TLS pls
 	connection, err := amqp.Dial(rabbitURI)
 	if err != nil {
-		Log.Fatal(err)
+		log.Log.Fatal(err)
 	}
 	defer connection.Close()
 
 	channel, err := connection.Channel()
 	if err != nil {
-		Log.Error(err)
+		log.Log.Error(err)
 		return tasksLoaded, err
 	}
 
-	for _, t := range tasks {
-		taskBytes, err := json.Marshal(t)
+	for _, task := range tasks {
+		taskBytes, err := json.Marshal(task)
 		if err != nil {
 			return tasksLoaded, err
 		}
@@ -60,7 +63,7 @@ func AMQPLoadTasks(tasks []MIDATask) (int, error) {
 				Body:            taskBytes,
 			})
 		if err != nil {
-			Log.Error(err)
+			log.Log.Error(err)
 			return tasksLoaded, err
 		} else {
 			tasksLoaded += 1
@@ -164,9 +167,9 @@ func NewAMQPBroadcastConsumer() (*Consumer, <-chan amqp.Delivery, error) {
 	// Create a name for the transient broadcast queue we are creating
 	h, err := os.Hostname()
 	if err != nil {
-		Log.Fatal(err)
+		log.Log.Fatal(err)
 	}
-	queueName := h + "-" + GenRandomIdentifier()
+	queueName := h + "-" + util.GenRandomIdentifier()
 
 	// Check to make sure this queue is present -- If not, we just die
 	queue, err := c.channel.QueueDeclare(
@@ -226,8 +229,8 @@ func (c *Consumer) Shutdown() error {
 
 // Takes an AMQP message (which is expected to be a MIDATask, in JSON format)
 // and converts it into an actual MIDATask struct
-func DecodeAMQPMessageToRawTask(delivery amqp.Delivery) (MIDATask, error) {
-	var task MIDATask
+func DecodeAMQPMessageToRawTask(delivery amqp.Delivery) (t.MIDATask, error) {
+	var task t.MIDATask
 	err := json.Unmarshal(delivery.Body, &task)
 	if err != nil {
 		return task, err

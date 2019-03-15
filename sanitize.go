@@ -2,6 +2,10 @@ package main
 
 import (
 	"errors"
+	"github.com/pmurley/mida/log"
+	"github.com/pmurley/mida/storage"
+	t "github.com/pmurley/mida/types"
+	"github.com/pmurley/mida/util"
 	"os"
 	"path"
 	"runtime"
@@ -9,11 +13,11 @@ import (
 )
 
 // Takes raw tasks from input channel and produces sanitized tasks for the output channel
-func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- SanitizedMIDATask, pipelineWG *sync.WaitGroup) {
+func SanitizeTasks(rawTaskChan <-chan t.MIDATask, sanitizedTaskChan chan<- t.SanitizedMIDATask, pipelineWG *sync.WaitGroup) {
 	for r := range rawTaskChan {
 		st, err := SanitizeTask(r)
 		if err != nil {
-			Log.Fatal(err)
+			log.Log.Fatal(err)
 		}
 		pipelineWG.Add(1)
 
@@ -28,21 +32,21 @@ func SanitizeTasks(rawTaskChan <-chan MIDATask, sanitizedTaskChan chan<- Sanitiz
 
 // Run a series of checks on a raw task to ensure it is valid for a crawl.
 // Put the task in a new format ("SanitizedMIDATask") which is used for processing.
-func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
+func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 
-	var st SanitizedMIDATask
+	var st t.SanitizedMIDATask
 	var err error
 
 	// Generate our random identifier for this task
-	st.RandomIdentifier = GenRandomIdentifier()
+	st.RandomIdentifier = util.GenRandomIdentifier()
 
 	///// BEGIN SANITIZE AND BUILD URL /////
-	if t.URL == nil || *t.URL == "" {
+	if mt.URL == nil || *mt.URL == "" {
 		return st, errors.New("no URL to crawl given in task")
 	}
 
 	// Do what we can to ensure a valid URL
-	st.Url, err = ValidateURL(*t.URL)
+	st.Url, err = util.ValidateURL(*mt.URL)
 	if err != nil {
 		return st, err
 	}
@@ -50,17 +54,17 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// END SANITIZE AND BUILD URL /////
 	///// BEGIN SANITIZE TASK COMPLETION SETTINGS
 
-	if t.Completion == nil {
-		t.Completion = new(CompletionSettings)
+	if mt.Completion == nil {
+		mt.Completion = new(t.CompletionSettings)
 	}
 
-	if t.Completion.CompletionCondition == nil {
+	if mt.Completion.CompletionCondition == nil {
 		st.CCond = DefaultCompletionCondition
-	} else if *t.Completion.CompletionCondition == "CompleteOnTimeoutOnly" {
+	} else if *mt.Completion.CompletionCondition == "CompleteOnTimeoutOnly" {
 		st.CCond = CompleteOnTimeoutOnly
-	} else if *t.Completion.CompletionCondition == "CompleteOnLoadEvent" {
+	} else if *mt.Completion.CompletionCondition == "CompleteOnLoadEvent" {
 		st.CCond = CompleteOnLoadEvent
-	} else if *t.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
+	} else if *mt.Completion.CompletionCondition == "CompleteOnTimeoutAfterLoad" {
 		st.CCond = CompleteOnTimeoutAfterLoad
 	} else {
 		return st, errors.New("invalid completion condition value given")
@@ -68,34 +72,34 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 	// If we don't get a value for timeout (or get zero), and we NEED that
 	// value, just set it to the default
-	if t.Completion.Timeout == nil && st.CCond != CompleteOnLoadEvent {
-		Log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
+	if mt.Completion.Timeout == nil && st.CCond != CompleteOnLoadEvent {
+		log.Log.Debug("No timeout value given in task. Setting to default value of ", DefaultTimeout)
 		st.Timeout = DefaultTimeout
-	} else if *t.Completion.Timeout < 0 {
+	} else if *mt.Completion.Timeout < 0 {
 		return st, errors.New("invalid negative value for task timeout")
 	} else {
-		st.Timeout = *t.Completion.Timeout
+		st.Timeout = *mt.Completion.Timeout
 	}
 
-	if t.Completion.TimeAfterLoad == nil {
+	if mt.Completion.TimeAfterLoad == nil {
 		if st.CCond == CompleteOnTimeoutAfterLoad {
 			return st, errors.New("TimeoutAfterLoad specified but no value given")
 		}
-	} else if *t.Completion.TimeAfterLoad < 0 {
+	} else if *mt.Completion.TimeAfterLoad < 0 {
 		return st, errors.New("invalid value for TimeoutAfterLoad")
 	} else {
-		st.TimeAfterLoad = *t.Completion.TimeAfterLoad
+		st.TimeAfterLoad = *mt.Completion.TimeAfterLoad
 	}
 
 	///// END SANITIZE TASK COMPLETION SETTINGS /////
 	///// BEGIN SANITIZE BROWSER PARAMETERS /////
 
-	if t.Browser == nil {
-		t.Browser = new(BrowserSettings)
+	if mt.Browser == nil {
+		mt.Browser = new(t.BrowserSettings)
 	}
 
 	// Make sure we have a valid browser binary path, or select a default one
-	if t.Browser.BrowserBinary == nil || *t.Browser.BrowserBinary == "" {
+	if mt.Browser.BrowserBinary == nil || *mt.Browser.BrowserBinary == "" {
 		// Set to system default.
 		if runtime.GOOS == "darwin" {
 			if _, err := os.Stat(DefaultOSXChromiumPath); err == nil {
@@ -110,43 +114,43 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 				st.BrowserBinary = DefaultLinuxChromePath
 			}
 		} else {
-			Log.Fatal("Failed to locate Chrome or Chromium on your system")
+			log.Log.Fatal("Failed to locate Chrome or Chromium on your system")
 		}
 	} else {
 		// Validate that this binary exists
-		if _, err := os.Stat(*t.Browser.BrowserBinary); err != nil {
+		if _, err := os.Stat(*mt.Browser.BrowserBinary); err != nil {
 			// We won't crawl if the user specified a browser that does not exist
-			Log.Fatal("No such browser binary: ", t.Browser.BrowserBinary)
+			log.Log.Fatal("No such browser binary: ", mt.Browser.BrowserBinary)
 		} else {
-			st.BrowserBinary = *t.Browser.BrowserBinary
+			st.BrowserBinary = *mt.Browser.BrowserBinary
 		}
 	}
 
 	// Sanitize user data directory to use
-	if t.Browser.UserDataDirectory == nil || *t.Browser.UserDataDirectory == "" {
-		st.UserDataDirectory = path.Join(TempDir, st.RandomIdentifier)
+	if mt.Browser.UserDataDirectory == nil || *mt.Browser.UserDataDirectory == "" {
+		st.UserDataDirectory = path.Join(storage.TempDir, st.RandomIdentifier)
 	} else {
 		// Chrome will create any directories required
-		st.UserDataDirectory = *t.Browser.UserDataDirectory
+		st.UserDataDirectory = *mt.Browser.UserDataDirectory
 	}
 
 	// Sanitize browser flags/command line options
-	if t.Browser.SetBrowserFlags == nil {
-		t.Browser.SetBrowserFlags = new([]string)
+	if mt.Browser.SetBrowserFlags == nil {
+		mt.Browser.SetBrowserFlags = new([]string)
 	}
-	if t.Browser.AddBrowserFlags == nil {
-		t.Browser.AddBrowserFlags = new([]string)
+	if mt.Browser.AddBrowserFlags == nil {
+		mt.Browser.AddBrowserFlags = new([]string)
 	}
-	if t.Browser.RemoveBrowserFlags == nil {
-		t.Browser.RemoveBrowserFlags = new([]string)
+	if mt.Browser.RemoveBrowserFlags == nil {
+		mt.Browser.RemoveBrowserFlags = new([]string)
 	}
-	if t.Browser.Extensions == nil {
-		t.Browser.Extensions = new([]string)
+	if mt.Browser.Extensions == nil {
+		mt.Browser.Extensions = new([]string)
 	}
 
-	if len(*t.Browser.Extensions) != 0 {
+	if len(*mt.Browser.Extensions) != 0 {
 		// Check that each extension exists
-		for _, e := range *t.Browser.Extensions {
+		for _, e := range *mt.Browser.Extensions {
 			x, err := os.Stat(e)
 			if err != nil {
 				return st, err
@@ -158,46 +162,46 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 
 		// Create the extensions flag
 		extensionsFlag := "--disable-extensions-except="
-		extensionsFlag += (*t.Browser.Extensions)[0]
-		if len(*t.Browser.Extensions) > 1 {
-			for _, e := range (*t.Browser.Extensions)[1:] {
+		extensionsFlag += (*mt.Browser.Extensions)[0]
+		if len(*mt.Browser.Extensions) > 1 {
+			for _, e := range (*mt.Browser.Extensions)[1:] {
 				extensionsFlag += ","
 				extensionsFlag += e
 			}
 		}
 
-		*t.Browser.AddBrowserFlags = append(*t.Browser.AddBrowserFlags, extensionsFlag)
+		*mt.Browser.AddBrowserFlags = append(*mt.Browser.AddBrowserFlags, extensionsFlag)
 
 		// Remove the --incognito and --disable-extensions (both prevent extensions)
-		*t.Browser.RemoveBrowserFlags = append(*t.Browser.RemoveBrowserFlags, "--incognito")
-		*t.Browser.RemoveBrowserFlags = append(*t.Browser.RemoveBrowserFlags, "--disable-extensions")
+		*mt.Browser.RemoveBrowserFlags = append(*mt.Browser.RemoveBrowserFlags, "--incognito")
+		*mt.Browser.RemoveBrowserFlags = append(*mt.Browser.RemoveBrowserFlags, "--disable-extensions")
 	}
 
-	if len(*t.Browser.SetBrowserFlags) != 0 {
-		if len(*t.Browser.AddBrowserFlags) != 0 {
-			Log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
+	if len(*mt.Browser.SetBrowserFlags) != 0 {
+		if len(*mt.Browser.AddBrowserFlags) != 0 {
+			log.Log.Warn("SetBrowserFlags option is overriding AddBrowserFlags option")
 		}
-		if len(*t.Browser.RemoveBrowserFlags) != 0 {
-			Log.Warn("SetBrowserFlags option is overriding RemoveBrowserFlags option")
+		if len(*mt.Browser.RemoveBrowserFlags) != 0 {
+			log.Log.Warn("SetBrowserFlags option is overriding RemoveBrowserFlags option")
 		}
 
-		for _, flag := range *t.Browser.SetBrowserFlags {
-			ff, err := FormatFlag(flag)
+		for _, flag := range *mt.Browser.SetBrowserFlags {
+			ff, err := util.FormatFlag(flag)
 			if err != nil {
-				Log.Warn(err)
+				log.Log.Warn(err)
 			} else {
 				st.BrowserFlags = append(st.BrowserFlags, ff)
 			}
 		}
 	} else {
 		// Add flags, checking to see that they have not been removed
-		for _, flag := range append(DefaultBrowserFlags, *t.Browser.AddBrowserFlags...) {
-			if IsRemoved(*t.Browser.RemoveBrowserFlags, flag) {
+		for _, flag := range append(DefaultBrowserFlags, *mt.Browser.AddBrowserFlags...) {
+			if util.IsRemoved(*mt.Browser.RemoveBrowserFlags, flag) {
 				continue
 			}
-			ff, err := FormatFlag(flag)
+			ff, err := util.FormatFlag(flag)
 			if err != nil {
-				Log.Warn(err)
+				log.Log.Warn(err)
 			} else {
 				st.BrowserFlags = append(st.BrowserFlags, ff)
 			}
@@ -207,48 +211,48 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// END SANITIZE BROWSER PARAMETERS /////
 	///// BEGIN SANITIZE DATA GATHERING PARAMETERS /////
 
-	if t.Data == nil {
-		t.Data = new(DataSettings)
+	if mt.Data == nil {
+		mt.Data = new(t.DataSettings)
 	}
 
 	// Check if a value was provided. If not, set to default
-	if t.Data.AllResources != nil {
-		st.AllResources = *t.Data.AllResources
+	if mt.Data.AllResources != nil {
+		st.AllResources = *mt.Data.AllResources
 	} else {
 		st.AllResources = DefaultAllResources
 	}
-	if t.Data.AllScripts != nil {
-		st.AllScripts = *t.Data.AllScripts
+	if mt.Data.AllScripts != nil {
+		st.AllScripts = *mt.Data.AllScripts
 	} else {
 		st.AllScripts = DefaultAllScripts
 	}
-	if t.Data.JSTrace != nil {
-		st.JSTrace = *t.Data.JSTrace
+	if mt.Data.JSTrace != nil {
+		st.JSTrace = *mt.Data.JSTrace
 	} else {
 		st.JSTrace = DefaultJSTrace
 	}
-	if t.Data.SaveRawTrace != nil {
-		st.SaveRawTrace = *t.Data.SaveRawTrace
+	if mt.Data.SaveRawTrace != nil {
+		st.SaveRawTrace = *mt.Data.SaveRawTrace
 	} else {
 		st.SaveRawTrace = DefaultSaveRawTrace
 	}
-	if t.Data.ResourceMetadata != nil {
-		st.ResourceMetadata = *t.Data.ResourceMetadata
+	if mt.Data.ResourceMetadata != nil {
+		st.ResourceMetadata = *mt.Data.ResourceMetadata
 	} else {
 		st.ResourceMetadata = DefaultResourceMetadata
 	}
-	if t.Data.ScriptMetadata != nil {
-		st.ScriptMetadata = *t.Data.ScriptMetadata
+	if mt.Data.ScriptMetadata != nil {
+		st.ScriptMetadata = *mt.Data.ScriptMetadata
 	} else {
 		st.ScriptMetadata = DefaultScriptMetadata
 	}
-	if t.Data.ResourceTree != nil {
-		st.ResourceTree = *t.Data.ResourceTree
+	if mt.Data.ResourceTree != nil {
+		st.ResourceTree = *mt.Data.ResourceTree
 	} else {
 		st.ResourceTree = DefaultResourceTree
 	}
-	if t.Data.WebsocketTraffic != nil {
-		st.WebsocketTraffic = *t.Data.WebsocketTraffic
+	if mt.Data.WebsocketTraffic != nil {
+		st.WebsocketTraffic = *mt.Data.WebsocketTraffic
 	} else {
 		st.WebsocketTraffic = DefaultWebsocketTraffic
 	}
@@ -256,30 +260,30 @@ func SanitizeTask(t MIDATask) (SanitizedMIDATask, error) {
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////
 
-	if t.Output == nil {
-		t.Output = new(OutputSettings)
+	if mt.Output == nil {
+		mt.Output = new(t.OutputSettings)
 	}
 
-	if t.Output.Path == nil || *t.Output.Path == "" {
-		st.OutputPath = DefaultOutputPath
+	if mt.Output.Path == nil || *mt.Output.Path == "" {
+		st.OutputPath = storage.DefaultOutputPath
 	} else {
-		st.OutputPath = *t.Output.Path
+		st.OutputPath = *mt.Output.Path
 	}
 
-	if t.Output.GroupID == nil || *t.Output.GroupID == "" {
+	if mt.Output.GroupID == nil || *mt.Output.GroupID == "" {
 		st.GroupID = DefaultGroupID
 	} else {
-		st.GroupID = *t.Output.GroupID
+		st.GroupID = *mt.Output.GroupID
 	}
 
 	///// END SANITIZE OUTPUT PARAMETERS /////
 
-	if t.MaxAttempts == nil {
+	if mt.MaxAttempts == nil {
 		st.MaxAttempts = DefaultTaskAttempts
-	} else if *t.MaxAttempts <= DefaultTaskAttempts {
+	} else if *mt.MaxAttempts <= DefaultTaskAttempts {
 		st.MaxAttempts = DefaultTaskAttempts
 	} else {
-		st.MaxAttempts = *t.MaxAttempts
+		st.MaxAttempts = *mt.MaxAttempts
 	}
 	st.CurrentAttempt = 1
 

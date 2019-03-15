@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"github.com/pmurley/mida/log"
+	t "github.com/pmurley/mida/types"
+	"github.com/pmurley/mida/util"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"strings"
 )
 
-func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (CompressedMIDATaskSet, error) {
-	t := InitializeCompressedTaskSet()
+func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDATaskSet, error) {
+	ts := InitializeCompressedTaskSet()
 	var err error
 
 	if cmd.Name() == "go" {
@@ -19,147 +22,147 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (CompressedMIDATa
 		for _, arg := range args {
 			pieces := strings.Split(arg, ",")
 			for _, piece := range pieces {
-				u, err := ValidateURL(piece)
+				u, err := util.ValidateURL(piece)
 				if err != nil {
-					return t, err
+					return ts, err
 				}
-				*t.URL = append(*t.URL, u)
+				*ts.URL = append(*ts.URL, u)
 			}
 		}
 	} else if cmd.Name() == "build" {
 		// Get URL from URL file
 		fname, err := cmd.Flags().GetString("urlfile")
 		if err != nil {
-			return t, err
+			return ts, err
 		}
 
 		urlfile, err := os.Open(fname)
 		if err != nil {
-			return t, err
+			return ts, err
 		}
 		defer urlfile.Close()
 
 		scanner := bufio.NewScanner(urlfile)
 		for scanner.Scan() {
-			u, err := ValidateURL(scanner.Text())
+			u, err := util.ValidateURL(scanner.Text())
 			if err != nil {
-				return t, err
+				return ts, err
 			}
-			*t.URL = append(*t.URL, u)
+			*ts.URL = append(*ts.URL, u)
 		}
 	} else {
-		return t, errors.New("unknown command passed to BuildCompressedTaskSet()")
+		return ts, errors.New("unknown command passed to BuildCompressedTaskSet()")
 	}
 
 	// Fill in browser settings
-	*t.Browser.BrowserBinary, err = cmd.Flags().GetString("browser")
+	*ts.Browser.BrowserBinary, err = cmd.Flags().GetString("browser")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Browser.UserDataDirectory, err = cmd.Flags().GetString("user-data-dir")
+	*ts.Browser.UserDataDirectory, err = cmd.Flags().GetString("user-data-dir")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Browser.AddBrowserFlags, err = cmd.Flags().GetStringSlice("add-browser-flags")
+	*ts.Browser.AddBrowserFlags, err = cmd.Flags().GetStringSlice("add-browser-flags")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Browser.RemoveBrowserFlags, err = cmd.Flags().GetStringSlice("remove-browser-flags")
+	*ts.Browser.RemoveBrowserFlags, err = cmd.Flags().GetStringSlice("remove-browser-flags")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Browser.SetBrowserFlags, err = cmd.Flags().GetStringSlice("set-browser-flags")
+	*ts.Browser.SetBrowserFlags, err = cmd.Flags().GetStringSlice("set-browser-flags")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Browser.Extensions, err = cmd.Flags().GetStringSlice("extensions")
+	*ts.Browser.Extensions, err = cmd.Flags().GetStringSlice("extensions")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
 
 	// Fill in completion settings
-	*t.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
+	*ts.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Completion.TimeAfterLoad, err = cmd.Flags().GetInt("time-after-load")
+	*ts.Completion.TimeAfterLoad, err = cmd.Flags().GetInt("time-after-load")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Completion.CompletionCondition, err = cmd.Flags().GetString("completion")
+	*ts.Completion.CompletionCondition, err = cmd.Flags().GetString("completion")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
 
 	// Fill in data settings
 	// TODO: Allow cmdline option for data gathering settings somehow
-	*t.Data.AllResources = DefaultAllResources
-	*t.Data.AllScripts = DefaultAllScripts
-	*t.Data.JSTrace = DefaultJSTrace
-	*t.Data.SaveRawTrace = DefaultSaveRawTrace
-	*t.Data.ResourceMetadata = DefaultResourceMetadata
-	*t.Data.ScriptMetadata = DefaultScriptMetadata
-	*t.Data.ResourceTree = DefaultResourceTree
+	*ts.Data.AllResources = DefaultAllResources
+	*ts.Data.AllScripts = DefaultAllScripts
+	*ts.Data.JSTrace = DefaultJSTrace
+	*ts.Data.SaveRawTrace = DefaultSaveRawTrace
+	*ts.Data.ResourceMetadata = DefaultResourceMetadata
+	*ts.Data.ScriptMetadata = DefaultScriptMetadata
+	*ts.Data.ResourceTree = DefaultResourceTree
 
 	// Fill in output settings
-	*t.Output.Path, err = cmd.Flags().GetString("results-output-path")
+	*ts.Output.Path, err = cmd.Flags().GetString("results-output-path")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
-	*t.Output.GroupID, err = cmd.Flags().GetString("group")
+	*ts.Output.GroupID, err = cmd.Flags().GetString("group")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
 
 	// Fill in miscellaneous other settings
-	*t.MaxAttempts, err = cmd.Flags().GetInt("attempts")
+	*ts.MaxAttempts, err = cmd.Flags().GetInt("attempts")
 	if err != nil {
-		return t, err
+		return ts, err
 	}
 
 	if cmd.Name() == "go" {
-		return t, nil
+		return ts, nil
 	} else if cmd.Name() == "build" {
 		// Check whether output file exists. Error if it does and overwrite is not set.
 		fname, err := cmd.Flags().GetString("outfile")
 
 		if err != nil {
-			return t, err
+			return ts, err
 		}
 		overwrite, err := cmd.Flags().GetBool("overwrite")
 		if err != nil {
-			return t, err
+			return ts, err
 		}
 		_, err = os.Stat(fname)
 		if err == nil && !overwrite {
-			Log.Error("Task file '", fname, "' already exists")
-			return t, errors.New("use '-x' to overwrite existing task file")
+			log.Log.Error("Task file '", fname, "' already exists")
+			return ts, errors.New("use '-x' to overwrite existing task file")
 		}
 
 		// Write output JSON file
-		outData, err := json.Marshal(t)
+		outData, err := json.Marshal(ts)
 		if err != nil {
-			return t, err
+			return ts, err
 		}
 
 		err = ioutil.WriteFile(fname, outData, 0644)
 		if err != nil {
-			return t, errors.New("failed to write task file")
+			return ts, errors.New("failed to write task file")
 		} else {
-			Log.Info("Successfully wrote task file to ", fname)
-			return t, nil
+			log.Log.Info("Successfully wrote task file to ", fname)
+			return ts, nil
 		}
 	} else {
-		return t, errors.New("unknown command passed to BuildCompressedTaskSet()")
+		return ts, errors.New("unknown command passed to BuildCompressedTaskSet()")
 	}
 
 }
 
-func InitializeCompressedTaskSet() CompressedMIDATaskSet {
+func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 
-	t := CompressedMIDATaskSet{
+	cts := t.CompressedMIDATaskSet{
 		URL: new([]string),
-		Browser: &BrowserSettings{
+		Browser: &t.BrowserSettings{
 			BrowserBinary:      new(string),
 			UserDataDirectory:  new(string),
 			AddBrowserFlags:    new([]string),
@@ -167,12 +170,12 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			SetBrowserFlags:    new([]string),
 			Extensions:         new([]string),
 		},
-		Completion: &CompletionSettings{
+		Completion: &t.CompletionSettings{
 			CompletionCondition: new(string),
 			Timeout:             new(int),
 			TimeAfterLoad:       new(int),
 		},
-		Data: &DataSettings{
+		Data: &t.DataSettings{
 			AllResources:     new(bool),
 			AllScripts:       new(bool),
 			JSTrace:          new(bool),
@@ -182,11 +185,11 @@ func InitializeCompressedTaskSet() CompressedMIDATaskSet {
 			ResourceTree:     new(bool),
 			WebsocketTraffic: new(bool),
 		},
-		Output: &OutputSettings{
+		Output: &t.OutputSettings{
 			Path:    new(string),
 			GroupID: new(string),
 		},
 		MaxAttempts: new(int),
 	}
-	return t
+	return cts
 }

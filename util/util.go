@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"errors"
@@ -51,6 +51,7 @@ func IsRemoved(toRemove []string, candidate string) bool {
 	return false
 }
 
+// Make a best-effort pass at validating/fixing URLs
 func ValidateURL(s string) (string, error) {
 	var result string
 	u, err := url.ParseRequestURI(s)
@@ -68,14 +69,11 @@ func ValidateURL(s string) (string, error) {
 	return u.String(), nil
 }
 
+// Sanitize URL for use as a directory or file name
 func DirNameFromURL(s string) (string, error) {
 	u, err := url.ParseRequestURI(s)
 	if err != nil {
 		return "", err
 	}
-	return SanitizeStringForFilename(u.Host + u.EscapedPath()), nil
-}
-
-func SanitizeStringForFilename(s string) string {
-	return strings.Replace(s, "/", "-", -1)
+	return strings.Replace(u.Host+u.EscapedPath(), "/", "-", -1), nil
 }
