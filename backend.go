@@ -84,6 +84,15 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 					activeConn.Unlock()
 				}
 			}
+
+			// Store trace to Mongo, if you are in to that sort of thing
+			if r.SanitizedTask.MongoURI != "" {
+				err = storage.MongoStoreJSTrace(&r)
+				if err != nil {
+					log.Log.Error(err)
+				}
+			}
+
 		} else {
 			// TODO: Handle failed task
 			// Probably want to store some metadata about the task failure somewhere

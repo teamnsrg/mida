@@ -186,8 +186,9 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			WebsocketTraffic: new(bool),
 		},
 		Output: &t.OutputSettings{
-			Path:    new(string),
-			GroupID: new(string),
+			Path:     new(string),
+			GroupID:  new(string),
+			MongoURI: new(string),
 		},
 		MaxAttempts: new(int),
 	}

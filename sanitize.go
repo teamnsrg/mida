@@ -276,6 +276,12 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		st.GroupID = *mt.Output.GroupID
 	}
 
+	if mt.Output.MongoURI == nil || *mt.Output.MongoURI == "" {
+		st.MongoURI = ""
+	} else {
+		st.MongoURI = *mt.Output.MongoURI
+	}
+
 	///// END SANITIZE OUTPUT PARAMETERS /////
 
 	if mt.MaxAttempts == nil {

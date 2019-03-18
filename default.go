@@ -29,6 +29,10 @@ func SetDefaults() {
 	viper.SetDefault("rabbitmqpass", "")
 	viper.SetDefault("rabbitmqtaskqueue", "tasks")
 	viper.SetDefault("rabbitmqbroadcastqueue", "broadcast")
+	viper.SetDefault("mongourl", "localhost:27017")
+	viper.SetDefault("mongouser", "")
+	viper.SetDefault("mongopass", "")
+	viper.SetDefault("mongodatabase", "")
 }
 
 const (

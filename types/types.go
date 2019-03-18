@@ -38,8 +38,9 @@ type DataSettings struct {
 }
 
 type OutputSettings struct {
-	Path    *string `json:"path"`
-	GroupID *string `json:"group_id"`
+	Path     *string `json:"path"`
+	GroupID  *string `json:"group_id"`
+	MongoURI *string `json:"mongo_uri,omitempty"`
 }
 
 type MIDATask struct {
@@ -100,6 +101,7 @@ type SanitizedMIDATask struct {
 	OutputPath       string
 	GroupID          string // For identifying experiments
 	RandomIdentifier string // Randomly generated task identifier
+	MongoURI         string
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts      int
@@ -132,12 +134,11 @@ type RawMIDAResult struct {
 }
 
 type ResourceNode struct {
-	RequestID   string
-	FrameID     string
-	IsFrameRoot bool
-	Url         string
-	Parent      *ResourceNode
-	Children    []*ResourceNode
+	RequestID   string          `json:"request_id"`
+	FrameID     string          `json:"frame_id"`
+	IsFrameRoot bool            `json:"is_frame_root"`
+	Url         string          `json:"url"`
+	Children    []*ResourceNode `json:"children"`
 }
 
 type Resource struct {
@@ -146,8 +147,8 @@ type Resource struct {
 }
 
 type ResourceTree struct {
-	RootNode *ResourceNode
-	Orphans  []*ResourceNode
+	RootNode *ResourceNode   `json:"root_node"`
+	Orphans  []*ResourceNode `json:"orphans"`
 }
 
 type FinalMIDAResult struct {
