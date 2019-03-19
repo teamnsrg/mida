@@ -88,9 +88,12 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	// Now iterate through our trace once more and create documents to store
 	for isolateID := range r.JSTrace.Isolates {
 		r.JSTrace.Isolates[isolateID].ID = curId
+		r.JSTrace.Children = make([]int64, 0)
 		curId += 1
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
 			script.ID = curId
+			script.Parent = r.JSTrace.Isolates[isolateID].ID
+			script.Children = make([]int64, 0)
 			curId += 1
 			for i := range script.Executions {
 				script.Executions[i].ID = curId
@@ -163,15 +166,24 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 						"parent":    execution.ID,
 						"children":  nil,
 					})
+					if len(toStore) > MongoStorageBufferLen {
+						_, err := collection.InsertMany(ctx, toStore)
+						if err != nil {
+							return err
+						}
+						toStore = make([]interface{}, 0)
+					}
 				}
 			}
 
 		}
 	}
 
-	_, err = collection.InsertMany(ctx, toStore)
-	if err != nil {
-		return err
+	if len(toStore) > 0 {
+		_, err = collection.InsertMany(ctx, toStore)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = client.Disconnect(ctx)

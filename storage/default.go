@@ -12,5 +12,6 @@ const (
 	DefaultWebSocketTrafficFile = "websocket_data.json"
 	DefaultBrowserLogFileName   = "browser.log"
 	MongoStorageTimeoutSeconds  = 60
+	MongoStorageBufferLen       = 10000
 	TempDir                     = ".tmp"
 )

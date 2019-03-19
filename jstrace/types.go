@@ -2,51 +2,68 @@ package jstrace
 
 // A single argument (or return value) from an API call
 type Arg struct {
-	T   string `json:"type"`
-	Val string `json:"val"`
+	T   string `json:"type" bson:"type"`
+	Val string `json:"val" bson:"val"`
 }
 
 // A single API call
 type Call struct {
-	ID   int64  `json:"_id,omitempty"`
-	T    string `json:"type"`
-	C    string `json:"class"`
-	F    string `json:"func"`
-	Args []Arg  `json:"args"`
-	Ret  Arg    `json:"ret"`
+	T    string `json:"type" bson:"calltype"`
+	C    string `json:"class" bson:"callclass"`
+	F    string `json:"func" bson:"callfunc"`
+	Args []Arg  `json:"args" bson:"args"`
+	Ret  Arg    `json:"ret" bson:"ret"`
+
+	ID       int64   `json:"-" bson:"_id"`
+	Parent   int64   `json:"-" bson:"parent"`
+	Children []int64 `json:"-" bson:"children"`
 }
 
 // A single execution of a single script. A script may
 // have multiple executions through callbacks
 type Execution struct {
-	ID       int64   `json:"_id,omitempty"`
-	Isolate  string  `json:"isolate"`
-	ScriptId string  `json:"script_id"`
-	TS       string  `json:"timestamp"`
-	Calls    []*Call `json:"calls"`
+	Isolate  string  `json:"isolate" bson:"-"`
+	ScriptId string  `json:"script_id" bson:"-"`
+	TS       string  `json:"timestamp" bson:"-"`
+	Calls    []*Call `json:"calls" bson:"-"`
+
+	ID       int64   `json:"-" bson:"_id"`
+	Parent   int64   `json:"-" bson:"parent"`
+	Children []int64 `json:"-" bson:"children"`
 }
 
 type ExecutionStack []Execution
 
 // A single script, identified by a unique script ID
 type Script struct {
-	ID         int64       `json:"_id,omitempty"`
-	ScriptId   string      `json:"script_id"`
-	BaseUrl    string      `json:"base_url"`
-	Executions []Execution `json:"executions"`
+	ScriptId   string      `json:"script_id" bson:"script_id"`
+	BaseUrl    string      `json:"base_url" bson:"base_url"`
+	Executions []Execution `json:"executions" bson:"-"`
+
+	// MongoDB-use only fields
+	ID       int64   `json:"-" bson:"_id"`
+	Parent   int64   `json:"-" bson:"parent"`
+	Children []int64 `json:"-" bson:"children"`
 }
 
 // The trace from a single isolate. Script IDs are only
 // guaranteed unique per-isolate
 type Isolate struct {
-	ID      int64              `json:"_id,omitempty"`
-	Scripts map[string]*Script `json:"scripts"`
+	Scripts map[string]*Script `json:"scripts" bson:"-"`
+
+	// MongoDB-use only fields
+	ID       int64   `json:"-" bson:"_id"`
+	Parent   int64   `json:"-" bson:"parent"`
+	Children []int64 `json:"-" bson:"children"`
 }
 
 // A full trace, parsed and ready to be stored or processed further
 type JSTrace struct {
-	ID       int64               `json:"_id,omitempty"`
-	Isolates map[string]*Isolate `json:"isolates"`
+	Isolates map[string]*Isolate `json:"isolates,omitempty" bson:"-"`
+
+	// MongoDB-use only fields
+	ID       int64   `json:"-" bson:"_id"`
+	Children []int64 `json:"-" bson:"children"`
 }
 
 type LineType int
