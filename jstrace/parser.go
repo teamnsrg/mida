@@ -3,7 +3,7 @@ package jstrace
 import (
 	"bufio"
 	"github.com/pkg/errors"
-	"github.com/prometheus/common/log"
+	log "github.com/pmurley/mida/log"
 	"io"
 	"os"
 	"strings"
@@ -36,7 +36,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		}
 		if err != nil {
 			if err != io.EOF {
-				log.Error(err)
+				log.Log.Error(err)
 			}
 			break
 		}
@@ -45,7 +45,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		l := ProcessLine(string(lineBytes))
 
 		if l.LT == ErrorLine || l.LT == UnknownLine {
-			log.Info(lineNum, " : ", string(lineBytes))
+			log.Log.Info(lineNum, " : ", string(lineBytes))
 		}
 
 		// Ignore non-MIDA lines
@@ -219,7 +219,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 
 			if iActiveCalls[l.Isolate] == nil {
 				// No active call for this argument, so we must ignore
-				log.Error("No active call for argument")
+				log.Log.WithField("LineNum", lineNum).Error("No active call for argument")
 				continue
 			}
 			var a Arg
@@ -229,7 +229,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		} else if l.LT == RetLine {
 			if iActiveCalls[l.Isolate] == nil {
 				// No active call for this return value, so we must ignore
-				log.Error("No active call for return value")
+				log.Log.WithField("LineNum", lineNum).Error("No active call for return value")
 				continue
 			}
 			var a Arg

@@ -11,5 +11,6 @@ const (
 	DefaultResourceTreePath     = "resource_tree.json"
 	DefaultWebSocketTrafficFile = "websocket_data.json"
 	DefaultBrowserLogFileName   = "browser.log"
+	MongoStorageTimeoutSeconds  = 60
 	TempDir                     = ".tmp"
 )
