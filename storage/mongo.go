@@ -89,11 +89,11 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
 			script.ID = curId
 			curId += 1
-			for _, execution := range script.Executions {
-				execution.ID = curId
+			for i := range script.Executions {
+                script.Executions[i].ID = curId
 				curId += 1
-				for _, call := range execution.Calls {
-					call.ID = curId
+				for j := range script.Executions[i].Calls {
+                    script.Executions[i].Calls[j].ID = curId
 					curId += 1
 				}
 			}
