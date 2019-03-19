@@ -93,10 +93,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 			script.ID = curId
 			curId += 1
 			for i := range script.Executions {
-                script.Executions[i].ID = curId
+				script.Executions[i].ID = curId
 				curId += 1
 				for j := range script.Executions[i].Calls {
-                    script.Executions[i].Calls[j].ID = curId
+					script.Executions[i].Calls[j].ID = curId
 					curId += 1
 				}
 			}
@@ -172,6 +172,11 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	_, err = collection.InsertMany(ctx, toStore)
 	if err != nil {
 		return err
+	}
+
+	err = client.Disconnect(ctx)
+	if err != nil {
+		log.Log.Error(err)
 	}
 
 	return nil
