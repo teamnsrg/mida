@@ -178,7 +178,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 			rawResultLock.Lock()
 			rawResult.Stats.Timing.BrowserClose = time.Now()
-			rawResult.Stats.Timing.EndCrawl = time.Now()
 			rawResultLock.Unlock()
 
 			return rawResult, nil
@@ -463,7 +462,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()
-		rawResult.Stats.Timing.EndCrawl = time.Now()
 		rawResultLock.Unlock()
 
 		return rawResult, nil
@@ -530,7 +528,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
-	rawResult.Stats.Timing.EndCrawl = time.Now()
 	rawResultLock.Unlock()
 
 	return rawResult, nil

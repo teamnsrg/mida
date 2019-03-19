@@ -171,12 +171,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		}
 	}
 
-	result, err := collection.InsertMany(ctx, toStore)
+	_, err = collection.InsertMany(ctx, toStore)
 	if err != nil {
 		return err
 	}
-
-	log.Log.Infof("Stored %d nodes in MongoDB.", len(result.InsertedIDs))
 
 	return nil
 }
