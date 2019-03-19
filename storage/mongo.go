@@ -6,23 +6,22 @@ import (
 	t "github.com/pmurley/mida/types"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
 type objIdCounter struct {
-	ID    primitive.ObjectID `bson:"_id"`
-	Name  string             `bson:"type"`
-	Count int                `bson:"count"`
+	ID    int64  `bson:"_id"`
+	Type  string `bson:"type"`
+	Count int64  `bson:"count"`
 }
 
 func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 
 	// Count the number of object IDs we will need to store the trace
 	// Assign IDs indexed from zero
-	objIdAlloc := 0
+	objIdAlloc := 1
 	for isolateID := range r.JSTrace.Isolates {
 		objIdAlloc += 1
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
@@ -62,9 +61,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	updateOpts.ReturnDocument = new(options.ReturnDocument)
 	*updateOpts.ReturnDocument = options.Before
 	*updateOpts.Upsert = true
+
 	doc := collection.FindOneAndUpdate(
 		context.Background(),
-		bson.M{"_id": "ffffffffffffffffffffffff",
+		bson.M{"_id": 9223372036854775807, // Max int64, unique ID for counter
 			"type": "ObjIdCounter"},
 		bson.M{"$inc": bson.M{"count": objIdAlloc}},
 		updateOpts,
@@ -75,14 +75,94 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	if err != nil {
 		return err
 	}
-	// It is fine if it didn't return a counter for the collection.
-	// We just create one
-	if doc.Err() != nil && doc.Err().Error() != "mongo: no documents in result" {
-		log.Log.Error(">", doc.Err().Error(), "<")
-		return err
+
+	curId := counter.Count + 1
+	// Set object ID for trace
+	r.JSTrace.ID = curId
+	curId += 1
+
+	// Now iterate through our trace once more and create documents to store
+	for isolateID := range r.JSTrace.Isolates {
+		r.JSTrace.Isolates[isolateID].ID = curId
+		curId += 1
+		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
+			script.ID = curId
+			curId += 1
+			for _, execution := range script.Executions {
+				execution.ID = curId
+				curId += 1
+				for _, call := range execution.Calls {
+					call.ID = curId
+					curId += 1
+				}
+			}
+		}
 	}
 
-	log.Log.Info(counter.Name, counter.Count)
+	toStore := make([]interface{}, 0)
+	var isolates []int64
+	for _, script := range r.JSTrace.Isolates {
+		isolates = append(isolates, script.ID)
+	}
+	toStore = append(toStore, &bson.M{
+		"_id":      r.JSTrace.ID,
+		"type":     "Trace",
+		"parent":   nil,
+		"children": isolates,
+	})
+
+	for isolateID, isolate := range r.JSTrace.Isolates {
+		var scripts []int64
+		for _, script := range isolate.Scripts {
+			scripts = append(scripts, script.ID)
+		}
+		toStore = append(toStore, &bson.M{
+			"_id":      isolate.ID,
+			"type":     "Isolate",
+			"parent":   r.JSTrace.ID,
+			"children": scripts,
+		})
+		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
+			var executions []int64
+			for _, execution := range script.Executions {
+				executions = append(executions, execution.ID)
+			}
+			toStore = append(toStore, &bson.M{
+				"_id":      script.ID,
+				"type":     "Script",
+				"parent":   isolate.ID,
+				"children": executions,
+			})
+			for _, execution := range script.Executions {
+				var calls []int64
+				for _, call := range execution.Calls {
+					calls = append(calls, call.ID)
+				}
+				toStore = append(toStore, &bson.M{
+					"_id":      execution.ID,
+					"type":     "Execution",
+					"parent":   script.ID,
+					"children": calls,
+				})
+				for _, call := range execution.Calls {
+					toStore = append(toStore, &bson.M{
+						"_id":      call.ID,
+						"type":     "Call",
+						"parent":   execution.ID,
+						"children": nil,
+					})
+				}
+			}
+
+		}
+	}
+
+	result, err := collection.InsertMany(ctx, toStore)
+	if err != nil {
+		log.Log.Error(err)
+	}
+
+	log.Log.Info(result)
 
 	return nil
 }

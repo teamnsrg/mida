@@ -8,6 +8,7 @@ type Arg struct {
 
 // A single API call
 type Call struct {
+	ID   int64  `json:"_id,omitempty"`
 	T    string `json:"type"`
 	C    string `json:"class"`
 	F    string `json:"func"`
@@ -18,6 +19,7 @@ type Call struct {
 // A single execution of a single script. A script may
 // have multiple executions through callbacks
 type Execution struct {
+	ID       int64   `json:"_id,omitempty"`
 	Isolate  string  `json:"isolate"`
 	ScriptId string  `json:"script_id"`
 	TS       string  `json:"timestamp"`
@@ -28,6 +30,7 @@ type ExecutionStack []Execution
 
 // A single script, identified by a unique script ID
 type Script struct {
+	ID         int64       `json:"_id,omitempty"`
 	ScriptId   string      `json:"script_id"`
 	BaseUrl    string      `json:"base_url"`
 	Executions []Execution `json:"executions"`
@@ -36,11 +39,13 @@ type Script struct {
 // The trace from a single isolate. Script IDs are only
 // guaranteed unique per-isolate
 type Isolate struct {
+	ID      int64              `json:"_id,omitempty"`
 	Scripts map[string]*Script `json:"scripts"`
 }
 
 // A full trace, parsed and ready to be stored or processed further
 type JSTrace struct {
+	ID       int64               `json:"_id,omitempty"`
 	Isolates map[string]*Isolate `json:"isolates"`
 }
 
