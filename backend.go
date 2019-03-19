@@ -136,7 +136,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 		r.Stats.Timing.EndStorage = time.Now()
 
 		// Send stats to Prometheus
-		if viper.GetBool("monitoring") {
+		if viper.GetBool("monitor") {
 			r.Stats.Timing.EndStorage = time.Now()
 			monitoringChan <- r.Stats
 		}

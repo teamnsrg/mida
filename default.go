@@ -58,7 +58,7 @@ const (
 	// Defaults for data gathering settings
 	DefaultAllResources     = false
 	DefaultAllScripts       = false
-	DefaultJSTrace          = true
+	DefaultJSTrace          = false
 	DefaultSaveRawTrace     = false
 	DefaultResourceMetadata = true
 	DefaultScriptMetadata   = true

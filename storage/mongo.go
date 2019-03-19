@@ -36,7 +36,8 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		}
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	// For now, we open a new connection to Mongo every time we store a new trace
+	ctx, _ := context.WithTimeout(context.Background(), MongoStorageTimeoutSeconds*time.Second)
 	opts := options.Client()
 	opts.Auth = &options.Credential{
 		AuthMechanism:           "",
@@ -62,6 +63,7 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	*updateOpts.ReturnDocument = options.Before
 	*updateOpts.Upsert = true
 
+	// We set our document IDs in MongoDB manually by atomically updating a document ID counter (below)
 	doc := collection.FindOneAndUpdate(
 		context.Background(),
 		bson.M{"_id": 9223372036854775807, // Max int64, unique ID for counter
@@ -79,7 +81,6 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		curId = counter.Count + 1
 	}
 
-	log.Log.Info("Starting curId from: ", curId)
 	// Set object ID for trace
 	r.JSTrace.ID = curId
 	curId += 1
@@ -112,6 +113,7 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		"type":     "Trace",
 		"parent":   nil,
 		"children": isolates,
+		"url":      r.SanitizedTask.Url,
 	})
 
 	for isolateID, isolate := range r.JSTrace.Isolates {
@@ -167,12 +169,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		}
 	}
 
-	result, err := collection.InsertMany(ctx, toStore)
+	_, err = collection.InsertMany(ctx, toStore)
 	if err != nil {
 		return err
 	}
-
-	log.Log.Infof("Stored %d nodes.", len(result.InsertedIDs))
 
 	return nil
 }

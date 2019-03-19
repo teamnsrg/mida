@@ -169,7 +169,6 @@ type TaskTiming struct {
 	LoadEvent             time.Time
 	DOMContentEvent       time.Time
 	BrowserClose          time.Time
-	EndCrawl              time.Time
 	BeginPostprocess      time.Time
 	EndPostprocess        time.Time
 	BeginStorage          time.Time

@@ -41,6 +41,15 @@ func BuildCommands() *cobra.Command {
 		timeout             int
 		timeAfterLoad       int
 
+		// Data Gathering settings
+		resourceMetadata bool
+		scriptMetadata   bool
+		jsTrace          bool
+		allResources     bool
+		allScripts       bool
+		resourceTree     bool
+		webSocket        bool
+
 		// Output settings
 		resultsOutputPath string // Results from task path
 		groupID           string
@@ -73,6 +82,21 @@ func BuildCommands() *cobra.Command {
 		"Timeout (in seconds) after which the browser will close and the task will complete")
 	cmdBuild.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
+
+	cmdBuild.Flags().BoolVarP(&allResources, "all-resources", "", DefaultAllResources,
+		"Gather and store all resources downloaded by browser")
+	cmdBuild.Flags().BoolVarP(&allScripts, "all-scripts", "", DefaultAllScripts,
+		"Gather and store source code for all scripts parsed by the browser")
+	cmdBuild.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
+		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
+	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
+		"Gather and store metadata about all resources downloaded by browser")
+	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", DefaultResourceMetadata,
+		"Gather and store metadata about all scripts parsed by browser")
+	cmdBuild.Flags().BoolVarP(&resourceTree, "resource-tree", "", DefaultResourceTree,
+		"Construct and store a best-effort dependency tree for resources encountered during crawl")
+	cmdBuild.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
+		"Gather and store data and metadata on websocket messages")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -123,14 +147,26 @@ to crawl, using default parameters where not specified`,
 	cmdGo.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
 
+	cmdGo.Flags().BoolVarP(&allResources, "all-resources", "", DefaultAllResources,
+		"Gather and store all resources downloaded by browser")
+	cmdGo.Flags().BoolVarP(&allScripts, "all-scripts", "", DefaultAllScripts,
+		"Gather and store source code for all scripts parsed by the browser")
+	cmdGo.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
+		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
+	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
+		"Gather and store metadata about all resources downloaded by browser")
+	cmdGo.Flags().BoolVarP(&resourceMetadata, "script-metadata", "", DefaultResourceMetadata,
+		"Gather and store metadata about all scripts parsed by browser")
+	cmdGo.Flags().BoolVarP(&resourceTree, "resource-tree", "", DefaultResourceTree,
+		"Construct and store a best-effort dependency tree for resources encountered during crawl")
+	cmdGo.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
+		"Gather and store data and metadata on websocket messages")
+
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
 	cmdGo.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
 		"Group ID used for identifying experiments")
-
-	// TODO: Look into combining 'go' and 'build' flags somehow - maybe just unify under root
-	// New thought: Might want to keep these separate in case the need to be customized in some way
 
 	var cmdFile = &cobra.Command{
 		Use:   "file",

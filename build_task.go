@@ -95,14 +95,37 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	}
 
 	// Fill in data settings
-	// TODO: Allow cmdline option for data gathering settings somehow
-	*ts.Data.AllResources = DefaultAllResources
-	*ts.Data.AllScripts = DefaultAllScripts
-	*ts.Data.JSTrace = DefaultJSTrace
+	*ts.Data.AllResources, err = cmd.Flags().GetBool("all-resources")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.AllScripts, err = cmd.Flags().GetBool("all-scripts")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.JSTrace, err = cmd.Flags().GetBool("js-trace")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.ResourceMetadata, err = cmd.Flags().GetBool("resource-metadata")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.ResourceTree, err = cmd.Flags().GetBool("resource-tree")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.ScriptMetadata, err = cmd.Flags().GetBool("script-metadata")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.WebsocketTraffic, err = cmd.Flags().GetBool("websocket")
+	if err != nil {
+		return ts, err
+	}
+
+	// TODO
 	*ts.Data.SaveRawTrace = DefaultSaveRawTrace
-	*ts.Data.ResourceMetadata = DefaultResourceMetadata
-	*ts.Data.ScriptMetadata = DefaultScriptMetadata
-	*ts.Data.ResourceTree = DefaultResourceTree
 
 	// Fill in output settings
 	*ts.Output.Path, err = cmd.Flags().GetString("results-output-path")
