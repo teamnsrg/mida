@@ -120,7 +120,7 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		// Validate that this binary exists
 		if _, err := os.Stat(*mt.Browser.BrowserBinary); err != nil {
 			// We won't crawl if the user specified a browser that does not exist
-			log.Log.Fatal("No such browser binary: ", mt.Browser.BrowserBinary)
+			log.Log.Fatal("No such browser binary: ", *mt.Browser.BrowserBinary)
 		} else {
 			st.BrowserBinary = *mt.Browser.BrowserBinary
 		}

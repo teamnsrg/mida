@@ -77,6 +77,7 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	}
 
 	curId := counter.Count + 1
+	log.Log.Info("Starting curId from: ", curId)
 	// Set object ID for trace
 	r.JSTrace.ID = curId
 	curId += 1
