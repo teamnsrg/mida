@@ -6,12 +6,37 @@ import (
 	t "github.com/pmurley/mida/types"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"time"
 )
 
+type objIdCounter struct {
+	ID    primitive.ObjectID `bson:"_id"`
+	Name  string             `bson:"type"`
+	Count int                `bson:"count"`
+}
+
 func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
+
+	// Count the number of object IDs we will need to store the trace
+	// Assign IDs indexed from zero
+	objIdAlloc := 0
+	for isolateID := range r.JSTrace.Isolates {
+		objIdAlloc += 1
+		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
+			objIdAlloc += 1
+			for _, execution := range script.Executions {
+				objIdAlloc += 1
+				for range execution.Calls {
+					objIdAlloc += 1
+				}
+			}
+
+		}
+	}
+
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	opts := options.Client()
 	opts.Auth = &options.Credential{
@@ -22,80 +47,42 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		Password:                viper.GetString("mongopass"),
 		PasswordSet:             false,
 	}
-	log.Log.Info(viper.GetString("mongouser"))
-	log.Log.Info(viper.GetString("mongopass"))
-	log.Log.Info(viper.GetString("mongodatabase"))
 
 	client, err := mongo.Connect(ctx, opts.ApplyURI("mongodb://mongo.mida.sprai.org:27017"))
 	if err != nil {
 		return err
 	}
 
-	log.Log.Info("Client: ", client)
-
 	collection := client.Database(viper.GetString("mongodatabase")).Collection(r.SanitizedTask.GroupID)
 
 	var updateOpts = &options.FindOneAndUpdateOptions{
-		ArrayFilters:             nil,
-		BypassDocumentValidation: nil,
-		Collation:                nil,
-		MaxTime:                  nil,
-		Projection:               nil,
-		ReturnDocument:           nil,
-		Sort:                     nil,
-		Upsert:                   new(bool),
+		ReturnDocument: new(options.ReturnDocument),
+		Upsert:         new(bool),
 	}
-
 	updateOpts.ReturnDocument = new(options.ReturnDocument)
-	*updateOpts.ReturnDocument = 1
+	*updateOpts.ReturnDocument = options.Before
 	*updateOpts.Upsert = true
-
 	doc := collection.FindOneAndUpdate(
 		context.Background(),
-		bson.M{
-			"name": "Counter",
-		},
-		bson.M{
-			"$inc": bson.M{"val": 5},
-		},
-		updateOpts)
-	log.Log.Info(doc)
+		bson.M{"_id": "ffffffffffffffffffffffff",
+			"type": "ObjIdCounter"},
+		bson.M{"$inc": bson.M{"count": objIdAlloc}},
+		updateOpts,
+	)
 
-	// Allocate object IDs for this trace
-
-	log.Log.Info("Collection: ", collection)
-	/*
-		isolates := make([]interface{},0)
-		for isolateID := range r.JSTrace.Isolates {
-			isolates = append(isolates, bson.M{
-				"type": "isolate",
-				"isolateID": isolateID,
-			})
-		}
-		log.Log.Info("Isolates:", isolates)
-	*/
-	isolateIDs, err := collection.InsertOne(ctx, bson.M{
-		"type": "fake",
-	})
+	var counter objIdCounter
+	err = doc.Decode(&counter)
 	if err != nil {
-		log.Log.Error(err)
+		return err
 	}
-	log.Log.Info("Isolate IDs: ", isolateIDs)
+	// It is fine if it didn't return a counter for the collection.
+	// We just create one
+	if doc.Err() != nil && doc.Err().Error() != "mongo: no documents in result" {
+		log.Log.Error(">", doc.Err().Error(), "<")
+		return err
+	}
 
-	/*
-		scripts := make([]interface{},0)
-		for _, isolateID := range isolateIDs.InsertedIDs {
-			for scriptId, script := range r.JSTrace.Isolates[isolateID.(string)].Scripts {
-				scripts = append(scripts, bson.M{
-					"type":    "script",
-					"isolate": isolateID,
-					"scriptId": scriptId,
-				})
-			}
-
-			}
-		}
-	*/
+	log.Log.Info(counter.Name, counter.Count)
 
 	return nil
 }
