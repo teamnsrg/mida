@@ -71,12 +71,14 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 	)
 
 	var counter objIdCounter
+	var curId int64
 	err = doc.Decode(&counter)
-	if err != nil {
-		return err
+	if err != nil && err.Error() != "mongo: no documents in result" {
+		curId = 0
+	} else {
+		curId = counter.Count + 1
 	}
 
-	curId := counter.Count + 1
 	log.Log.Info("Starting curId from: ", curId)
 	// Set object ID for trace
 	r.JSTrace.ID = curId
@@ -89,8 +91,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
 			script.ID = curId
 			curId += 1
-			for _, execution := range script.Executions {
-				execution.ID = curId
+			for i, execution := range script.Executions {
+				script.Executions[i].ID = curId
+				log.Log.Info("curId: ", curId)
+				log.Log.Info("executionId: ", execution)
 				curId += 1
 				for _, call := range execution.Calls {
 					call.ID = curId
@@ -131,6 +135,8 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 			toStore = append(toStore, &bson.M{
 				"_id":      script.ID,
 				"type":     "Script",
+				"baseUrl":  script.BaseUrl,
+				"scriptId": script.ScriptId,
 				"parent":   isolate.ID,
 				"children": executions,
 			})
@@ -147,10 +153,15 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 				})
 				for _, call := range execution.Calls {
 					toStore = append(toStore, &bson.M{
-						"_id":      call.ID,
-						"type":     "Call",
-						"parent":   execution.ID,
-						"children": nil,
+						"_id":       call.ID,
+						"type":      "Call",
+						"calltype":  call.T,
+						"callclass": call.C,
+						"callfunc":  call.F,
+						"args":      call.Args,
+						"ret":       call.Ret,
+						"parent":    execution.ID,
+						"children":  nil,
 					})
 				}
 			}
@@ -160,10 +171,10 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 
 	result, err := collection.InsertMany(ctx, toStore)
 	if err != nil {
-		log.Log.Error(err)
+		return err
 	}
 
-	log.Log.Info(result)
+	log.Log.Infof("Stored %d nodes.", len(result.InsertedIDs))
 
 	return nil
 }
