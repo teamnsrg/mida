@@ -25,15 +25,31 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		return errors.New("output directory for task already exists")
 	}
 
+	// Store metadata from this task to a JSON file
+	if err != nil {
+		log.Log.Error(err)
+	} else {
+		data, err := json.Marshal(r.Metadata)
+		if err != nil {
+			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultCrawlMetadataFile), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
+		}
+	}
+
 	// Store resource metadata from crawl (DevTools requestWillBeSent and responseReceived data)
 	if r.SanitizedTask.ResourceMetadata {
 		data, err := json.Marshal(r.ResourceMetadata)
 		if err != nil {
 			log.Log.Error(err)
-		}
-		err = ioutil.WriteFile(path.Join(outpath, DefaultResourceMetadataFile), data, 0644)
-		if err != nil {
-			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultResourceMetadataFile), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 
 	}
@@ -44,7 +60,6 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		if err != nil {
 			log.Log.Error("AllResources requested but no files directory exists within temporary results directory")
 			log.Log.Error("Files will not be stored")
-			return errors.New("files temporary directory does not exist")
 		} else {
 			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultFileSubdir),
 				path.Join(outpath, DefaultFileSubdir))
@@ -58,10 +73,11 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		data, err := json.Marshal(r.ScriptMetadata)
 		if err != nil {
 			log.Log.Error(err)
-		}
-		err = ioutil.WriteFile(path.Join(outpath, DefaultScriptMetadataFile), data, 0644)
-		if err != nil {
-			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultScriptMetadataFile), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 	}
 
@@ -71,7 +87,6 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		if err != nil {
 			log.Log.Error("AllScripts requested but no files directory exists within temporary results directory")
 			log.Log.Error("Scripts will not be stored")
-			return errors.New("scripts temporary directory does not exist")
 		} else {
 			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultScriptSubdir),
 				path.Join(outpath, DefaultScriptSubdir))
@@ -85,15 +100,19 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		data, err := json.Marshal(r.JSTrace)
 		if err != nil {
 			log.Log.Error(err)
-		}
-		err = ioutil.WriteFile(path.Join(outpath, DefaultJSTracePath), data, 0644)
-		if err != nil {
-			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultJSTracePath), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 
 		if r.SanitizedTask.SaveRawTrace {
 			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultBrowserLogFileName),
 				path.Join(outpath, DefaultBrowserLogFileName))
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 	}
 
@@ -101,10 +120,11 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		data, err := json.Marshal(r.RTree)
 		if err != nil {
 			log.Log.Error(err)
-		}
-		err = ioutil.WriteFile(path.Join(outpath, DefaultResourceTreePath), data, 0644)
-		if err != nil {
-			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultResourceTreePath), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 	}
 
@@ -113,10 +133,11 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		data, err := json.Marshal(r.WebsocketData)
 		if err != nil {
 			log.Log.Error(err)
-		}
-		err = ioutil.WriteFile(path.Join(outpath, DefaultWebSocketTrafficFile), data, 0644)
-		if err != nil {
-			log.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outpath, DefaultWebSocketTrafficFile), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 	}
 

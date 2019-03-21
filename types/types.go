@@ -78,37 +78,37 @@ type SanitizedMIDATask struct {
 	Url string
 
 	// Browser settings
-	BrowserBinary     string
-	UserDataDirectory string
-	BrowserFlags      []runner.CommandLineOption
+	BrowserBinary     string                     `json:"browser_binary"`
+	UserDataDirectory string                     `json:"user_data_directory"`
+	BrowserFlags      []runner.CommandLineOption `json:"-" bson:"-"`
 
 	// Completion Settings
-	CCond         CompletionCondition
-	Timeout       int
-	TimeAfterLoad int
+	CCond         CompletionCondition `json:"completion_condition"`
+	Timeout       int                 `json:"timeout"`
+	TimeAfterLoad int                 `json:"time_after_load"`
 
 	// Data settings
-	AllResources     bool
-	AllScripts       bool
-	JSTrace          bool
-	SaveRawTrace     bool
-	ResourceMetadata bool
-	ScriptMetadata   bool
-	ResourceTree     bool
-	WebsocketTraffic bool
+	AllResources     bool `json:"all_resources"`
+	AllScripts       bool `json:"all_scripts"`
+	JSTrace          bool `json:"js_trace"`
+	SaveRawTrace     bool `json:"save_raw_trace"`
+	ResourceMetadata bool `json:"resource_metadata"`
+	ScriptMetadata   bool `json:"script_metadata"`
+	ResourceTree     bool `json:"resource_tree"`
+	WebsocketTraffic bool `json:"websocket_traffic"`
 
 	// Output Settings
-	OutputPath       string
-	GroupID          string // For identifying experiments
-	RandomIdentifier string // Randomly generated task identifier
-	MongoURI         string
+	OutputPath       string `json:"output_path"`
+	GroupID          string `json:"group_id"`
+	RandomIdentifier string `json:"random_identifier"`
+	MongoURI         string `json:"mongo_uri"`
 
 	// Parameters for retrying a task if it fails to complete
-	MaxAttempts      int
-	CurrentAttempt   int
-	TaskFailed       bool   // Nothing else should be done on the task once this flag is set
-	FailureCode      string // Should be appended whenever a task is set to fail
-	PastFailureCodes []string
+	MaxAttempts      int      `json:"max_attempts"`
+	CurrentAttempt   int      `json:"-"`
+	TaskFailed       bool     `json:"-"`
+	FailureCode      string   `json:"-"`
+	PastFailureCodes []string `json:"-"`
 }
 
 type WSConnection struct {
@@ -123,7 +123,19 @@ type WSConnection struct {
 	TSClose            string                                             `json:"ts_close"`
 }
 
+type HostInfo struct {
+	HostName string `json:"host_name"`
+
+	// Browser Info
+	Browser         string `json:"browser"`
+	BrowserVersion  string `json:"browser_version"`
+	UserAgent       string `json:"user_agent"`
+	V8Version       string `json:"v8_version"`
+	DevToolsVersion string `json:"devtools_version"`
+}
+
 type RawMIDAResult struct {
+	CrawlHostInfo HostInfo
 	SanitizedTask SanitizedMIDATask
 	Stats         TaskStats
 	Requests      map[string][]network.EventRequestWillBeSent
@@ -144,6 +156,11 @@ type ResourceNode struct {
 type Resource struct {
 	Requests  []network.EventRequestWillBeSent `json:"requests"`
 	Responses []network.EventResponseReceived  `json:"responses"`
+
+	// MongoDB use only
+	ID    int64  `json:"-" bson:"_id"`
+	Crawl int64  `json:"-" bson:"crawl"`
+	Type  string `json:"-" bson:"type"`
 }
 
 type ResourceTree struct {
@@ -151,7 +168,26 @@ type ResourceTree struct {
 	Orphans  []*ResourceNode `json:"orphans"`
 }
 
+// Metadata corresponding to a single site visit
+type CrawlMetadata struct {
+	Task          SanitizedMIDATask `json:"task"`
+	Timing        TaskTiming        `json:"timing"`
+	CrawlHostInfo HostInfo          `json:"host_info"`
+	Failed        bool              `json:"failed"`
+	FailureCodes  []string          `json:"failure_codes"`
+
+	NumResources     int `json:"num_resources,omitempty"`
+	NumScripts       int `json:"num_scripts,omitempty"`
+	NumWSConnections int `json:"num_ws_connections,omitempty"`
+
+	// For MongoDB storage
+	ID   int64  `json:"-" bson:"_id"`
+	Type string `json:"-" bson:"type"`
+}
+
 type FinalMIDAResult struct {
+	Metadata         *CrawlMetadata
+	CrawlHostInfo    HostInfo
 	ResourceMetadata map[string]Resource
 	SanitizedTask    SanitizedMIDATask
 	ScriptMetadata   map[string]debugger.EventScriptParsed
@@ -162,17 +198,17 @@ type FinalMIDAResult struct {
 }
 
 type TaskTiming struct {
-	BeginCrawl            time.Time
-	BrowserOpen           time.Time
-	DevtoolsConnect       time.Time
-	ConnectionEstablished time.Time
-	LoadEvent             time.Time
-	DOMContentEvent       time.Time
-	BrowserClose          time.Time
-	BeginPostprocess      time.Time
-	EndPostprocess        time.Time
-	BeginStorage          time.Time
-	EndStorage            time.Time
+	BeginCrawl            time.Time `json:"begin_crawl"`
+	BrowserOpen           time.Time `json:"browser_open"`
+	DevtoolsConnect       time.Time `json:"devtools_connect"`
+	ConnectionEstablished time.Time `json:"connection_established"`
+	LoadEvent             time.Time `json:"load_event"`
+	DOMContentEvent       time.Time `json:"dom_content_event"`
+	BrowserClose          time.Time `json:"browser_close"`
+	BeginPostprocess      time.Time `json:"begin_postprocess"`
+	EndPostprocess        time.Time `json:"end_postprocess"`
+	BeginStorage          time.Time `json:"begin_storage"`
+	EndStorage            time.Time `json:"end_storage"`
 }
 
 // Statistics from the execution of a single task, used for monitoring

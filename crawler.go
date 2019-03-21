@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
@@ -186,6 +187,33 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.DevtoolsConnect = time.Now()
 	rawResultLock.Unlock()
+
+	// Get browser info from DevTools
+	err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt, h)
+		rawResultLock.Lock()
+		rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
+		rawResult.CrawlHostInfo.Browser = product
+		rawResult.CrawlHostInfo.V8Version = jsVersion
+		rawResult.CrawlHostInfo.BrowserVersion = revision
+		rawResult.CrawlHostInfo.UserAgent = userAgent
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+		rawResult.CrawlHostInfo.HostName = hostname
+		rawResultLock.Unlock()
+		return err
+	}))
+	if err != nil {
+		log.Log.Error(err)
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
+		return rawResult, nil
+	}
 
 	// Set up required listeners and timers
 	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
