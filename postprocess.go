@@ -62,10 +62,34 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			}
 		}
 
+		// Passthroughs - These raw results just get copied into the final result
+		finalResult.CrawlHostInfo = rawResult.CrawlHostInfo
+
+		// Now fill in the metadata
+		finalResult.Metadata = BuildMetadata(&finalResult)
+
+		// Send our final results on for storage
 		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult
 	}
 
 	// All PostProcessed results have been sent so close the channel
 	close(finalResultChan)
+}
+
+// Using the full results, construct the metadata object for this task
+func BuildMetadata(r *t.FinalMIDAResult) *t.CrawlMetadata {
+
+	metadata := new(t.CrawlMetadata)
+	metadata.Task = r.SanitizedTask
+	metadata.Timing = r.Stats.Timing
+	metadata.CrawlHostInfo = r.CrawlHostInfo
+	metadata.Failed = r.SanitizedTask.TaskFailed
+	metadata.FailureCodes = r.SanitizedTask.PastFailureCodes
+
+	metadata.NumResources = len(r.ResourceMetadata)
+	metadata.NumScripts = len(r.ScriptMetadata)
+	metadata.NumWSConnections = len(r.WebsocketData)
+
+	return metadata
 }

@@ -23,6 +23,8 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 		r.Stats.Timing.BeginStorage = time.Now()
 
+		// Add information about the host to the result
+
 		// Only store task data if the task succeeded
 		if !r.SanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
@@ -85,12 +87,46 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 				}
 			}
 
-			// Store trace to Mongo, if you are in to that sort of thing
+			// Store data to Mongo, if you are in to that sort of thing
+			// For now, we create a new connection on every single trace
 			if r.SanitizedTask.MongoURI != "" {
-				err = storage.MongoStoreJSTrace(&r)
+
+				// Create our connection
+
+				mongoConn, err := storage.CreateMongoDBConnection(r.SanitizedTask.MongoURI, r.SanitizedTask.GroupID)
 				if err != nil {
 					log.Log.Error(err)
+				} else {
+					// Store metadata
+					_, err := mongoConn.StoreMetadata(&r)
+					if err != nil {
+						log.Log.Error(err)
+					}
+
+					// Store resource info to Mongo, if requested
+					if err == nil && r.SanitizedTask.ResourceMetadata {
+						_, err := mongoConn.StoreResources(&r)
+						if err != nil {
+							log.Log.Error(err)
+						}
+					}
+
+					// Store our JavaScript trace to Mongo, if requested
+					if err == nil && r.SanitizedTask.JSTrace {
+						err = mongoConn.StoreJSTrace(&r)
+						if err != nil {
+							log.Log.Error(err)
+						}
+					}
+
+					// Close our connection to MongoDB nicely
+					err = mongoConn.TeardownConnection()
+					if err != nil {
+						log.Log.Error(err)
+					}
+
 				}
+
 			}
 
 		} else {
@@ -100,7 +136,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 		// Remove all data from crawl
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
-		// TODO: Also fix this nonsense
+
 		// There's an issue where os.RemoveAll throws an error while trying to delete the Chromium
 		// User Data Directory sometimes. It's still unclear exactly why. It doesn't happen consistently
 		// but it seems related to the
@@ -122,6 +158,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 				// We are abandoning trying this task. Too bad.
 				log.Log.WithField("URL", r.SanitizedTask.Url).Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
 				log.Log.WithField("URL", r.SanitizedTask.Url).Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
+				r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
 			} else {
 				// "Squash" task results and put the task back at the beginning of the pipeline
 				r.SanitizedTask.CurrentAttempt++

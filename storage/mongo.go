@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"github.com/pmurley/mida/log"
 	t "github.com/pmurley/mida/types"
 	"github.com/spf13/viper"
@@ -17,11 +18,168 @@ type objIdCounter struct {
 	Count int64  `bson:"count"`
 }
 
-func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
+type MongoConn struct {
+	Ctx    context.Context
+	Client *mongo.Client
+	Coll   *mongo.Collection
+}
+
+func CreateMongoDBConnection(uri string, collection string) (*MongoConn, error) {
+	mc := new(MongoConn)
+	ctx, _ := context.WithTimeout(context.Background(), MongoStorageTimeoutSeconds*time.Second)
+	mc.Ctx = ctx
+
+	opts := options.Client()
+	opts.Auth = &options.Credential{
+		AuthMechanism:           "",
+		AuthMechanismProperties: nil,
+		AuthSource:              viper.GetString("mongodatabase"),
+		Username:                viper.GetString("mongouser"),
+		Password:                viper.GetString("mongopass"),
+		PasswordSet:             false,
+	}
+
+	client, err := mongo.Connect(ctx, opts.ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
+
+	mc.Client = client
+	mc.Coll = mc.Client.Database(viper.GetString("mongodatabase")).Collection(collection)
+
+	return mc, nil
+}
+
+func (conn *MongoConn) TeardownConnection() error {
+
+	err := conn.Client.Disconnect(conn.Ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Reserves a set of object IDs in the MongoDB database. Start and end are inclusive.
+func (conn *MongoConn) ReserveObjIDs(num int64) (start int64, end int64, err error) {
+	var updateOpts = &options.FindOneAndUpdateOptions{
+		ReturnDocument: new(options.ReturnDocument),
+		Upsert:         new(bool),
+	}
+	updateOpts.ReturnDocument = new(options.ReturnDocument)
+	*updateOpts.ReturnDocument = options.After
+	*updateOpts.Upsert = true
+
+	// We set our document IDs in MongoDB manually by atomically updating a document ID counter (below)
+	doc := conn.Coll.FindOneAndUpdate(
+		context.Background(),
+		bson.M{"_id": MaxInt64, // Unique ID for counter
+			"type": "ObjIdCounter"},
+		bson.M{"$inc": bson.M{"count": num}},
+		updateOpts,
+	)
+
+	var counter objIdCounter
+	err = doc.Decode(&counter)
+	if err != nil && err.Error() != "mongo: no documents in result" {
+		log.Log.Error(err)
+		return -1, -1, err
+	} else {
+		return counter.Count + 1 - num, counter.Count, nil
+	}
+}
+
+func (conn *MongoConn) StoreMetadata(r *t.FinalMIDAResult) (int64, error) {
+	// Reserve an object ID
+	curId, maxId, err := conn.ReserveObjIDs(1)
+	if err != nil || curId != maxId {
+		return -1, err
+	}
+
+	r.Metadata.ID = curId
+	r.Metadata.Type = "Metadata"
+
+	result, err := conn.Coll.InsertOne(conn.Ctx, r.Metadata)
+	if err != nil {
+		return -1, err
+	}
+
+	// Double check the result
+	if returnedId, ok := result.InsertedID.(int64); !ok {
+		return -1, errors.New("failed to decode returned object ID to int64")
+	} else if returnedId != curId {
+		log.Log.Error("Returned: ", returnedId)
+		log.Log.Error("curId: ", curId)
+		return -1, errors.New("returned object ID did not match expected")
+	}
+
+	return curId, nil
+}
+
+func (conn *MongoConn) StoreResources(r *t.FinalMIDAResult) (*[]int64, error) {
+	// Reserve object IDs
+	curId, maxId, err := conn.ReserveObjIDs(int64(len(r.ResourceMetadata)))
+	if err != nil {
+		return nil, err
+	}
+
+	toStore := make([]interface{}, 0)
+	objIds := make([]int64, 0)
+
+	// Assign object IDs and store
+	for _, resource := range r.ResourceMetadata {
+		resource.ID = curId
+		resource.Crawl = r.Metadata.ID
+		resource.Type = "Resource"
+		curId++
+		toStore = append(toStore, resource)
+		if len(toStore) > MongoStorageResourceBufferLen {
+			result, err := conn.Coll.InsertMany(conn.Ctx, toStore)
+			if err != nil {
+				return &objIds, err
+			}
+			toStore = make([]interface{}, 0)
+
+			for _, oid := range result.InsertedIDs {
+				if oint, ok := oid.(int64); !ok {
+					return &objIds, errors.New("got non-int64 object id")
+				} else {
+					objIds = append(objIds, oint)
+				}
+
+			}
+
+		}
+	}
+
+	if len(toStore) > 0 {
+		result, err := conn.Coll.InsertMany(conn.Ctx, toStore)
+		if err != nil {
+			return &objIds, err
+		}
+		for _, oid := range result.InsertedIDs {
+			if oint, ok := oid.(int64); !ok {
+				return &objIds, errors.New("got non-int64 object id")
+			} else {
+				objIds = append(objIds, oint)
+			}
+
+		}
+	}
+
+	// Validate that we used the expected number of object IDs
+	if curId != maxId+1 {
+		return &objIds, errors.New("used incorrect number of object ids while storing resources to mongodb")
+	}
+
+	return &objIds, nil
+}
+
+func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 
 	// Count the number of object IDs we will need to store the trace
 	// Assign IDs indexed from zero
-	objIdAlloc := 1
+	var objIdAlloc int64 = 1
 	for isolateID := range r.JSTrace.Isolates {
 		objIdAlloc += 1
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
@@ -36,49 +194,9 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		}
 	}
 
-	// For now, we open a new connection to Mongo every time we store a new trace
-	ctx, _ := context.WithTimeout(context.Background(), MongoStorageTimeoutSeconds*time.Second)
-	opts := options.Client()
-	opts.Auth = &options.Credential{
-		AuthMechanism:           "",
-		AuthMechanismProperties: nil,
-		AuthSource:              viper.GetString("mongodatabase"),
-		Username:                viper.GetString("mongouser"),
-		Password:                viper.GetString("mongopass"),
-		PasswordSet:             false,
-	}
-
-	client, err := mongo.Connect(ctx, opts.ApplyURI("mongodb://mongo.mida.sprai.org:27017"))
+	curId, maxId, err := conn.ReserveObjIDs(objIdAlloc)
 	if err != nil {
 		return err
-	}
-
-	collection := client.Database(viper.GetString("mongodatabase")).Collection(r.SanitizedTask.GroupID)
-
-	var updateOpts = &options.FindOneAndUpdateOptions{
-		ReturnDocument: new(options.ReturnDocument),
-		Upsert:         new(bool),
-	}
-	updateOpts.ReturnDocument = new(options.ReturnDocument)
-	*updateOpts.ReturnDocument = options.Before
-	*updateOpts.Upsert = true
-
-	// We set our document IDs in MongoDB manually by atomically updating a document ID counter (below)
-	doc := collection.FindOneAndUpdate(
-		context.Background(),
-		bson.M{"_id": 9223372036854775807, // Max int64, unique ID for counter
-			"type": "ObjIdCounter"},
-		bson.M{"$inc": bson.M{"count": objIdAlloc}},
-		updateOpts,
-	)
-
-	var counter objIdCounter
-	var curId int64
-	err = doc.Decode(&counter)
-	if err != nil && err.Error() != "mongo: no documents in result" {
-		curId = 0
-	} else {
-		curId = counter.Count + 1
 	}
 
 	// Set object ID for trace
@@ -104,6 +222,12 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 				}
 			}
 		}
+	}
+
+	if curId != maxId+1 {
+		log.Log.Error("Current ID after allocation: ", curId)
+		log.Log.Error("Max ID (Should be 1 less than current): ", maxId)
+		return errors.New("current ID and max ID not properly matching up")
 	}
 
 	toStore := make([]interface{}, 0)
@@ -166,8 +290,8 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 						"parent":    execution.ID,
 						"children":  nil,
 					})
-					if len(toStore) > MongoStorageBufferLen {
-						_, err := collection.InsertMany(ctx, toStore)
+					if len(toStore) > MongoStorageJSBufferLen {
+						_, err := conn.Coll.InsertMany(conn.Ctx, toStore)
 						if err != nil {
 							return err
 						}
@@ -179,16 +303,12 @@ func MongoStoreJSTrace(r *t.FinalMIDAResult) error {
 		}
 	}
 
+	// Clean up any left over documents needing to be stored
 	if len(toStore) > 0 {
-		_, err = collection.InsertMany(ctx, toStore)
+		_, err = conn.Coll.InsertMany(conn.Ctx, toStore)
 		if err != nil {
 			return err
 		}
-	}
-
-	err = client.Disconnect(ctx)
-	if err != nil {
-		log.Log.Error(err)
 	}
 
 	return nil
