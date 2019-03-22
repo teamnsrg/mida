@@ -275,7 +275,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
 			if err != nil {
 				// The browser was unable to provide the content of this particular resource
-				// TODO: Count how many times this happens, figure out what types of resources it is happening for
+				// This typically happens when we closed the browser before we could save all resources
 				log.Log.Warn("Failed to get response Body for known resource: ", data.RequestID)
 			} else {
 				err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)

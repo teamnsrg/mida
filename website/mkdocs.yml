@@ -1,0 +1,28 @@
+site_name: "MIDA"
+site_description: "A Tool for Measuring the Web"
+site_url: "https://mida.sprai.org"
+site_author: "Paul Murley"
+
+theme:
+    name: 'material'
+    palette:
+        primary: 'blue grey'
+        accent: 'cyan'
+    favicon: 'favicon.ico'
+    logo: 'images/mida_logo.png'
+
+nav:
+    - Home: index.md
+    - Tasks: tasks.md
+    - Browser: browser.md
+    - Results Storage: results.md
+
+markdown_extensions:
+    - codehilite
+
+repo_name: 'teamnsrg/MIDA'
+repo_url: 'https://github.com/teamnsrg/MIDA'
+
+edit_uri: ""
+
+copyright: Copyright &copy; 2018 <a href="https://illinois.edu">The University of Illinois</a>.
