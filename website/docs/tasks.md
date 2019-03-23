@@ -1,11 +1,11 @@
-# **MIDA Tasks**
+# **Defining Tasks for MIDA**
 
-## Summary
+## Task Structure
 
 ---
 
-Tasks are the unit of work MIDA recognizes. A task usually consists of exactly
-one visit to one URL. Tasks are represented as JSON files when stored. Below is
+Tasks are the unit of work MIDA recognizes. A task consists of exactly
+one visit to exactly one URL. Tasks are represented as JSON files when stored. Below is
 the simplest possible structure for a valid task, containing only a single URL
 to crawl:
 
@@ -24,16 +24,16 @@ where some parameters are set explicitly:
 {
   "url": "http://cnn.com",
   "browser": {
-    "browser_binary": "/home/mida/release-1/chrome",
+    "browser_binary": "/home/mida/browser/chrome",
     "user_data_directory": "",
-    "add_browser_flags": [],
+    "add_browser_flags": ["headless", "disable-gpu"],
     "remove_browser_flags": [],
     "set_browser_flags": [],
-    "extensions": []
+    "extensions": ["/home/mida/extensions/uBlock/"]
   },
   "completion": {
     "completion_condition": "CompleteOnTimeoutOnly",
-    "timeout": 15,
+    "timeout": 30,
     "time_after_load": 0
   },
   "data": {
@@ -43,7 +43,8 @@ where some parameters are set explicitly:
     "save_raw_trace": false,
     "resource_metadata": true,
     "script_metadata": true,
-    "resource_tree": false
+    "resource_tree": false,
+	"websocket": false
   },
   "output": {
     "path": "results/",
@@ -52,13 +53,30 @@ where some parameters are set explicitly:
   "max_attempts": 2
 }
 ```
+---
 
-Although tasks are highly configurable, we have tried to select reasonable
-defaults where possible. The only requirement is that the task provide one
-or more URLs to visit.
+## Building Tasks and Task Sets
 
-Below, we list task parameters and descriptions, along with their default
-values.
+We expect most crawls using MIDA to cover a list of URLs while keeping most or
+all of the other task parameters consistent. To this end, MIDA can create an interpret
+compressed task sets. Compressed task sets are structured exactly like tasks, except
+that the `url` field is an array of strings rather than a single string.
+
+Given a file containing a list of URLs (one per line), you can construct a compressed
+task set in this way:
+
+```
+$ mida build -f urls.lst -o compressedTaskSet.json
+```
+
+You can add arguments to this command to tune specific task parameters. The following
+command creates a compressed task set which gathers all files and remains on each page
+for 35 seconds:
+```
+$ mida build -f urls.lst -t 35 --all-files -o compressedTaskSet.json
+```
+You can always manually inspect/edit the JSON task files after they are created to ensure
+they meet your needs.
 
 ---
 
@@ -66,7 +84,8 @@ values.
 
 #### `url` (**REQUIRED**)
 - type: `string` or `[]string`
-- description: The URL that will be initially navigated to for this task.
+- description: The URL that will be initially navigated to for this task. Note that MIDA
+  will follow redirections just as a typical browser would
 
 #### `max_attempts`
 - type: `int`
@@ -86,7 +105,7 @@ values.
 
 #### `browser_binary`
 - type: `string`
-- default: Prefers vanilla install of Chromium, then Chrome. Fails if neither is present.
+- default: First choice Chromium, second choice Chrome. Fails if neither is present.
 - description: The browser binary to use for crawling. Needs to be either
   Chrome or Chromium since DevTools is the backbone of how the crawler
   operates.
@@ -135,7 +154,6 @@ values.
   results will be stored after this interval, no matter whether the page has
   completed loading or not.
 
-
 #### `time_after_load`
 - type: `int`
 - default: *None*
@@ -164,7 +182,7 @@ visiting the target site.
 - description: Whether to gather a trace of JavaScript browser API calls made
   by scripts on the target site, including arguments and return values. This option
   requires the use of an instrumented version of Chromium, and creates a JSON file
-  containing the full trace. **Note: Even when zipped, these traces are often several
+  containing the full trace. **Note: These traces are often several
   megabytes all by themselves.**
 
 #### `resource_metadata`
@@ -200,6 +218,11 @@ visiting the target site.
   domain event
   [`debugger.scriptParsed`](https://chromedevtools.github.io/devtools-protocol/tot/Debugger#event-scriptParsed)
 
+#### `websocket`
+- type: `bool`
+- default: `false`
+- description: Whether to gather data on websocket connections established during the crawl and data passing through them.
+
 ### Output Parameters
 
 #### `path`
@@ -210,6 +233,9 @@ visiting the target site.
   tasks. `path` may also specify a remote location via SSH (e.g.
   `ssh://my.server.com/mida_results/`).  Currently, this requires key
   authentication using the default system SSH key (`~/.ssh/id_rsa`).
+  While an output path parameter not being present will be automatically set
+  to `results/`, an emtpy output path will result in the standard results directory
+  not being stored.
 
 #### `group_id`
 - type: `string`
