@@ -264,7 +264,7 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		mt.Output = new(t.OutputSettings)
 	}
 
-	if mt.Output.Path == nil || *mt.Output.Path == "" {
+	if mt.Output.Path == nil {
 		st.OutputPath = storage.DefaultOutputPath
 	} else {
 		st.OutputPath = *mt.Output.Path

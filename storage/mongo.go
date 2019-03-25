@@ -313,3 +313,62 @@ func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 
 	return nil
 }
+
+func (conn *MongoConn) StoreWebSocketData(r *t.FinalMIDAResult) (*[]int64, error) {
+	// Reserve object IDs
+	curId, maxId, err := conn.ReserveObjIDs(int64(len(r.WebsocketData)))
+	if err != nil {
+		return nil, err
+	}
+
+	toStore := make([]interface{}, 0)
+	objIds := make([]int64, 0)
+
+	// Assign object IDs and store
+	for _, wsd := range r.WebsocketData {
+		wsd.ID = curId
+		wsd.Crawl = r.Metadata.ID
+		wsd.Type = "Websocket"
+		curId++
+		toStore = append(toStore, wsd)
+		if len(toStore) > MongoStorageResourceBufferLen {
+			result, err := conn.Coll.InsertMany(conn.Ctx, toStore)
+			if err != nil {
+				return &objIds, err
+			}
+			toStore = make([]interface{}, 0)
+
+			for _, oid := range result.InsertedIDs {
+				if oint, ok := oid.(int64); !ok {
+					return &objIds, errors.New("got non-int64 object id")
+				} else {
+					objIds = append(objIds, oint)
+				}
+
+			}
+
+		}
+	}
+
+	if len(toStore) > 0 {
+		result, err := conn.Coll.InsertMany(conn.Ctx, toStore)
+		if err != nil {
+			return &objIds, err
+		}
+		for _, oid := range result.InsertedIDs {
+			if oint, ok := oid.(int64); !ok {
+				return &objIds, errors.New("got non-int64 object id")
+			} else {
+				objIds = append(objIds, oint)
+			}
+
+		}
+	}
+
+	// Validate that we used the expected number of object IDs
+	if curId != maxId+1 {
+		return &objIds, errors.New("used incorrect number of object ids while storing resources to mongodb")
+	}
+
+	return &objIds, nil
+}

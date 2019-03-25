@@ -20,79 +20,74 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 	// Iterate over channel of rawResults until it is closed
 	for r := range finalResultChan {
-
 		r.Stats.Timing.BeginStorage = time.Now()
-
-		// Add information about the host to the result
-
-		// Only store task data if the task succeeded
 		if !r.SanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
-			outputPathURL, err := url.Parse(r.SanitizedTask.OutputPath)
-			if err != nil {
-				log.Log.Error(err)
-			} else {
-				if outputPathURL.Host == "" {
-					dirName, err := util.DirNameFromURL(r.SanitizedTask.Url)
-					if err != nil {
-						log.Log.Fatal(err)
-					}
-					outpath := path.Join(r.SanitizedTask.OutputPath, dirName,
-						r.SanitizedTask.RandomIdentifier)
-					err = storage.StoreResultsLocalFS(&r, outpath)
-					if err != nil {
-						log.Log.Error("Failed to store results: ", err)
-					}
+			if r.SanitizedTask.OutputPath != "" {
+				outputPathURL, err := url.Parse(r.SanitizedTask.OutputPath)
+				if err != nil {
+					log.Log.Error(err)
 				} else {
-					// Begin remote storage
-					// Check if connection info exists already for host
-					var activeConn *t.SSHConn
-					connInfo.Lock()
-					if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
-						newConn, err := storage.CreateRemoteConnection(outputPathURL.Host)
-						connInfo.Unlock()
-						backoff := 1
-						for err != nil {
-							log.Log.WithField("Backoff", backoff).Error(err)
-							time.Sleep(time.Duration(backoff) * time.Second)
-							connInfo.Lock()
-							newConn, err = storage.CreateRemoteConnection(outputPathURL.Host)
+					if outputPathURL.Host == "" {
+						dirName, err := util.DirNameFromURL(r.SanitizedTask.Url)
+						if err != nil {
+							log.Log.Fatal(err)
+						}
+						outpath := path.Join(r.SanitizedTask.OutputPath, dirName,
+							r.SanitizedTask.RandomIdentifier)
+						err = storage.StoreResultsLocalFS(&r, outpath)
+						if err != nil {
+							log.Log.Error("Failed to store results: ", err)
+						}
+					} else {
+						// Begin remote storage
+						// Check if connection info exists already for host
+						var activeConn *t.SSHConn
+						connInfo.Lock()
+						if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
+							newConn, err := storage.CreateRemoteConnection(outputPathURL.Host)
 							connInfo.Unlock()
-							backoff *= DefaultSSHBackoffMultiplier
+							backoff := 1
+							for err != nil {
+								log.Log.WithField("Backoff", backoff).Error(err)
+								time.Sleep(time.Duration(backoff) * time.Second)
+								connInfo.Lock()
+								newConn, err = storage.CreateRemoteConnection(outputPathURL.Host)
+								connInfo.Unlock()
+								backoff *= DefaultSSHBackoffMultiplier
+							}
+
+							connInfo.SSHConnInfo[outputPathURL.Host] = newConn
+							activeConn = newConn
+							log.Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
+						} else {
+							activeConn = connInfo.SSHConnInfo[outputPathURL.Host]
+							connInfo.Unlock()
 						}
 
-						connInfo.SSHConnInfo[outputPathURL.Host] = newConn
-						activeConn = newConn
-						log.Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
-					} else {
-						activeConn = connInfo.SSHConnInfo[outputPathURL.Host]
-						connInfo.Unlock()
-					}
+						if activeConn == nil {
+							log.Log.Error("Failed to correctly set activeConn")
+						}
 
-					if activeConn == nil {
-						log.Log.Error("Failed to correctly set activeConn")
-					}
-
-					// Now that our new connection is in place, proceed with storage
-					activeConn.Lock()
-					backoff := 1
-					err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
-					for err != nil {
-						log.Log.WithField("BackOff", backoff).Error(err)
-						time.Sleep(time.Duration(backoff) * time.Second)
+						// Now that our new connection is in place, proceed with storage
+						activeConn.Lock()
+						backoff := 1
 						err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
-						backoff *= DefaultSSHBackoffMultiplier
+						for err != nil {
+							log.Log.WithField("BackOff", backoff).Error(err)
+							time.Sleep(time.Duration(backoff) * time.Second)
+							err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
+							backoff *= DefaultSSHBackoffMultiplier
+						}
+						activeConn.Unlock()
 					}
-					activeConn.Unlock()
 				}
 			}
 
 			// Store data to Mongo, if you are in to that sort of thing
 			// For now, we create a new connection on every single trace
 			if r.SanitizedTask.MongoURI != "" {
-
 				// Create our connection
-
 				mongoConn, err := storage.CreateMongoDBConnection(r.SanitizedTask.MongoURI, r.SanitizedTask.GroupID)
 				if err != nil {
 					log.Log.Error(err)
@@ -119,19 +114,26 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						}
 					}
 
+					// Store websocket data to Mongo, if requested
+					if err == nil && r.SanitizedTask.WebsocketTraffic {
+						_, err = mongoConn.StoreWebSocketData(&r)
+						if err != nil {
+							log.Log.Error(err)
+						}
+					}
+
 					// Close our connection to MongoDB nicely
 					err = mongoConn.TeardownConnection()
 					if err != nil {
 						log.Log.Error(err)
 					}
-
 				}
-
 			}
-
-		} else {
-			// TODO: Handle failed task
-			// Probably want to store some metadata about the task failure somewhere
+		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
+			// We are abandoning trying this task. Too bad.
+			log.Log.WithField("URL", r.SanitizedTask.Url).Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
+			log.Log.WithField("URL", r.SanitizedTask.Url).Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
+			r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
 		}
 
 		// Remove all data from crawl
@@ -153,27 +155,16 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			}
 		}
 
-		if r.SanitizedTask.TaskFailed {
-			if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
-				// We are abandoning trying this task. Too bad.
-				log.Log.WithField("URL", r.SanitizedTask.Url).Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
-				log.Log.WithField("URL", r.SanitizedTask.Url).Errorf("Failure Code: [ %s ]", r.SanitizedTask.FailureCode)
-				r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
-			} else {
-				// "Squash" task results and put the task back at the beginning of the pipeline
-				r.SanitizedTask.CurrentAttempt++
-				r.SanitizedTask.TaskFailed = false
-				r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
-				r.SanitizedTask.FailureCode = ""
-				pipelineWG.Add(1)
-				retryChan <- r.SanitizedTask
-			}
-		}
-
-		r.Stats.Timing.EndStorage = time.Now()
-
-		// Send stats to Prometheus
-		if viper.GetBool("monitor") {
+		// If this task failed but it still has tries left, retry it
+		if r.SanitizedTask.TaskFailed && r.SanitizedTask.CurrentAttempt < r.SanitizedTask.MaxAttempts {
+			// Squash task results and put the task back at the beginning of the pipeline
+			r.SanitizedTask.CurrentAttempt++
+			r.SanitizedTask.TaskFailed = false
+			r.SanitizedTask.PastFailureCodes = append(r.SanitizedTask.PastFailureCodes, r.SanitizedTask.FailureCode)
+			r.SanitizedTask.FailureCode = ""
+			pipelineWG.Add(1)
+			retryChan <- r.SanitizedTask
+		} else if viper.GetBool("monitor") {
 			r.Stats.Timing.EndStorage = time.Now()
 			monitoringChan <- r.Stats
 		}

@@ -121,6 +121,11 @@ type WSConnection struct {
 	FrameErrors        []*network.EventWebSocketFrameError                `json:"frame_errors"`
 	TSOpen             string                                             `json:"ts_open"`
 	TSClose            string                                             `json:"ts_close"`
+
+	// MongoDB use only
+	ID    int64  `json:"-" bson:"_id"`
+	Crawl int64  `json:"-" bson:"crawl"`
+	Type  string `json:"-" bson:"type"`
 }
 
 type HostInfo struct {
