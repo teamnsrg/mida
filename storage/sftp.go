@@ -3,9 +3,9 @@ package storage
 import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/sftp"
-	"github.com/pmurley/mida/log"
-	t "github.com/pmurley/mida/types"
-	"github.com/pmurley/mida/util"
+	"github.com/teamnsrg/mida/log"
+	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/mida/util"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"

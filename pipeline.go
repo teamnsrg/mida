@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/pmurley/mida/log"
-	"github.com/pmurley/mida/monitor"
-	"github.com/pmurley/mida/storage"
-	t "github.com/pmurley/mida/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/monitor"
+	"github.com/teamnsrg/mida/storage"
+	t "github.com/teamnsrg/mida/types"
 	"os"
 	"sync"
 )

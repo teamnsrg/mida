@@ -2,11 +2,11 @@ package queue
 
 import (
 	"encoding/json"
-	"github.com/pmurley/mida/log"
-	t "github.com/pmurley/mida/types"
-	"github.com/pmurley/mida/util"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
+	"github.com/teamnsrg/mida/log"
+	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/mida/util"
 	"os"
 )
 

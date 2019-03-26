@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/pmurley/mida/log"
-	"github.com/pmurley/mida/queue"
-	"github.com/pmurley/mida/storage"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/queue"
+	"github.com/teamnsrg/mida/storage"
 )
 
 func BuildCommands() *cobra.Command {

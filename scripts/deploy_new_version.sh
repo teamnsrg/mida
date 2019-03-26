@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ~/go/src/github.com/pmurley/mida
+cd ~/go/src/github.com/teamnsrg/mida
 GOOS=linux GOARCH=amd64 go build -o mida_linux_amd64
 GOOS=darwin GOARCH=amd64 go build -o mida_darwin_amd64
 if [[ "$OSTYPE" == "linux-gnu" ]]; then

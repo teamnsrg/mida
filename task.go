@@ -3,11 +3,11 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"github.com/pmurley/mida/log"
-	"github.com/pmurley/mida/queue"
-	t "github.com/pmurley/mida/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/queue"
+	t "github.com/teamnsrg/mida/types"
 	"io/ioutil"
 )
 

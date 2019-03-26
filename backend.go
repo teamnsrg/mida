@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/pmurley/mida/log"
-	"github.com/pmurley/mida/storage"
-	t "github.com/pmurley/mida/types"
-	"github.com/pmurley/mida/util"
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/storage"
+	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/mida/util"
 	"net/url"
 	"os"
 	"path"

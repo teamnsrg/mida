@@ -1,10 +1,10 @@
 package monitor
 
 import (
-	"github.com/pmurley/mida/log"
-	t "github.com/pmurley/mida/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/teamnsrg/mida/log"
+	t "github.com/teamnsrg/mida/types"
 	"net/http"
 	"strconv"
 )
