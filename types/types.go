@@ -101,7 +101,7 @@ type SanitizedMIDATask struct {
 	OutputPath       string `json:"output_path"`
 	GroupID          string `json:"group_id"`
 	RandomIdentifier string `json:"random_identifier"`
-	MongoURI         string `json:"mongo_uri"`
+	MongoURI         string `json:"mongo_uri,omitempty"`
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts      int      `json:"max_attempts"`

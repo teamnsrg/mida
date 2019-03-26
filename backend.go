@@ -21,6 +21,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 	// Iterate over channel of rawResults until it is closed
 	for r := range finalResultChan {
 		r.Stats.Timing.BeginStorage = time.Now()
+		r.Metadata.Timing.BeginStorage = time.Now()
 		if !r.SanitizedTask.TaskFailed {
 			// Store results here from a successfully completed task
 			if r.SanitizedTask.OutputPath != "" {

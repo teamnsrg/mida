@@ -65,11 +65,12 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 		// Passthroughs - These raw results just get copied into the final result
 		finalResult.CrawlHostInfo = rawResult.CrawlHostInfo
 
+		// Send our final results on for storage
+		finalResult.Stats.Timing.EndPostprocess = time.Now()
+
 		// Now fill in the metadata
 		finalResult.Metadata = BuildMetadata(&finalResult)
 
-		// Send our final results on for storage
-		finalResult.Stats.Timing.EndPostprocess = time.Now()
 		finalResultChan <- finalResult
 	}
 
