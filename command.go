@@ -45,10 +45,12 @@ func BuildCommands() *cobra.Command {
 		resourceMetadata bool
 		scriptMetadata   bool
 		jsTrace          bool
+		saveRawTrace	 bool
 		allResources     bool
 		allScripts       bool
 		resourceTree     bool
 		webSocket        bool
+		networkStrace	 bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -89,6 +91,8 @@ func BuildCommands() *cobra.Command {
 		"Gather and store source code for all scripts parsed by the browser")
 	cmdBuild.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
 		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
+	cmdBuild.Flags().BoolVarP(&saveRawTrace, "save-raw-trace", "", DefaultSaveRawTrace,
+		"Save the raw JavaScript trace (as output by the browser)")
 	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", DefaultResourceMetadata,
@@ -97,6 +101,8 @@ func BuildCommands() *cobra.Command {
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdBuild.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
+	cmdBuild.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
+		"Gather a raw trace of all networking system calls made by the browser")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -153,6 +159,8 @@ to crawl, using default parameters where not specified`,
 		"Gather and store source code for all scripts parsed by the browser")
 	cmdGo.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
 		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
+	cmdGo.Flags().BoolVarP(&saveRawTrace, "save-raw-trace", "", DefaultSaveRawTrace,
+		"Save the raw JavaScript trace (as output by the browser)")
 	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdGo.Flags().BoolVarP(&resourceMetadata, "script-metadata", "", DefaultResourceMetadata,
@@ -161,6 +169,8 @@ to crawl, using default parameters where not specified`,
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdGo.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
+	cmdGo.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
+		"Gather a raw trace of all networking system calls made by the browser")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

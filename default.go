@@ -64,6 +64,7 @@ const (
 	DefaultScriptMetadata   = true
 	DefaultResourceTree     = false
 	DefaultWebsocketTraffic = false
+	DefaultNetworkStrace    = false
 
 	// Other/Util
 

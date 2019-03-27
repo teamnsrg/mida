@@ -12,6 +12,7 @@ const (
 	DefaultResourceTreePath       = "resource_tree.json"
 	DefaultWebSocketTrafficFile   = "websocket_data.json"
 	DefaultBrowserLogFileName     = "browser.log"
+	DefaultNetworkStraceFileName  = "network.strace"
 	MongoStorageTimeoutSeconds    = 60
 	MongoStorageJSBufferLen       = 10000
 	MongoStorageResourceBufferLen = 100

@@ -139,6 +139,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 
+
+	if st.NetworkStrace {
+		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
+	}
+
 	// Remote Debugging Protocol (DevTools) will listen on this port
 	port, err := freeport.GetFreePort()
 	if err != nil {

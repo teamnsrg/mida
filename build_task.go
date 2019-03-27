@@ -123,6 +123,14 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	if err != nil {
 		return ts, err
 	}
+	*ts.Data.NetworkStrace, err = cmd.Flags().GetBool("network-strace")
+	if err != nil {
+		return ts, err
+	}
+	*ts.Data.SaveRawTrace, err = cmd.Flags().GetBool("save-raw-trace")
+	if err != nil {
+		return ts, err
+	}
 
 	// TODO
 	*ts.Data.SaveRawTrace = DefaultSaveRawTrace
@@ -207,6 +215,7 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			ScriptMetadata:   new(bool),
 			ResourceTree:     new(bool),
 			WebsocketTraffic: new(bool),
+			NetworkStrace:    new(bool),
 		},
 		Output: &t.OutputSettings{
 			Path:     new(string),

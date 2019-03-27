@@ -256,6 +256,11 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.WebsocketTraffic = DefaultWebsocketTraffic
 	}
+	if mt.Data.NetworkStrace != nil {
+		st.NetworkStrace = *mt.Data.NetworkStrace
+	} else {
+		st.NetworkStrace = DefaultNetworkStrace
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

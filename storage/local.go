@@ -26,19 +26,16 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 	}
 
 	// Store metadata from this task to a JSON file
+	data, err := json.Marshal(r.Metadata)
 	if err != nil {
 		log.Log.Error(err)
 	} else {
-		data, err := json.Marshal(r.Metadata)
+		err = ioutil.WriteFile(path.Join(outpath, DefaultCrawlMetadataFile), data, 0644)
 		if err != nil {
 			log.Log.Error(err)
-		} else {
-			err = ioutil.WriteFile(path.Join(outpath, DefaultCrawlMetadataFile), data, 0644)
-			if err != nil {
-				log.Log.Error(err)
-			}
 		}
 	}
+
 
 	// Store resource metadata from crawl (DevTools requestWillBeSent and responseReceived data)
 	if r.SanitizedTask.ResourceMetadata {
@@ -93,6 +90,16 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 			if err != nil {
 				log.Log.Fatal(err)
 			}
+		}
+	}
+
+	if r.SanitizedTask.NetworkStrace {
+		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultNetworkStraceFileName))
+		if err != nil {
+			log.Log.Error("Expected to find network strace file, but did not")
+		} else {
+			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultNetworkStraceFileName),
+				path.Join(outpath, DefaultNetworkStraceFileName))
 		}
 	}
 
