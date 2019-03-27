@@ -159,6 +159,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	}
 	err = r.Start(cxt)
 	if err != nil {
+		log.Log.Error("Could not locate a viable browser")
+		log.Log.Error("Do you have Chrome or Chromium installed?")
 		log.Log.Fatal(err)
 	}
 	rawResultLock.Lock()
