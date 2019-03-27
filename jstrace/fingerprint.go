@@ -8,9 +8,14 @@ import (
 func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	for _, isolate := range trace.Isolates {
 		for _, script := range isolate.Scripts {
-			err := OpenWPMCheckScript(script)
+			fp, err := OpenWPMCheckScript(script)
 			if err != nil {
 				log.Log.Error(err)
+			}
+			for k, v := range fp {
+				if v {
+					log.Log.Warnf("Found Fingerprinting [ %s ]: %s", k, script.BaseUrl)
+				}
 			}
 		}
 	}
@@ -18,24 +23,31 @@ func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	return nil
 }
 
-func OpenWPMCheckScript(s *Script) error {
+func OpenWPMCheckScript(s *Script) (map[string]bool, error) {
 
-	positive, err := OpenWPMCheckCanvasFingerprinting(s)
-	if err != nil {
-		return err
-	}
-	if positive {
-		log.Log.Warn("Found canvas fingerprinting script: ", s.BaseUrl)
-	}
+	fingerprinting := make(map[string]bool)
 
-	return nil
-}
-
-func OpenWPMCheckCanvasFingerprinting(s *Script) (bool, error) {
-
+	// Canvas fingerprinting state
 	imageExtracted := false
 	moreThan10Characters := false
 	styles := make(map[string]bool)
+
+	//Canvas font fingerprinting state
+	fontCalls := 0
+	measureTextCalls := 0
+
+	// WebRTC Fingerprinting state
+	createDataChannel := false
+	createOffer := false
+	onIceCandidate := false
+
+	// Audio state
+	audioCalls := make(map[string]bool)
+
+	// Battery state
+	charging := false
+	discharging := false
+	level := false
 
 	for _, execution := range s.Executions {
 		for _, call := range execution.Calls {
@@ -48,17 +60,17 @@ func OpenWPMCheckCanvasFingerprinting(s *Script) (bool, error) {
 						continue
 					}
 					if val < 16 {
-						return false, nil
+						fingerprinting["CANVAS"] = false
 					}
 				}
 			}
 
 			// The script should not call the save, restore, or addEventListener methods of the rendering context
 			if call.C == "CanvasRenderingContext2D" && (call.F == "save" || call.F == "restore") {
-				return false, nil
+				fingerprinting["CANVAS"] = false
 			}
 			if call.C == "HTMLCanvasElement" && call.F == "addEventListener" {
-				return false, nil
+				fingerprinting["CANVAS"] = false
 			}
 
 			// The script must extract an image with toDataURL or getImageData
@@ -102,12 +114,112 @@ func OpenWPMCheckCanvasFingerprinting(s *Script) (bool, error) {
 					styles[call.Args[0].Val] = true
 				}
 			}
+
+			// Canvas font fingerprinting checks
+			if call.T == "set" && call.C == "CanvasRenderingContext2D" && call.F == "font" {
+				fontCalls += 1
+			} else if call.C == "CanvasRenderingContext2D" && call.F == "measureText" {
+				measureTextCalls += 1
+			}
+
+			//WebRTC Checks
+			if call.C == "RTCPeerConnection" {
+				if call.F == "createDataChannel" {
+					createDataChannel = true
+				} else if call.F == "createOffer" {
+					createOffer = true
+				} else if call.F == "onicecandidate" && call.T == "set" {
+					onIceCandidate = true
+				}
+			}
+
+			// Audio Checks
+			if call.C == "BaseAudioContext" {
+				audioCalls[call.F] = true
+			} else if call.C == "OfflineAudioContext" {
+				audioCalls[call.F] = true
+			} else if call.C == "ScriptProcessorNode" {
+				audioCalls[call.F] = true
+			}
+
+			// Battery checks
+			if call.C == "BatteryManager" {
+				if call.F == "level" || call.F == "onlevelchange" {
+					level = true
+				} else if call.F == "charging" || call.F == "chargingTime" || call.F == "onchargingchange" || call.F == "onchargingtimechance" {
+					charging = true
+				} else if call.F == "dischargingTime" || call.F == "ondischargingtimechange" {
+					discharging = true
+				}
+			} else if call.C == "EventTarget" && call.F == "addEventListener" {
+				if len(call.Args) > 1 {
+					continue
+				}
+
+				arg := call.Args[0].Val
+
+				if arg == "levelchange" {
+					level = true
+				} else if arg == "chargingchange" || arg == "chargingtimechange" {
+					charging = true
+				} else if arg == "dischargingchange" || arg == "dischargingtimechange" {
+					discharging = true
+				}
+			}
 		}
 	}
 
+	// Canvas fingerprinting
 	if imageExtracted && (moreThan10Characters || len(styles) >= 2) {
-		return true, nil
+		if _, ok := fingerprinting["CANVAS"]; !ok {
+			fingerprinting["CANVAS"] = true
+		}
+		// Otherwise, just leave it as false based on some criterion we found to exclude
 	} else {
-		return false, nil
+		fingerprinting["CANVAS"] = false
 	}
+
+	// Canvas font fingerprinting
+	if measureTextCalls >= 50 && fontCalls >= 50 {
+		fingerprinting["CANVASFONT"] = true
+	} else {
+		fingerprinting["CANVASFONT"] = false
+	}
+
+	// WebRTC fingerprinting
+	if createOffer && createDataChannel && onIceCandidate {
+		fingerprinting["WEBRTC"] = true
+	} else {
+		fingerprinting["WEBRTC"] = false
+	}
+
+	// Audio fingerprinting
+	fingerprinting["AUDIO"] = false
+	if _, ok := audioCalls["createOscillator"]; ok {
+		if _, ok = audioCalls["createDynamicsCompressor"]; ok {
+			if _, ok = audioCalls["startRendering"]; ok {
+				if _, ok = audioCalls["oncomplete"]; ok {
+					fingerprinting["AUDIO"] = true
+				}
+			}
+		} else if _, ok = audioCalls["createAnalyser"]; ok {
+			_, scriptProcessor := audioCalls["scriptProcessor"]
+			_, createGain := audioCalls["createGain"]
+			_, destination := audioCalls["destination"]
+			_, onaudioprocess := audioCalls["onaudioprocess"]
+
+			if scriptProcessor && createGain && destination && onaudioprocess {
+				fingerprinting["AUDIO"] = true
+			}
+		}
+	}
+
+	// Battery fingerprinting
+	if charging && discharging && level {
+		fingerprinting["BATTERY"] = true
+	} else {
+		fingerprinting["BATTERY"] = false
+	}
+
+	return fingerprinting, nil
 }
