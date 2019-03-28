@@ -162,7 +162,7 @@ func OpenWPMCheckScript(s *Script) error {
 					discharging = true
 				}
 			} else if call.C == "EventTarget" && call.F == "addEventListener" {
-				if len(call.Args) > 1 {
+				if len(call.Args) < 1 {
 					continue
 				}
 
