@@ -45,12 +45,13 @@ func BuildCommands() *cobra.Command {
 		resourceMetadata bool
 		scriptMetadata   bool
 		jsTrace          bool
-		saveRawTrace	 bool
+		saveRawTrace     bool
 		allResources     bool
 		allScripts       bool
 		resourceTree     bool
 		webSocket        bool
-		networkStrace	 bool
+		networkStrace    bool
+		openWPMChecks    bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -103,6 +104,8 @@ func BuildCommands() *cobra.Command {
 		"Gather and store data and metadata on websocket messages")
 	cmdBuild.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
+	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
+		"Run OpenWPM fingerprinting checks on JavaScript trace")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -171,6 +174,8 @@ to crawl, using default parameters where not specified`,
 		"Gather and store data and metadata on websocket messages")
 	cmdGo.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
+	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
+		"Run OpenWPM fingerprinting checks on JavaScript trace")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

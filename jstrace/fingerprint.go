@@ -8,14 +8,9 @@ import (
 func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	for _, isolate := range trace.Isolates {
 		for _, script := range isolate.Scripts {
-			fp, err := OpenWPMCheckScript(script)
+			err := OpenWPMCheckScript(script)
 			if err != nil {
 				log.Log.Error(err)
-			}
-			for k, v := range fp {
-				if v {
-					log.Log.Warnf("Found Fingerprinting [ %s ]: %s", k, script.BaseUrl)
-				}
 			}
 		}
 	}
@@ -23,14 +18,13 @@ func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	return nil
 }
 
-func OpenWPMCheckScript(s *Script) (map[string]bool, error) {
-
-	fingerprinting := make(map[string]bool)
+func OpenWPMCheckScript(s *Script) error {
 
 	// Canvas fingerprinting state
 	imageExtracted := false
 	moreThan10Characters := false
 	styles := make(map[string]bool)
+	notCanvasFP := false
 
 	//Canvas font fingerprinting state
 	fontCalls := 0
@@ -60,17 +54,17 @@ func OpenWPMCheckScript(s *Script) (map[string]bool, error) {
 						continue
 					}
 					if val < 16 {
-						fingerprinting["CANVAS"] = false
+						notCanvasFP = true
 					}
 				}
 			}
 
 			// The script should not call the save, restore, or addEventListener methods of the rendering context
 			if call.C == "CanvasRenderingContext2D" && (call.F == "save" || call.F == "restore") {
-				fingerprinting["CANVAS"] = false
+				notCanvasFP = true
 			}
 			if call.C == "HTMLCanvasElement" && call.F == "addEventListener" {
-				fingerprinting["CANVAS"] = false
+				notCanvasFP = true
 			}
 
 			// The script must extract an image with toDataURL or getImageData
@@ -170,36 +164,33 @@ func OpenWPMCheckScript(s *Script) (map[string]bool, error) {
 	}
 
 	// Canvas fingerprinting
-	if imageExtracted && (moreThan10Characters || len(styles) >= 2) {
-		if _, ok := fingerprinting["CANVAS"]; !ok {
-			fingerprinting["CANVAS"] = true
-		}
-		// Otherwise, just leave it as false based on some criterion we found to exclude
+	if imageExtracted && (moreThan10Characters || len(styles) >= 2) && !notCanvasFP {
+		s.OpenWPM.Canvas = true
 	} else {
-		fingerprinting["CANVAS"] = false
+		s.OpenWPM.Canvas = false
 	}
 
 	// Canvas font fingerprinting
 	if measureTextCalls >= 50 && fontCalls >= 50 {
-		fingerprinting["CANVASFONT"] = true
+		s.OpenWPM.CanvasFont = true
 	} else {
-		fingerprinting["CANVASFONT"] = false
+		s.OpenWPM.CanvasFont = false
 	}
 
 	// WebRTC fingerprinting
 	if createOffer && createDataChannel && onIceCandidate {
-		fingerprinting["WEBRTC"] = true
+		s.OpenWPM.WebRTC = true
 	} else {
-		fingerprinting["WEBRTC"] = false
+		s.OpenWPM.WebRTC = false
 	}
 
 	// Audio fingerprinting
-	fingerprinting["AUDIO"] = false
+	s.OpenWPM.Audio = false
 	if _, ok := audioCalls["createOscillator"]; ok {
 		if _, ok = audioCalls["createDynamicsCompressor"]; ok {
 			if _, ok = audioCalls["startRendering"]; ok {
 				if _, ok = audioCalls["oncomplete"]; ok {
-					fingerprinting["AUDIO"] = true
+					s.OpenWPM.Audio = true
 				}
 			}
 		} else if _, ok = audioCalls["createAnalyser"]; ok {
@@ -209,17 +200,17 @@ func OpenWPMCheckScript(s *Script) (map[string]bool, error) {
 			_, onaudioprocess := audioCalls["onaudioprocess"]
 
 			if scriptProcessor && createGain && destination && onaudioprocess {
-				fingerprinting["AUDIO"] = true
+				s.OpenWPM.Audio = true
 			}
 		}
 	}
 
 	// Battery fingerprinting
 	if charging && discharging && level {
-		fingerprinting["BATTERY"] = true
+		s.OpenWPM.Battery = true
 	} else {
-		fingerprinting["BATTERY"] = false
+		s.OpenWPM.Battery = false
 	}
 
-	return fingerprinting, nil
+	return nil
 }

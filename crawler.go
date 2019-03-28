@@ -139,7 +139,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 
-
 	if st.NetworkStrace {
 		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
 	}
@@ -529,22 +528,25 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			// We are free to begin post crawl data gathering which requires the browser
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
 			// These actions may or may not finish -- We still have to observe the timeout
-			go func() {
-				var tree *page.FrameTree
-				err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-					ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
-					defer cancel()
-					tree, err = page.GetFrameTree().Do(ctxt, h)
-					return err
-				}))
-				if err != nil {
-					log.Log.Error(err)
-				}
-				rawResultLock.Lock()
-				rawResult.FrameTree = tree
-				rawResultLock.Unlock()
+			if st.ResourceTree {
+				go func() {
 
-			}()
+					var tree *page.FrameTree
+					err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+						ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
+						defer cancel()
+						tree, err = page.GetFrameTree().Do(ctxt, h)
+						return err
+					}))
+					if err != nil {
+						log.Log.Error(err)
+					}
+					rawResultLock.Lock()
+					rawResult.FrameTree = tree
+					rawResultLock.Unlock()
+
+				}()
+			}
 			<-timeoutChan
 		case <-timeoutChan:
 

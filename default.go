@@ -65,6 +65,7 @@ const (
 	DefaultResourceTree     = false
 	DefaultWebsocketTraffic = false
 	DefaultNetworkStrace    = false
+	DefaultOpenWPMChecks    = false
 
 	// Other/Util
 
@@ -87,5 +88,6 @@ var DefaultBrowserFlags = []string{
 	"--new-window",
 	"--no-default-browser-check",
 	"--no-first-run",
+	"--no-sandbox",
 	"--safebrowsing-disable-auto-update",
 }

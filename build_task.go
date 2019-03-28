@@ -131,9 +131,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	if err != nil {
 		return ts, err
 	}
-
-	// TODO
-	*ts.Data.SaveRawTrace = DefaultSaveRawTrace
+	*ts.Data.OpenWPMChecks, err = cmd.Flags().GetBool("openwpm-checks")
+	if err != nil {
+		return ts, err
+	}
 
 	// Fill in output settings
 	*ts.Output.Path, err = cmd.Flags().GetString("results-output-path")
@@ -216,6 +217,7 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			ResourceTree:     new(bool),
 			WebsocketTraffic: new(bool),
 			NetworkStrace:    new(bool),
+			OpenWPMChecks:    new(bool),
 		},
 		Output: &t.OutputSettings{
 			Path:     new(string),

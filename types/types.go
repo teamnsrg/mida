@@ -35,7 +35,8 @@ type DataSettings struct {
 	ScriptMetadata   *bool `json:"script_metadata"`
 	ResourceTree     *bool `json:"resource_tree"`
 	WebsocketTraffic *bool `json:"websocket_traffic"`
-	NetworkStrace	 *bool `json:"network_strace"`
+	NetworkStrace    *bool `json:"network_strace"`
+	OpenWPMChecks    *bool `json:"open_wpm_checks"`
 }
 
 type OutputSettings struct {
@@ -97,7 +98,8 @@ type SanitizedMIDATask struct {
 	ScriptMetadata   bool `json:"script_metadata"`
 	ResourceTree     bool `json:"resource_tree"`
 	WebsocketTraffic bool `json:"websocket_traffic"`
-	NetworkStrace	 bool `json:"network_strace"`
+	NetworkStrace    bool `json:"network_strace"`
+	OpenWPMChecks    bool `json:"open_wpm_checks"`
 
 	// Output Settings
 	OutputPath       string `json:"output_path"`

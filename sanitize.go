@@ -261,6 +261,11 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.NetworkStrace = DefaultNetworkStrace
 	}
+	if mt.Data.OpenWPMChecks != nil {
+		st.OpenWPMChecks = *mt.Data.OpenWPMChecks
+	} else {
+		st.OpenWPMChecks = DefaultOpenWPMChecks
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

@@ -46,7 +46,6 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				finalResult.JSTrace = trace
 			}
 
-			// TODO
 			err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
 			if err != nil {
 				log.Log.Error(err)

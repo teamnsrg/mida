@@ -44,6 +44,9 @@ type Script struct {
 	ID       int64   `json:"-" bson:"_id"`
 	Parent   int64   `json:"-" bson:"parent"`
 	Children []int64 `json:"-" bson:"children"`
+
+	// Fingerprinting
+	OpenWPM OpenWPMResults `json:"openwpm_results,omitempty" bson:"openwpm_results,omitempty"`
 }
 
 // The trace from a single isolate. Script IDs are only
@@ -64,6 +67,14 @@ type JSTrace struct {
 	// MongoDB-use only fields
 	ID       int64   `json:"-" bson:"_id"`
 	Children []int64 `json:"-" bson:"children"`
+}
+
+type OpenWPMResults struct {
+	Canvas     bool `json:"canvas,omitempty" bson:"canvas,omitempty"`
+	CanvasFont bool `json:"canvas_font,omitempty" bson:"canvas_font,omitempty"`
+	WebRTC     bool `json:"web_rtc,omitempty" bson:"web_rtc,omitempty"`
+	Audio      bool `json:"audio,omitempty" bson:"audio,omitempty"`
+	Battery    bool `json:"battery,omitempty" bson:"battery,omitempty"`
 }
 
 type LineType int
