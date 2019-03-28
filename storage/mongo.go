@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/bsonx"
 	"time"
 )
 
@@ -46,6 +47,16 @@ func CreateMongoDBConnection(uri string, collection string) (*MongoConn, error) 
 
 	mc.Client = client
 	mc.Coll = mc.Client.Database(viper.GetString("mongodatabase")).Collection(collection)
+
+	// Make sure out default indices for the collection are in place
+	indexOpts := options.CreateIndexes().SetMaxTime(600 * time.Second)
+	keys := bsonx.Doc{{Key: "type", Value: bsonx.Int32(1)}}
+	index := mongo.IndexModel{}
+	index.Keys = keys
+	_, err = mc.Coll.Indexes().CreateOne(mc.Ctx, index, indexOpts)
+	if err != nil {
+		log.Log.Error(err)
+	}
 
 	return mc, nil
 }
