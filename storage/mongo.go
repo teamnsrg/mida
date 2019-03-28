@@ -260,12 +260,13 @@ func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 				executions = append(executions, execution.ID)
 			}
 			toStore = append(toStore, &bson.M{
-				"_id":      script.ID,
-				"type":     "Script",
-				"baseUrl":  script.BaseUrl,
-				"scriptId": script.ScriptId,
-				"parent":   isolate.ID,
-				"children": executions,
+				"_id":             script.ID,
+				"type":            "Script",
+				"baseUrl":         script.BaseUrl,
+				"scriptId":        script.ScriptId,
+				"parent":          isolate.ID,
+				"children":        executions,
+				"openwpm_results": script.OpenWPM,
 			})
 			for _, execution := range script.Executions {
 				var calls []int64
