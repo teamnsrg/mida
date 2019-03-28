@@ -12,6 +12,22 @@ func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 			if err != nil {
 				log.Log.Error(err)
 			}
+
+			if script.OpenWPM.Canvas {
+				log.Log.Infof("Found canvas fingerprinting: %s", script.BaseUrl)
+			}
+			if script.OpenWPM.CanvasFont {
+				log.Log.Infof("Found canvas font fingerprinting: %s", script.BaseUrl)
+			}
+			if script.OpenWPM.WebRTC {
+				log.Log.Infof("Found WebRTC fingerprinting: %s", script.BaseUrl)
+			}
+			if script.OpenWPM.Audio {
+				log.Log.Infof("Found audio fingerprinting: %s", script.BaseUrl)
+			}
+			if script.OpenWPM.Battery {
+				log.Log.Infof("Found battery fingerprinting: %s", script.BaseUrl)
+			}
 		}
 	}
 

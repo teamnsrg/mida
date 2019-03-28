@@ -64,6 +64,10 @@ type Isolate struct {
 type JSTrace struct {
 	Isolates map[string]*Isolate `json:"isolates,omitempty" bson:"-"`
 
+	// Parsing data
+	IgnoredCalls int `json:"ignored_calls"`
+	StoredCalls  int `json:"stored_calls"`
+
 	// MongoDB-use only fields
 	ID       int64   `json:"-" bson:"_id"`
 	Children []int64 `json:"-" bson:"children"`

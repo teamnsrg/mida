@@ -27,7 +27,6 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 
 	// Trace metadata
 	lineNum := 0
-	ignoredCalls := 0
 
 	for {
 		// Get the next lineBytes from our trace
@@ -69,11 +68,13 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				if len(iStacks[l.Isolate]) == 0 {
 					// No active executions
 					// We ignore this call, since we cannot attribute it to a particular script
-					ignoredCalls += 1
+					trace.IgnoredCalls += 1
 				} else {
 					// Otherwise, we can add the call to the execution
 					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
 						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
+
+					trace.StoredCalls += 1
 
 					// No active call anymore
 					iActiveCalls[l.Isolate] = nil
@@ -197,11 +198,13 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				if len(iStacks[l.Isolate]) == 0 {
 					// No active executions
 					// We ignore this call, since we cannot attribute it to a particular script
-					ignoredCalls += 1
+					trace.IgnoredCalls += 1
 				} else {
 					// Otherwise, we can add the call to the execution
 					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
 						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
+
+					trace.StoredCalls += 1
 
 					// No active call anymore
 					iActiveCalls[l.Isolate] = nil
@@ -243,8 +246,6 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		}
 
 	}
-
-	// log.Log.Debugf("Ignored %d calls (no active execution, maybe microtasks)", ignoredCalls)
 
 	return &trace, nil
 }
