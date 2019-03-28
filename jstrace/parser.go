@@ -25,7 +25,10 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 	// Stores the current call for each isolate
 	iActiveCalls := make(map[string]*Call)
 
+	// Trace metadata
 	lineNum := 0
+	ignoredCalls := 0
+
 	for {
 		// Get the next lineBytes from our trace
 		isPrefix := true
@@ -66,15 +69,15 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				if len(iStacks[l.Isolate]) == 0 {
 					// No active executions
 					// We ignore this call, since we cannot attribute it to a particular script
-					continue
+					ignoredCalls += 1
+				} else {
+					// Otherwise, we can add the call to the execution
+					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
+						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
+
+					// No active call anymore
+					iActiveCalls[l.Isolate] = nil
 				}
-
-				// Otherwise, we can add the call to the execution
-				iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
-					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
-
-				// No active call anymore
-				iActiveCalls[l.Isolate] = nil
 			}
 
 			if l.IsBegin {
@@ -117,6 +120,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 			} else {
 				// This is the end of a call or callback
 				// If we haven't seen the isolate before, create an entry for it
+
 				if _, ok := iStacks[l.Isolate]; !ok {
 					iStacks[l.Isolate] = make(ExecutionStack, 0)
 				}
@@ -193,15 +197,15 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				if len(iStacks[l.Isolate]) == 0 {
 					// No active executions
 					// We ignore this call, since we cannot attribute it to a particular script
-					continue
+					ignoredCalls += 1
+				} else {
+					// Otherwise, we can add the call to the execution
+					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
+						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
+
+					// No active call anymore
+					iActiveCalls[l.Isolate] = nil
 				}
-
-				// Otherwise, we can add the call to the execution
-				iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
-					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
-
-				// No active call anymore
-				iActiveCalls[l.Isolate] = nil
 			}
 
 			// Create our new call, set as active for this isolate
@@ -239,6 +243,8 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		}
 
 	}
+
+	// log.Log.Debugf("Ignored %d calls (no active execution, maybe microtasks)", ignoredCalls)
 
 	return &trace, nil
 }
