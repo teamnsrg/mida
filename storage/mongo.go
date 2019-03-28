@@ -183,6 +183,13 @@ func (conn *MongoConn) StoreResources(r *t.FinalMIDAResult) (*[]int64, error) {
 		return &objIds, errors.New("used incorrect number of object ids while storing resources to mongodb")
 	}
 
+	// Update the metadata object to include this array of resources
+	result, err := conn.Coll.UpdateOne(conn.Ctx, bson.M{"_id": r.Metadata.ID}, bson.M{"$push": bson.M{"resources": bson.M{"$each": objIds}}})
+	if err != nil {
+		log.Log.Error(result)
+		log.Log.Error(err)
+	}
+
 	return &objIds, nil
 }
 
