@@ -27,6 +27,7 @@ func BuildCommands() *cobra.Command {
 	var (
 		urlfile     string
 		maxAttempts int
+		priority    int
 
 		// Browser settings
 		browser            string
@@ -65,6 +66,8 @@ func BuildCommands() *cobra.Command {
 		"", "File containing URL to visit (1 per line)")
 	cmdBuild.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTimeout,
 		"Maximum attempts for a task before it fails")
+	cmdBuild.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
+		"Task priority (when loaded into RabbitMQ")
 
 	cmdBuild.Flags().StringVarP(&browser, "browser", "b",
 		"", "Path to browser binary to use for this task")

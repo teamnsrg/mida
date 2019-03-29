@@ -55,6 +55,9 @@ type MIDATask struct {
 
 	// Track how many times we will attempt this task
 	MaxAttempts *int `json:"max_attempts"`
+
+	// Integer between one and ten (inclusive), sets priority in queue, defaults to 5
+	Priority *int `json:"priority,omitempty"`
 }
 
 type MIDATaskSet []MIDATask
@@ -69,6 +72,9 @@ type CompressedMIDATaskSet struct {
 
 	// Track how many times we will attempt this task
 	MaxAttempts *int `json:"max_attempts"`
+
+	// Integer between one and ten (inclusive), sets priority in queue, defaults to 5
+	Priority *int `json:"priority,omitempty"`
 }
 
 // Crawl Completion Conditions

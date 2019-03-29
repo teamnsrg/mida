@@ -49,6 +49,17 @@ func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
 			return tasksLoaded, err
 		}
 
+		var priority uint8
+		priority = 5 // Default task priority (Possible values are 1-10 inclusiive)
+		if task.Priority != nil && *task.Priority != 0 {
+			priority = uint8(*task.Priority)
+		}
+		if priority < 1 || priority > 10 {
+			log.Log.Warn("Got bad priority for task: %d")
+			log.Log.Warn("Setting priority to 5")
+			priority = 5
+		}
+
 		err = channel.Publish(
 			"",      // Exchange
 			"tasks", // Key (queue)
@@ -59,7 +70,7 @@ func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
 				ContentType:     "text/plain",
 				ContentEncoding: "",
 				DeliveryMode:    0,
-				Priority:        5,
+				Priority:        priority,
 				Body:            taskBytes,
 			})
 		if err != nil {

@@ -152,6 +152,11 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 		return ts, err
 	}
 
+	*ts.Priority, err = cmd.Flags().GetInt("priority")
+	if err != nil {
+		return ts, err
+	}
+
 	if cmd.Name() == "go" {
 		return ts, nil
 	} else if cmd.Name() == "build" {
@@ -225,6 +230,7 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			MongoURI: new(string),
 		},
 		MaxAttempts: new(int),
+		Priority:    new(int),
 	}
 	return cts
 }
