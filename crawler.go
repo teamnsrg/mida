@@ -139,6 +139,21 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
 
+	if st.BrowserCoverage {
+		// Set environment variable for browser
+		cxt = context.WithValue(cxt, "MIDA_LLVM_PROFILE_FILE", path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-%4m.profraw"))
+
+		// Create directory which will contain coverage files
+		_, err = os.Stat(path.Join(resultsDir, storage.DefaultCoverageSubdir))
+		if err != nil {
+			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultCoverageSubdir), 0744)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+		}
+
+	}
+
 	if st.NetworkStrace {
 		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
 	}

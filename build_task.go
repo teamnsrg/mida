@@ -223,6 +223,7 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			WebsocketTraffic: new(bool),
 			NetworkStrace:    new(bool),
 			OpenWPMChecks:    new(bool),
+			BrowserCoverage:  new(bool),
 		},
 		Output: &t.OutputSettings{
 			Path:     new(string),

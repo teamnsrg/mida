@@ -37,6 +37,7 @@ type DataSettings struct {
 	WebsocketTraffic *bool `json:"websocket_traffic"`
 	NetworkStrace    *bool `json:"network_strace"`
 	OpenWPMChecks    *bool `json:"open_wpm_checks"`
+	BrowserCoverage  *bool `json:"browser_coverage"`
 }
 
 type OutputSettings struct {
@@ -106,6 +107,7 @@ type SanitizedMIDATask struct {
 	WebsocketTraffic bool `json:"websocket_traffic"`
 	NetworkStrace    bool `json:"network_strace"`
 	OpenWPMChecks    bool `json:"open_wpm_checks"`
+	BrowserCoverage  bool `json:"browser_coverage"`
 
 	// Output Settings
 	OutputPath       string `json:"output_path"`
