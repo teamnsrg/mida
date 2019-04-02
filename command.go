@@ -109,6 +109,8 @@ func BuildCommands() *cobra.Command {
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
+	cmdBuild.Flags().BoolVarP(&openWPMChecks, "browser-coverage", "", DefaultBrowserCoverage,
+		"Gather browser coverage data (requires browser instrumented for coverage)")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -179,6 +181,8 @@ to crawl, using default parameters where not specified`,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
+	cmdGo.Flags().BoolVarP(&openWPMChecks, "browser-coverage", "", DefaultBrowserCoverage,
+		"Gather browser coverage data (requires browser instrumented for coverage)")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

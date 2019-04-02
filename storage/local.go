@@ -36,7 +36,6 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		}
 	}
 
-
 	// Store resource metadata from crawl (DevTools requestWillBeSent and responseReceived data)
 	if r.SanitizedTask.ResourceMetadata {
 		data, err := json.Marshal(r.ResourceMetadata)
@@ -48,7 +47,6 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 				log.Log.Error(err)
 			}
 		}
-
 	}
 
 	// Store raw resources downloaded during crawl (named for their request IDs)
@@ -144,6 +142,20 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 			err = ioutil.WriteFile(path.Join(outpath, DefaultWebSocketTrafficFile), data, 0644)
 			if err != nil {
 				log.Log.Error(err)
+			}
+		}
+	}
+
+	if r.SanitizedTask.BrowserCoverage {
+		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultCoverageSubdir))
+		if err != nil {
+			log.Log.Error("Coverage Data requested but no coverage directory exists within temporary results directory")
+			log.Log.Error("Coverage data will not be stored")
+		} else {
+			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultCoverageSubdir),
+				path.Join(outpath, DefaultCoverageSubdir))
+			if err != nil {
+				log.Log.Fatal(err)
 			}
 		}
 	}

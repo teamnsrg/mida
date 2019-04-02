@@ -266,6 +266,11 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.OpenWPMChecks = DefaultOpenWPMChecks
 	}
+	if mt.Data.BrowserCoverage != nil {
+		st.BrowserCoverage = *mt.Data.BrowserCoverage
+	} else {
+		st.BrowserCoverage = DefaultBrowserCoverage
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////

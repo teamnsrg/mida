@@ -67,6 +67,7 @@ const (
 	DefaultWebsocketTraffic = false
 	DefaultNetworkStrace    = false
 	DefaultOpenWPMChecks    = false
+	DefaultBrowserCoverage  = false
 
 	// Other/Util
 

@@ -5,6 +5,7 @@ const (
 	DefaultOutputPath             = "results"
 	DefaultFileSubdir             = "files"
 	DefaultScriptSubdir           = "scripts"
+	DefaultCoverageSubdir         = "coverage"
 	DefaultCrawlMetadataFile      = "metadata.json"
 	DefaultResourceMetadataFile   = "resource_metadata.json"
 	DefaultScriptMetadataFile     = "script_metadata.json"
