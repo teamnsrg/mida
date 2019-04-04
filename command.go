@@ -183,6 +183,8 @@ to crawl, using default parameters where not specified`,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
 	cmdGo.Flags().BoolVarP(&openWPMChecks, "browser-coverage", "", DefaultBrowserCoverage,
 		"Gather browser coverage data (requires browser instrumented for coverage)")
+	cmdGo.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
+		"Task priority (when loaded into RabbitMQ")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
