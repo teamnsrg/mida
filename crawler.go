@@ -103,7 +103,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Fatal("Error creating results directory")
 		}
 	} else {
-		log.Log.Fatal("Results directory already existed within user data directory")
+		log.Log.Error("Results directory already existed within user data directory")
 	}
 
 	if st.AllResources {
@@ -572,6 +572,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	err = c.Shutdown(cxt)
 	if err != nil {
 		log.Log.Error("Browser Shutdown Failed: ", err)
+	}
+
+	err = c.Wait()
+	if err != nil {
+		log.Log.Error(err)
 	}
 
 	// Make sure we free this memory -- danger of a leak
