@@ -12,7 +12,7 @@ import argparse
 
 LATEST_MIDA_BINARY_LINUX = 'https://files.mida.sprai.org/mida_linux_amd64'
 LATEST_MIDA_BINARY_MAC = 'https://files.mida.sprai.org/mida_darwin_amd64'
-LATEST_INSTR_BROWSER_PACKAGE = 'https://files.mida.sprai.org/chromium.zip'
+PATH_TO_BROWSERS = 'https://files.mida.sprai.org/browser/'
 SHA256SUMS = 'https://files.mida.sprai.org/sha256sums.txt'
 
 
@@ -142,12 +142,13 @@ def is_installed(program):
 
 
 def install_instr_chromium(p):
+    sys.stdout.write('Getting browser from: ' + os.path.join(PATH_TO_BROWSERS, p + '.zip') + '\n')
     sys.stdout.write('Downloading instrumented version of Chromium...')
     sys.stdout.flush()
     try:
-        urllib.request.urlretrieve(LATEST_INSTR_BROWSER_PACKAGE, '.browser.tmp.zip')
+        urllib.request.urlretrieve(os.path.join(PATH_TO_BROWSERS, p + '.zip'), '.browser.tmp.zip')
     except:
-        sys.stdout.write('Failed!')
+        sys.stdout.write('Failed!\n')
         sys.stdout.flush()
         return
     sys.stdout.write('Done.\n')
@@ -158,6 +159,8 @@ def install_instr_chromium(p):
         u = os.environ.get('SUDO_USER')
     else:
         u = os.environ.get('USER')
+
+    
 
     try:
         with zipfile.ZipFile('.browser.tmp.zip','r') as zip_file:
@@ -170,25 +173,48 @@ def install_instr_chromium(p):
     except:
         print('Did not remove testing directory')
 
-    try:
-        if not os.path.isdir(os.path.join(p)):
-            os.mkdir(os.path.join(p))
-        os.rename('.browser.tmp/out/release-1', os.path.join(p))
-        DEVNULL = open(os.devnull,'wb')
-        subprocess.call(['chown', '-R', u + ':' + u, os.path.join(p)], stdout=DEVNULL, stderr=DEVNULL)
-        subprocess.call(['chmod', '+x', os.path.join(p, 'chrome')], stdout=DEVNULL, stderr=DEVNULL)
-        DEVNULL.close()
+
+    browser_path = ''
+    OS = platform.system()
+    if OS == 'Linux':
+        browser_path += '/home'
+    elif OS == 'Darwin':
+        browser_path += '/Users'
+    else:
+        print('Not a valid OS')
+        return
+
+    mida_dir_path = os.path.join(browser_path, u, '.mida')
+    browser_path = os.path.join(browser_path, u, '.mida/browser', p)
+    print('New browser path: ', browser_path)
+
+    #try:
+    if not os.path.isdir(os.path.join(mida_dir_path, 'browser')):
+        os.makedirs(os.path.join(mida_dir_path, 'browser'))
+    if os.path.isdir(browser_path):
+        shutil.rmtree(browser_path)
+    print('Renaming: ', '.browser.tmp/out/' + p, browser_path)
+    os.rename('.browser.tmp/out/' + p, browser_path)
+    DEVNULL = open(os.devnull,'wb')
+    print('Chowing .mida directory: ', mida_dir_path)
+    subprocess.call(['chown', '-R', u + ':' + u, mida_dir_path])
+    print('Chmodding new browser')
+    subprocess.call(['chmod', '+x', os.path.join(browser_path, 'chrome')])
+    DEVNULL.close()
+    '''
     except:
         sys.stdout.write('Cannot create directory: %s\n' % p)
         sys.stdout.flush()
+        return
 
     shutil.rmtree('.browser.tmp')
     os.remove('.browser.tmp.zip')
+    '''
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MIDA setup script')
     parser.add_argument('-i', '--instrumented-browser', action="store", default="",
-                        help="Path to download and install instrumented browser")
+                        help="Name of instrumented browser to install")
     args = parser.parse_args(sys.argv[1:])
     main(args)
