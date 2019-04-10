@@ -39,7 +39,7 @@ def main(args):
         urllib.request.urlretrieve(SHA256SUMS, '.sha256sums.txt')
     except:
         print('Unable to get SHA256 sums from web server')
-        return
+        raise
     f = open('.sha256sums.txt', 'r')
     for line in f:
         pieces = line.split()
@@ -149,7 +149,7 @@ def install_instr_chromium(p):
     except:
         sys.stdout.write('Failed!')
         sys.stdout.flush()
-        return
+        raise
     sys.stdout.write('Done.\n')
     sys.stdout.flush()
 
