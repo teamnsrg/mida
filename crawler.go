@@ -193,6 +193,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		if err != nil {
 			log.Log.Error(err)
 			log.Log.Error("If running without a display, preface command with \"xvfb-run\"")
+			log.Log.Error("Example: 'xvfb-run mida go illinois.edu'")
 			rawResultLock.Lock()
 			rawResult.SanitizedTask.TaskFailed = true
 			rawResult.SanitizedTask.FailureCode = err.Error()
