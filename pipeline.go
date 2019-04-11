@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/teamnsrg/mida/log"
-	"github.com/teamnsrg/mida/monitor"
-	"github.com/teamnsrg/mida/storage"
-	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/MIDA/log"
+	"github.com/teamnsrg/MIDA/monitor"
+	"github.com/teamnsrg/MIDA/storage"
+	t "github.com/teamnsrg/MIDA/types"
 	"os"
 	"sync"
 )

@@ -1,7 +1,7 @@
 package jstrace
 
 import (
-	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/MIDA/log"
 	"strconv"
 )
 

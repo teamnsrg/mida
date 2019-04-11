@@ -4,8 +4,8 @@ import (
 	"errors"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
-	"github.com/teamnsrg/mida/log"
-	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/MIDA/log"
+	t "github.com/teamnsrg/MIDA/types"
 )
 
 // Using information from the Network Domain events, as well as the Debugger Domain

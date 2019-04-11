@@ -3,8 +3,8 @@ package monitor
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/teamnsrg/mida/log"
-	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/MIDA/log"
+	t "github.com/teamnsrg/MIDA/types"
 	"net/http"
 	"strconv"
 )

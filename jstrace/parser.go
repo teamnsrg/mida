@@ -3,7 +3,7 @@ package jstrace
 import (
 	"bufio"
 	"github.com/pkg/errors"
-	log "github.com/teamnsrg/mida/log"
+	log "github.com/teamnsrg/MIDA/log"
 	"io"
 	"os"
 	"strings"

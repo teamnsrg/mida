@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"github.com/teamnsrg/mida/log"
-	"github.com/teamnsrg/mida/storage"
-	t "github.com/teamnsrg/mida/types"
-	"github.com/teamnsrg/mida/util"
+	"github.com/teamnsrg/MIDA/log"
+	"github.com/teamnsrg/MIDA/storage"
+	t "github.com/teamnsrg/MIDA/types"
+	"github.com/teamnsrg/MIDA/util"
 	"os"
 	"path"
 	"runtime"
