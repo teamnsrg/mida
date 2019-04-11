@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"github.com/spf13/viper"
 	"github.com/streadway/amqp"
-	"github.com/teamnsrg/MIDA/log"
-	t "github.com/teamnsrg/MIDA/types"
-	"github.com/teamnsrg/MIDA/util"
+	"github.com/teamnsrg/mida/log"
+	t "github.com/teamnsrg/mida/types"
+	"github.com/teamnsrg/mida/util"
 	"os"
 )
 
@@ -55,7 +55,7 @@ func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
 			priority = uint8(*task.Priority)
 		}
 		if priority < 1 || priority > 10 {
-			log.Log.Warn("Got bad priority for task: %d")
+			log.Log.Warnf("Got bad priority for task: %d", *task.Priority)
 			log.Log.Warn("Setting priority to 5")
 			priority = 5
 		}

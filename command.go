@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/teamnsrg/MIDA/log"
-	"github.com/teamnsrg/MIDA/queue"
-	"github.com/teamnsrg/MIDA/storage"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/queue"
+	"github.com/teamnsrg/mida/storage"
 )
 
 func BuildCommands() *cobra.Command {

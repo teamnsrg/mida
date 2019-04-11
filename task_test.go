@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/teamnsrg/MIDA/storage"
+	"github.com/teamnsrg/mida/storage"
 	"path"
 	"strings"
 	"testing"

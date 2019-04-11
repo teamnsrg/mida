@@ -3,8 +3,8 @@ package storage
 import (
 	"encoding/json"
 	"errors"
-	"github.com/teamnsrg/MIDA/log"
-	t "github.com/teamnsrg/MIDA/types"
+	"github.com/teamnsrg/mida/log"
+	t "github.com/teamnsrg/mida/types"
 	"io/ioutil"
 	"os"
 	"path"

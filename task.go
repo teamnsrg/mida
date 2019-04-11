@@ -5,9 +5,9 @@ import (
 	"errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/teamnsrg/MIDA/log"
-	"github.com/teamnsrg/MIDA/queue"
-	t "github.com/teamnsrg/MIDA/types"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/queue"
+	t "github.com/teamnsrg/mida/types"
 	"io/ioutil"
 )
 

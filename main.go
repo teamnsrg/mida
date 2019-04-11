@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/teamnsrg/MIDA/log"
+	"github.com/teamnsrg/mida/log"
 	"net/http"
 	_ "net/http/pprof"
 )

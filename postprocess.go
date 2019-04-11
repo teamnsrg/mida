@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/teamnsrg/MIDA/jstrace"
-	"github.com/teamnsrg/MIDA/log"
-	"github.com/teamnsrg/MIDA/resourcetree"
-	"github.com/teamnsrg/MIDA/storage"
-	t "github.com/teamnsrg/MIDA/types"
+	"github.com/teamnsrg/mida/jstrace"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/resourcetree"
+	"github.com/teamnsrg/mida/storage"
+	t "github.com/teamnsrg/mida/types"
 	"path"
 	"time"
 )
