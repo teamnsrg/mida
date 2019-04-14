@@ -186,12 +186,7 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		}
 
 		for _, flag := range *mt.Browser.SetBrowserFlags {
-			ff, err := util.FormatFlag(flag)
-			if err != nil {
-				log.Log.Warn(err)
-			} else {
-				st.BrowserFlags = append(st.BrowserFlags, ff)
-			}
+			st.BrowserFlags = append(st.BrowserFlags, flag)
 		}
 	} else {
 		// Add flags, checking to see that they have not been removed
@@ -199,12 +194,7 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 			if util.IsRemoved(*mt.Browser.RemoveBrowserFlags, flag) {
 				continue
 			}
-			ff, err := util.FormatFlag(flag)
-			if err != nil {
-				log.Log.Warn(err)
-			} else {
-				st.BrowserFlags = append(st.BrowserFlags, ff)
-			}
+			st.BrowserFlags = append(st.BrowserFlags, flag)
 		}
 	}
 
