@@ -7,7 +7,7 @@ COPY setup.py /root
 
 RUN python3 /root/setup.py 
 
-COPY pcap-script.sh /root
+COPY scripts/pcap-script.sh /root
 
 RUN chmod +x /root/pcap-script.sh
 

@@ -80,6 +80,7 @@ var DefaultBrowserFlags = []string{
 	"--disable-client-side-phishing-detection",
 	"--disable-extensions",
 	"--disable-features=IsolateOrigins,site-per-process",
+	"--disable-hang-monitor",
 	"--disable-ipc-flooding-protection",
 	"--disable-popup-blocking",
 	"--disable-prompt-on-repost",
