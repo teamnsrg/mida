@@ -1,17 +1,15 @@
 package log
 
 import (
+	"errors"
 	"github.com/sirupsen/logrus"
 	"github.com/snowzach/rotatefilehook"
-	//"github.com/x-cray/logrus-prefixed-formatter"
 	"os"
 )
 
 var Log = logrus.New()
 
 func InitLogger() {
-	logLevel := logrus.DebugLevel
-
 	//fileFormatter := new(prefixed.TextFormatter)
 	fileFormatter := new(logrus.TextFormatter)
 	fileFormatter.FullTimestamp = true
@@ -22,22 +20,36 @@ func InitLogger() {
 		MaxSize:    50, //megabytes
 		MaxBackups: 3,
 		MaxAge:     30, //days
-		Level:      logLevel,
+		Level:      logrus.InfoLevel,
 		Formatter:  fileFormatter,
 	})
 	if err != nil {
 		Log.Fatal(err)
 	}
 
-	//consoleFormatter := new(prefixed.TextFormatter)
 	consoleFormatter := new(logrus.TextFormatter)
 	consoleFormatter.FullTimestamp = false
 	consoleFormatter.ForceColors = true
-	//consoleFormatter.ForceFormatting = true
 
-	Log.SetLevel(logLevel)
 	Log.SetOutput(os.Stdout)
 	Log.SetFormatter(consoleFormatter)
-	Log.SetReportCaller(true)
 	Log.AddHook(rotateFileHook)
+}
+
+// Helper function to setup logging using parameters from Cobra command
+func ConfigureLogging(level int) error {
+	switch level {
+	case 0:
+		Log.SetLevel(logrus.ErrorLevel)
+	case 1:
+		Log.SetLevel(logrus.WarnLevel)
+	case 2:
+		Log.SetLevel(logrus.InfoLevel)
+	case 3:
+		Log.SetLevel(logrus.DebugLevel)
+		Log.SetReportCaller(true)
+	default:
+		return errors.New("invalid log level (Valid values: 0, 1, 2, 3)")
+	}
+	return nil
 }

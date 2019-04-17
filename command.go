@@ -10,22 +10,16 @@ import (
 
 func BuildCommands() *cobra.Command {
 
-	var cmdBuild = &cobra.Command{
-		Use:   "build",
-		Short: "Build a MIDA Task File",
-		Long:  `Create and save a task file using flags or CLI`,
-		Args:  cobra.OnlyValidArgs,
-		Run: func(cmd *cobra.Command, args []string) {
-			_, err := BuildCompressedTaskSet(cmd, args)
-			if err != nil {
-				log.Log.Error(err)
-			}
-		},
-	}
-
 	// Variables storing options for the build command
 	var (
-		urlfile     string
+		// Root Command Flags
+		numCrawlers int
+		numStorers  int
+		monitor     bool
+		promPort    int
+		logLevel    int
+
+		urlFile     string
 		maxAttempts int
 		priority    int
 
@@ -51,7 +45,7 @@ func BuildCommands() *cobra.Command {
 		allScripts       bool
 		resourceTree     bool
 		webSocket        bool
-		networkStrace    bool
+		networkTrace     bool
 		openWPMChecks    bool
 
 		// Output settings
@@ -62,7 +56,28 @@ func BuildCommands() *cobra.Command {
 		overwrite  bool
 	)
 
-	cmdBuild.Flags().StringVarP(&urlfile, "urlfile", "f",
+	var cmdBuild = &cobra.Command{
+		Use:   "build",
+		Short: "Build a MIDA Task File",
+		Long:  `Create and save a task file using flags or CLI`,
+		Args:  cobra.OnlyValidArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			_, err = BuildCompressedTaskSet(cmd, args)
+			if err != nil {
+				log.Log.Error(err)
+			}
+		},
+	}
+
+	cmdBuild.Flags().StringVarP(&urlFile, "urlfile", "f",
 		"", "File containing URL to visit (1 per line)")
 	cmdBuild.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTimeout,
 		"Maximum attempts for a task before it fails")
@@ -105,7 +120,7 @@ func BuildCommands() *cobra.Command {
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdBuild.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
-	cmdBuild.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
+	cmdBuild.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
@@ -132,11 +147,19 @@ func BuildCommands() *cobra.Command {
 to crawl, using default parameters where not specified`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
 			InitPipeline(cmd, args)
 		},
 	}
 
-	cmdGo.Flags().StringVarP(&urlfile, "urlfile", "f",
+	cmdGo.Flags().StringVarP(&urlFile, "urlfile", "f",
 		"", "File containing URL to visit (1 per line)")
 	cmdGo.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTaskAttempts,
 		"Maximum attempts for a task before it fails")
@@ -177,7 +200,7 @@ to crawl, using default parameters where not specified`,
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdGo.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
-	cmdGo.Flags().BoolVarP(&networkStrace, "network-strace", "", DefaultNetworkStrace,
+	cmdGo.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
@@ -198,6 +221,14 @@ to crawl, using default parameters where not specified`,
 		Long: `MIDA reads and executes tasks from a pre-created task
 file, exiting when all tasks in the file are completed.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
 			InitPipeline(cmd, args)
 		},
 	}
@@ -219,6 +250,14 @@ file, exiting when all tasks in the file are completed.`,
 		Long:  `Read tasks from a file and enqueue these tasks using AMQP`,
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
 			tasks, err := ReadTasksFromFile(args[0])
 			if err != nil {
 				log.Log.Fatal(err)
@@ -239,18 +278,19 @@ An address and credentials must be provided. MIDA will remain running until
 it receives explicit instructions to close, or the connection to the queue is
 lost.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
 			InitPipeline(cmd, args)
 		},
 	}
 
 	var cmdRoot = &cobra.Command{Use: "mida"}
-
-	var (
-		numCrawlers int
-		numStorers  int
-		monitor     bool
-		promPort    int
-	)
 
 	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("crawlers"),
 		"Number of parallel browser instances to use for crawling")
@@ -260,6 +300,8 @@ lost.`,
 		"Enable monitoring via Prometheus by hosting a HTTP server")
 	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "p", viper.GetInt("prom-port"),
 		"Port used for hosting metrics for a Prometheus server")
+	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log-level"),
+		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
 
 	err = viper.BindPFlags(cmdRoot.PersistentFlags())
 	if err != nil {

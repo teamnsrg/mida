@@ -256,10 +256,10 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.WebsocketTraffic = DefaultWebsocketTraffic
 	}
-	if mt.Data.NetworkStrace != nil {
-		st.NetworkStrace = *mt.Data.NetworkStrace
+	if mt.Data.NetworkTrace != nil {
+		st.NetworkTrace = *mt.Data.NetworkTrace
 	} else {
-		st.NetworkStrace = DefaultNetworkStrace
+		st.NetworkTrace = DefaultNetworkStrace
 	}
 	if mt.Data.OpenWPMChecks != nil {
 		st.OpenWPMChecks = *mt.Data.OpenWPMChecks

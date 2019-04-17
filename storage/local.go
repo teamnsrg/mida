@@ -91,7 +91,7 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		}
 	}
 
-	if r.SanitizedTask.NetworkStrace {
+	if r.SanitizedTask.NetworkTrace {
 		_, err = os.Stat(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultNetworkStraceFileName))
 		if err != nil {
 			log.Log.Error("Expected to find network strace file, but did not")

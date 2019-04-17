@@ -29,10 +29,13 @@ func CrawlerInstance(sanitizedTaskChan <-chan t.SanitizedMIDATask, rawResultChan
 			if !ok {
 				retryChan = nil
 			} else {
+				log.Log.WithField("URL", st.Url).Info("Begin Retry Crawl")
 				rawResult, err := ProcessSanitizedTask(st)
 				if err != nil {
+					// This should never happen (even if the task fails), so we make it fatal
 					log.Log.Fatal(err)
 				}
+				log.Log.WithField("URL", st.Url).Info("End Retry Crawl")
 				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
 				rawResultChan <- rawResult
 			}
@@ -40,10 +43,12 @@ func CrawlerInstance(sanitizedTaskChan <-chan t.SanitizedMIDATask, rawResultChan
 			if !ok {
 				sanitizedTaskChan = nil
 			} else {
+				log.Log.WithField("URL", st.Url).Info("Begin Crawl")
 				rawResult, err := ProcessSanitizedTask(st)
 				if err != nil {
 					log.Log.Fatal(err)
 				}
+				log.Log.WithField("URL", st.Url).Info("End Crawl")
 				// Put our raw crawl result into the Raw Result Channel, where it will be validated and post-processed
 				rawResultChan <- rawResult
 			}
@@ -154,7 +159,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	}
 
-	if st.NetworkStrace {
+	if st.NetworkTrace {
 		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
 	}
 

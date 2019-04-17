@@ -23,6 +23,7 @@ func SetDefaults() {
 	viper.SetDefault("storers", 1)
 	viper.SetDefault("promport", 8001)
 	viper.SetDefault("monitor", false)
+	viper.SetDefault("log-level", 2)
 	viper.SetDefault("taskfile", "examples/MIDA_task.json")
 	viper.SetDefault("rabbitmqurl", "localhost:5672")
 	viper.SetDefault("rabbitmquser", "")
