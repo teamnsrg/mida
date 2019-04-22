@@ -218,6 +218,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	// Get browser info from DevTools
 	err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
 		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt, h)
+		if err != nil {
+			return err
+		}
 		rawResultLock.Lock()
 		rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
 		rawResult.CrawlHostInfo.Browser = product

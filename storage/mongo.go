@@ -23,12 +23,15 @@ type MongoConn struct {
 	Ctx    context.Context
 	Client *mongo.Client
 	Coll   *mongo.Collection
+	Cancel context.CancelFunc
 }
 
 func CreateMongoDBConnection(uri string, collection string) (*MongoConn, error) {
 	mc := new(MongoConn)
-	ctx, _ := context.WithTimeout(context.Background(), MongoStorageTimeoutSeconds*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), MongoStorageTimeoutSeconds*time.Second)
+
 	mc.Ctx = ctx
+	mc.Cancel = cancel
 
 	opts := options.Client()
 	opts.Auth = &options.Credential{
@@ -67,6 +70,8 @@ func (conn *MongoConn) TeardownConnection() error {
 	if err != nil {
 		return err
 	}
+
+	conn.Cancel()
 
 	return nil
 }

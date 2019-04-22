@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+// RunPrometheusClient is responsible for running a client which will
+// be scraped by a Prometheus server
 func RunPrometheusClient(monitoringChan <-chan t.TaskStats, port int) {
 
 	browserDurationHistogram := prometheus.NewHistogram(

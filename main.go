@@ -8,15 +8,13 @@ import (
 // Sets up logging and hands off control to command.go, which is responsible
 // for parsing args/flags and initiating the appropriate functionality
 func main() {
-	InitConfig()
+	initConfig()
 	log.InitLogger()
 
-	rootCmd := BuildCommands()
+	rootCmd := buildCommands()
 
 	err := rootCmd.Execute()
 	if err != nil {
 		log.Log.Debug(err)
 	}
-
-	log.Log.Info("MIDA exiting")
 }

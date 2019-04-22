@@ -8,16 +8,16 @@ const (
 	CompleteOnTimeoutAfterLoad = 2
 )
 
-func InitConfig() {
+func initConfig() {
 	// Initialize the defaults below
-	SetDefaults()
+	setDefaults()
 
 	// We will read environment variables with this prefix
 	viper.SetEnvPrefix("MIDA")
 	viper.AutomaticEnv()
 }
 
-func SetDefaults() {
+func setDefaults() {
 	// MIDA-Wide Configuration Defaults
 	viper.SetDefault("crawlers", 1)
 	viper.SetDefault("storers", 1)

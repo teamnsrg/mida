@@ -5,10 +5,13 @@ import (
 	"strconv"
 )
 
+// OpenWPMCheckTraceForFingerprinting checks a given JavScript trace for fingerprinting
+// based on our interpretation of the checks laid out in the following paper:
+// http://randomwalker.info/publications/OpenWPM_1_million_site_tracking_measurement.pdf
 func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	for _, isolate := range trace.Isolates {
 		for _, script := range isolate.Scripts {
-			err := OpenWPMCheckScript(script)
+			err := openWPMCheckScript(script)
 			if err != nil {
 				log.Log.Error(err)
 			}
@@ -34,7 +37,7 @@ func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 	return nil
 }
 
-func OpenWPMCheckScript(s *Script) error {
+func openWPMCheckScript(s *Script) error {
 
 	// Canvas fingerprinting state
 	imageExtracted := false

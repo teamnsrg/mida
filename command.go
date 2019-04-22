@@ -8,7 +8,7 @@ import (
 	"github.com/teamnsrg/mida/storage"
 )
 
-func BuildCommands() *cobra.Command {
+func buildCommands() *cobra.Command {
 
 	// Variables storing options for the build command
 	var (

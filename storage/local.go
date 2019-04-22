@@ -98,6 +98,9 @@ func StoreResultsLocalFS(r *t.FinalMIDAResult, outpath string) error {
 		} else {
 			err = os.Rename(path.Join(r.SanitizedTask.UserDataDirectory, r.SanitizedTask.RandomIdentifier, DefaultNetworkStraceFileName),
 				path.Join(outpath, DefaultNetworkStraceFileName))
+			if err != nil {
+				log.Log.Error(err)
+			}
 		}
 	}
 
