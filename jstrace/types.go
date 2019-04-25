@@ -8,12 +8,12 @@ type Arg struct {
 
 // A single API call
 type Call struct {
-	T        string `json:"type" bson:"calltype"`
-	C        string `json:"class" bson:"callclass"`
-	F        string `json:"func" bson:"callfunc"`
+	T        string `json:"calltype" bson:"calltype"`
+	C        string `json:"callclass" bson:"callclass"`
+	F        string `json:"callfunc" bson:"callfunc"`
 	Args     []Arg  `json:"args" bson:"args"`
 	Ret      Arg    `json:"ret" bson:"ret"`
-	ScriptId string `json:"script_id"`
+	ScriptId string `json:"-" bson:"-"`
 
 	ID       int64   `json:"-" bson:"_id"`
 	Parent   int64   `json:"-" bson:"parent"`
@@ -49,6 +49,11 @@ type Isolate struct {
 // A full trace, parsed and ready to be stored or processed further
 type JSTrace struct {
 	Isolates map[string]*Isolate `json:"isolates,omitempty" bson:"-"`
+
+	// Scripts for which we saw calls but never saw an initial declaration
+	// We store this for use in repairing the trace using script metadata
+	// UnknownScripts[isolate][scriptId] = true
+	UnknownScripts map[string]map[string]bool `json:"-" bson:"-"`
 
 	// Parsing data
 	IgnoredCalls int `json:"ignored_calls"`

@@ -23,6 +23,12 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 	// Stores the current call for each isolate
 	iActiveCalls := make(map[string]*Call)
 
+	// Unknown scripts: We see calls for them but never saw a beginning/base URL
+	// These likely appear due to oversights in our browser instrumentation, but
+	// until we can figure that out, we just grab them and try to get the base URL
+	// from the script metadata gathered from DevTools
+	trace.UnknownScripts = make(map[string]map[string]bool)
+
 	// Trace metadata
 	lineNum := 0
 
@@ -61,14 +67,22 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				// Make sure that we have seen this isolate before
 				if _, ok := trace.Isolates[l.Isolate]; ok {
 					// Add this call to the applicable script
-					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; ok {
-						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
-							trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
-						trace.StoredCalls += 1
-					} else {
-						log.Log.Infof("Line %d - Ignoring call: Isolate %s does not have script %s", lineNum, l.Isolate, iActiveCalls[l.Isolate].ScriptId)
-						trace.IgnoredCalls += 1
+					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
+						newScript := Script{
+							ScriptId: l.ScriptId,
+							BaseUrl:  "(UNKNOWN)",
+							Calls:    make([]Call, 0),
+						}
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
+						if _, ok := trace.UnknownScripts[l.Isolate]; !ok {
+							trace.UnknownScripts[l.Isolate] = make(map[string]bool)
+						}
+						trace.UnknownScripts[l.Isolate][iActiveCalls[l.Isolate].ScriptId] = true
 					}
+
+					trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
+					trace.StoredCalls += 1
 				} else {
 					trace.IgnoredCalls += 1
 				}
@@ -111,14 +125,22 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				// Make sure that we have seen this isolate before
 				if _, ok := trace.Isolates[l.Isolate]; ok {
 					// Add this call to the applicable script
-					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; ok {
-						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
-							trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
-						trace.StoredCalls += 1
-					} else {
-						trace.IgnoredCalls += 1
-						log.Log.Infof("Line %d - Ignoring call: Isolate %s does not have script %s", lineNum, l.Isolate, iActiveCalls[l.Isolate].ScriptId)
+					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
+						newScript := Script{
+							ScriptId: l.ScriptId,
+							BaseUrl:  "(UNKNOWN)",
+							Calls:    make([]Call, 0),
+						}
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
+						if _, ok := trace.UnknownScripts[l.Isolate]; !ok {
+							trace.UnknownScripts[l.Isolate] = make(map[string]bool)
+						}
+						trace.UnknownScripts[l.Isolate][iActiveCalls[l.Isolate].ScriptId] = true
 					}
+
+					trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
+					trace.StoredCalls += 1
 				} else {
 					trace.IgnoredCalls += 1
 				}
@@ -161,7 +183,6 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 			a.Val = l.ArgVal
 			iActiveCalls[l.Isolate].Ret = a
 		}
-
 	}
 
 	return &trace, nil
