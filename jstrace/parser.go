@@ -2,13 +2,14 @@ package jstrace
 
 import (
 	"bufio"
-	"github.com/pkg/errors"
-	log "github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/log"
 	"io"
 	"os"
 	"strings"
 )
 
+// ParseTraceFromFile parses a file created as raw output from an
+// instrumented version of the browser.
 func ParseTraceFromFile(fname string) (*JSTrace, error) {
 
 	var trace JSTrace
@@ -19,11 +20,14 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 	}
 	r := bufio.NewReader(file)
 
-	// Stacks of executions for each isolate
-	iStacks := make(map[string]ExecutionStack)
-
 	// Stores the current call for each isolate
 	iActiveCalls := make(map[string]*Call)
+
+	// Unknown scripts: We see calls for them but never saw a beginning/base URL
+	// These likely appear due to oversights in our browser instrumentation, but
+	// until we can figure that out, we just grab them and try to get the base URL
+	// from the script metadata gathered from DevTools
+	trace.UnknownScripts = make(map[string]map[string]bool)
 
 	// Trace metadata
 	lineNum := 0
@@ -44,7 +48,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 		}
 
 		lineNum += 1
-		l := ProcessLine(string(lineBytes))
+		l := processLine(string(lineBytes))
 
 		if l.LT == ErrorLine || l.LT == UnknownLine {
 			log.Log.Info(lineNum, " : ", string(lineBytes))
@@ -57,129 +61,56 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 
 		// Now starts the state machine for building the trace line-by-line
 		if l.LT == ControlLine {
-			// First, check if there is a call in progress to be completed
 			// If there's an active call for this isolate, we need to complete it
-			// and add it to the current execution for this isolate
+			// and add it to the applicable script
 			if iActiveCalls[l.Isolate] != nil {
-				if _, ok := iStacks[l.Isolate]; !ok {
-					iStacks[l.Isolate] = make(ExecutionStack, 0)
-				}
+				// Make sure that we have seen this isolate before
+				if _, ok := trace.Isolates[l.Isolate]; ok {
+					// Add this call to the applicable script
+					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
+						newScript := Script{
+							ScriptId: l.ScriptId,
+							BaseUrl:  "(UNKNOWN)",
+							Calls:    make([]Call, 0),
+						}
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
+						if _, ok := trace.UnknownScripts[l.Isolate]; !ok {
+							trace.UnknownScripts[l.Isolate] = make(map[string]bool)
+						}
+						trace.UnknownScripts[l.Isolate][iActiveCalls[l.Isolate].ScriptId] = true
+					}
 
-				if len(iStacks[l.Isolate]) == 0 {
-					// No active executions
-					// We ignore this call, since we cannot attribute it to a particular script
-					trace.IgnoredCalls += 1
-				} else {
-					// Otherwise, we can add the call to the execution
-					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
-						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
-
+					trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
 					trace.StoredCalls += 1
-
-					// No active call anymore
-					iActiveCalls[l.Isolate] = nil
+				} else {
+					trace.IgnoredCalls += 1
 				}
+
+				// No active call anymore
+				iActiveCalls[l.Isolate] = nil
 			}
 
-			if l.IsBegin {
+			if l.IsBegin && !l.IsCallback {
 				// The beginning of a call or callback
 				// If we haven't seen the isolate before, create an entry for it
-				if _, ok := iStacks[l.Isolate]; !ok {
-					iStacks[l.Isolate] = make(ExecutionStack, 0)
-				}
-
 				if _, ok := trace.Isolates[l.Isolate]; !ok {
 					trace.Isolates[l.Isolate] = new(Isolate)
 					trace.Isolates[l.Isolate].Scripts = make(map[string]*Script)
 				}
 
-				// Create a new execution and push it onto the stack
-				e := Execution{
-					Calls:    make([]*Call, 0),
-					Isolate:  l.Isolate,
-					ScriptId: l.ScriptId,
-					TS:       l.TS,
-				}
-				iStacks[l.Isolate] = iStacks[l.Isolate].Push(e)
-
-				if _, ok := trace.Isolates[l.Isolate].Scripts[e.ScriptId]; !ok {
+				if _, ok := trace.Isolates[l.Isolate].Scripts[l.ScriptId]; !ok {
 					newScript := Script{
-						ScriptId:   l.ScriptId,
-						BaseUrl:    l.BaseURL,
-						Executions: make([]Execution, 0),
+						ScriptId: l.ScriptId,
+						BaseUrl:  l.BaseURL,
+						Calls:    make([]Call, 0),
 					}
-					trace.Isolates[l.Isolate].Scripts[e.ScriptId] = &newScript
+					trace.Isolates[l.Isolate].Scripts[l.ScriptId] = &newScript
 
-				} else {
-					if !l.IsCallback {
-						// Update the Base URL if it's a normal call
-						// Weird case because somehow we have already seen this script
-						// before in this isolate
-						trace.Isolates[l.Isolate].Scripts[e.ScriptId].BaseUrl = l.BaseURL
-					}
 				}
 			} else {
 				// This is the end of a call or callback
-				// If we haven't seen the isolate before, create an entry for it
-
-				if _, ok := iStacks[l.Isolate]; !ok {
-					iStacks[l.Isolate] = make(ExecutionStack, 0)
-				}
-
-				// First, try the simple case where stuff works as intended
-				e, err := iStacks[l.Isolate].Peek(1)
-				if err != nil {
-					// Stack is empty and we can't do anything
-					continue
-				}
-
-				if e.ScriptId == l.ScriptId && e.TS == l.TS {
-					// Woo Hoo! Worked as expected.
-					// Pop the execution off the stack and put in in our trace
-					trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions = append(
-						trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions, e)
-					iStacks[l.Isolate], _, _ = iStacks[l.Isolate].Pop()
-					continue
-				}
-
-				// If they didn't match up, we will check up to 3 deep in our execution stack
-				// to try to find the scriptID/Timestamp
-
-				e, err = iStacks[l.Isolate].Peek(2)
-				if err != nil {
-					// Stack is empty and we can't do anything
-					continue
-				}
-
-				if e.ScriptId == l.ScriptId && e.TS == l.TS {
-					// Found it on the second try
-					// Pop the execution off the stack and put in in our trace
-					trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions = append(
-						trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions, e)
-					_, _, _ = iStacks[l.Isolate].Pop()
-					iStacks[l.Isolate], _, _ = iStacks[l.Isolate].Pop()
-					continue
-				}
-
-				e, err = iStacks[l.Isolate].Peek(3)
-				if err != nil {
-					// Stack is empty and we can't do anything
-					continue
-				}
-
-				if e.ScriptId == l.ScriptId && e.TS == l.TS {
-					// Found it on the third try
-					// Pop the execution off the stack and put in in our trace
-					trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions = append(
-						trace.Isolates[l.Isolate].Scripts[e.ScriptId].Executions, e)
-					_, _, _ = iStacks[l.Isolate].Pop()
-					_, _, _ = iStacks[l.Isolate].Pop()
-					iStacks[l.Isolate], _, _ = iStacks[l.Isolate].Pop()
-					continue
-				}
-
-				// We failed to find the execution on the stack, so we just ignore this
-				// line and hope for the best
+				// We ignore this since we are not concerned about individual executions in this implementation
 			}
 		} else if l.LT == CallLine {
 			// If there's no entry for this isolate in the active calls map,
@@ -189,26 +120,33 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 			}
 
 			// If there's an active call for this isolate, we need to complete it
-			// and add it to the current execution for this isolate
+			// and add it to the applicable script
 			if iActiveCalls[l.Isolate] != nil {
-				if _, ok := iStacks[l.Isolate]; !ok {
-					iStacks[l.Isolate] = make(ExecutionStack, 0)
-				}
+				// Make sure that we have seen this isolate before
+				if _, ok := trace.Isolates[l.Isolate]; ok {
+					// Add this call to the applicable script
+					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
+						newScript := Script{
+							ScriptId: l.ScriptId,
+							BaseUrl:  "(UNKNOWN)",
+							Calls:    make([]Call, 0),
+						}
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
+						if _, ok := trace.UnknownScripts[l.Isolate]; !ok {
+							trace.UnknownScripts[l.Isolate] = make(map[string]bool)
+						}
+						trace.UnknownScripts[l.Isolate][iActiveCalls[l.Isolate].ScriptId] = true
+					}
 
-				if len(iStacks[l.Isolate]) == 0 {
-					// No active executions
-					// We ignore this call, since we cannot attribute it to a particular script
-					trace.IgnoredCalls += 1
-				} else {
-					// Otherwise, we can add the call to the execution
-					iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls = append(
-						iStacks[l.Isolate][len(iStacks[l.Isolate])-1].Calls, iActiveCalls[l.Isolate])
-
+					trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls = append(
+						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId].Calls, *iActiveCalls[l.Isolate])
 					trace.StoredCalls += 1
-
-					// No active call anymore
-					iActiveCalls[l.Isolate] = nil
+				} else {
+					trace.IgnoredCalls += 1
 				}
+
+				// No active call anymore
+				iActiveCalls[l.Isolate] = nil
 			}
 
 			// Create our new call, set as active for this isolate
@@ -217,6 +155,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 			iActiveCalls[l.Isolate].C = l.CallClass
 			iActiveCalls[l.Isolate].F = l.CallFunc
 			iActiveCalls[l.Isolate].Args = make([]Arg, 0)
+			iActiveCalls[l.Isolate].ScriptId = l.ScriptId
 		} else if l.LT == ArgLine {
 			// If there's no entry for this isolate in the active calls map,
 			// create one
@@ -244,32 +183,12 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 			a.Val = l.ArgVal
 			iActiveCalls[l.Isolate].Ret = a
 		}
-
 	}
 
 	return &trace, nil
 }
 
-func (es ExecutionStack) Push(e Execution) ExecutionStack {
-	return append(es, e)
-}
-
-func (es ExecutionStack) Pop() (ExecutionStack, Execution, error) {
-	l := len(es)
-	if l == 0 {
-		return es, Execution{}, errors.New("popped empty stack")
-	}
-	return es[:l-1], es[l-1], nil
-}
-
-func (es ExecutionStack) Peek(depth int) (Execution, error) {
-	if len(es) < depth {
-		return Execution{}, errors.New("stack not large enough")
-	}
-	return es[len(es)-depth], nil
-}
-
-func ProcessLine(s string) Line {
+func processLine(s string) Line {
 	var l Line
 
 	fields := strings.Fields(s)
@@ -292,7 +211,7 @@ func ProcessLine(s string) Line {
 	l.Isolate = fields[1][1 : len(fields[1])-1]
 
 	if fields[3] == "[get]" || fields[3] == "[set]" || fields[3] == "[call]" || fields[3] == "[cons]" {
-		if len(fields) != 5 {
+		if len(fields) != 6 {
 			l.LT = ErrorLine
 			return l
 		}
@@ -307,6 +226,13 @@ func ProcessLine(s string) Line {
 		l.CallType = fields[3][1 : len(fields[3])-1]
 		l.CallClass = pieces[0]
 		l.CallFunc = pieces[1]
+
+		if strings.HasPrefix(fields[5], "[") && strings.HasSuffix(fields[5], "]") {
+			l.ScriptId = fields[5][1 : len(fields[5])-1]
+		} else {
+			l.LT = ErrorLine
+			return l
+		}
 
 		return l
 

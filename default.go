@@ -83,6 +83,7 @@ var DefaultBrowserFlags = []string{
 	"--disable-features=IsolateOrigins,site-per-process",
 	"--disable-hang-monitor",
 	"--disable-ipc-flooding-protection",
+	"--disable-infobars",
 	"--disable-popup-blocking",
 	"--disable-prompt-on-repost",
 	"--disable-renderer-backgrounding",

@@ -8,37 +8,23 @@ type Arg struct {
 
 // A single API call
 type Call struct {
-	T    string `json:"type" bson:"calltype"`
-	C    string `json:"class" bson:"callclass"`
-	F    string `json:"func" bson:"callfunc"`
-	Args []Arg  `json:"args" bson:"args"`
-	Ret  Arg    `json:"ret" bson:"ret"`
+	T        string `json:"calltype" bson:"calltype"`
+	C        string `json:"callclass" bson:"callclass"`
+	F        string `json:"callfunc" bson:"callfunc"`
+	Args     []Arg  `json:"args" bson:"args"`
+	Ret      Arg    `json:"ret" bson:"ret"`
+	ScriptId string `json:"-" bson:"-"`
 
 	ID       int64   `json:"-" bson:"_id"`
 	Parent   int64   `json:"-" bson:"parent"`
 	Children []int64 `json:"-" bson:"children"`
 }
-
-// A single execution of a single script. A script may
-// have multiple executions through callbacks
-type Execution struct {
-	Isolate  string  `json:"isolate" bson:"-"`
-	ScriptId string  `json:"script_id" bson:"-"`
-	TS       string  `json:"timestamp" bson:"-"`
-	Calls    []*Call `json:"calls" bson:"-"`
-
-	ID       int64   `json:"-" bson:"_id"`
-	Parent   int64   `json:"-" bson:"parent"`
-	Children []int64 `json:"-" bson:"children"`
-}
-
-type ExecutionStack []Execution
 
 // A single script, identified by a unique script ID
 type Script struct {
-	ScriptId   string      `json:"script_id" bson:"script_id"`
-	BaseUrl    string      `json:"base_url" bson:"base_url"`
-	Executions []Execution `json:"executions" bson:"-"`
+	ScriptId string `json:"script_id" bson:"script_id"`
+	BaseUrl  string `json:"base_url" bson:"base_url"`
+	Calls    []Call `json:"calls" bson:"-"`
 
 	// MongoDB-use only fields
 	ID       int64   `json:"-" bson:"_id"`
@@ -63,6 +49,11 @@ type Isolate struct {
 // A full trace, parsed and ready to be stored or processed further
 type JSTrace struct {
 	Isolates map[string]*Isolate `json:"isolates,omitempty" bson:"-"`
+
+	// Scripts for which we saw calls but never saw an initial declaration
+	// We store this for use in repairing the trace using script metadata
+	// UnknownScripts[isolate][scriptId] = true
+	UnknownScripts map[string]map[string]bool `json:"-" bson:"-"`
 
 	// Parsing data
 	IgnoredCalls int `json:"ignored_calls"`

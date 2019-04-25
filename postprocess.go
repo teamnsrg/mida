@@ -46,9 +46,23 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				finalResult.JSTrace = trace
 			}
 
-			err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
-			if err != nil {
-				log.Log.Error(err)
+			// Try to fix up JS trace using script metadata we gathered
+			if rawResult.SanitizedTask.ScriptMetadata {
+				for isolate, scriptIds := range trace.UnknownScripts {
+					for scriptId := range scriptIds {
+						if _, ok := rawResult.Scripts[scriptId]; ok {
+							trace.Isolates[isolate].Scripts[scriptId].BaseUrl = rawResult.Scripts[scriptId].URL
+						}
+					}
+				}
+			}
+
+			// Fingerprinting checks using trace data
+			if rawResult.SanitizedTask.OpenWPMChecks {
+				err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
+				if err != nil {
+					log.Log.Error(err)
+				}
 			}
 		}
 

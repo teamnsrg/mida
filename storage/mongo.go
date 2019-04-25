@@ -207,13 +207,9 @@ func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 		objIdAlloc += 1
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
 			objIdAlloc += 1
-			for _, execution := range script.Executions {
+			for range script.Calls {
 				objIdAlloc += 1
-				for range execution.Calls {
-					objIdAlloc += 1
-				}
 			}
-
 		}
 	}
 
@@ -236,13 +232,9 @@ func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 			script.Parent = r.JSTrace.Isolates[isolateID].ID
 			script.Children = make([]int64, 0)
 			curId += 1
-			for i := range script.Executions {
-				script.Executions[i].ID = curId
+			for j := range script.Calls {
+				script.Calls[j].ID = curId
 				curId += 1
-				for j := range script.Executions[i].Calls {
-					script.Executions[i].Calls[j].ID = curId
-					curId += 1
-				}
 			}
 		}
 	}
@@ -278,52 +270,42 @@ func (conn *MongoConn) StoreJSTrace(r *t.FinalMIDAResult) error {
 			"children": scripts,
 		})
 		for _, script := range r.JSTrace.Isolates[isolateID].Scripts {
-			var executions []int64
-			for _, execution := range script.Executions {
-				executions = append(executions, execution.ID)
+
+			var calls []int64
+			for _, call := range script.Calls {
+				calls = append(calls, call.ID)
 			}
+
 			toStore = append(toStore, &bson.M{
 				"_id":             script.ID,
 				"type":            "Script",
 				"baseUrl":         script.BaseUrl,
 				"scriptId":        script.ScriptId,
 				"parent":          isolate.ID,
-				"children":        executions,
+				"children":        calls,
 				"openwpm_results": script.OpenWPM,
 			})
-			for _, execution := range script.Executions {
-				var calls []int64
-				for _, call := range execution.Calls {
-					calls = append(calls, call.ID)
-				}
+
+			for _, call := range script.Calls {
 				toStore = append(toStore, &bson.M{
-					"_id":      execution.ID,
-					"type":     "Execution",
-					"parent":   script.ID,
-					"children": calls,
+					"_id":       call.ID,
+					"type":      "Call",
+					"calltype":  call.T,
+					"callclass": call.C,
+					"callfunc":  call.F,
+					"args":      call.Args,
+					"ret":       call.Ret,
+					"parent":    script.ID,
+					"children":  nil,
 				})
-				for _, call := range execution.Calls {
-					toStore = append(toStore, &bson.M{
-						"_id":       call.ID,
-						"type":      "Call",
-						"calltype":  call.T,
-						"callclass": call.C,
-						"callfunc":  call.F,
-						"args":      call.Args,
-						"ret":       call.Ret,
-						"parent":    execution.ID,
-						"children":  nil,
-					})
-					if len(toStore) > MongoStorageJSBufferLen {
-						_, err := conn.Coll.InsertMany(conn.Ctx, toStore)
-						if err != nil {
-							return err
-						}
-						toStore = make([]interface{}, 0)
+				if len(toStore) > MongoStorageJSBufferLen {
+					_, err := conn.Coll.InsertMany(conn.Ctx, toStore)
+					if err != nil {
+						return err
 					}
+					toStore = make([]interface{}, 0)
 				}
 			}
-
 		}
 	}
 
