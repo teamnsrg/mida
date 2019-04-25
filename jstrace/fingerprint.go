@@ -62,122 +62,120 @@ func openWPMCheckScript(s *Script) error {
 	discharging := false
 	level := false
 
-	for _, execution := range s.Executions {
-		for _, call := range execution.Calls {
+	for _, call := range s.Calls {
 
-			// If we ever set the canvas height or width smaller than 16 pixels, return false
-			if call.T == "set" && call.C == "HTMLCanvasElement" && (call.F == "height" || call.F == "width") {
-				if len(call.Args) > 0 {
-					val, err := strconv.Atoi(call.Args[0].Val)
-					if err != nil {
-						continue
-					}
-					if val < 16 {
-						notCanvasFP = true
-					}
+		// If we ever set the canvas height or width smaller than 16 pixels, return false
+		if call.T == "set" && call.C == "HTMLCanvasElement" && (call.F == "height" || call.F == "width") {
+			if len(call.Args) > 0 {
+				val, err := strconv.Atoi(call.Args[0].Val)
+				if err != nil {
+					continue
+				}
+				if val < 16 {
+					notCanvasFP = true
 				}
 			}
+		}
 
-			// The script should not call the save, restore, or addEventListener methods of the rendering context
-			if call.C == "CanvasRenderingContext2D" && (call.F == "save" || call.F == "restore") {
-				notCanvasFP = true
-			}
-			if call.C == "HTMLCanvasElement" && call.F == "addEventListener" {
-				notCanvasFP = true
-			}
+		// The script should not call the save, restore, or addEventListener methods of the rendering context
+		if call.C == "CanvasRenderingContext2D" && (call.F == "save" || call.F == "restore") {
+			notCanvasFP = true
+		}
+		if call.C == "HTMLCanvasElement" && call.F == "addEventListener" {
+			notCanvasFP = true
+		}
 
-			// The script must extract an image with toDataURL or getImageData
-			if call.C == "CanvasRenderingContext2D" && call.F == "getImageData" {
-				if len(call.Args) >= 4 {
-					width, err := strconv.Atoi(call.Args[2].Val)
-					if err != nil {
-						log.Log.Warn(err)
-						continue
-					}
-					height, err := strconv.Atoi(call.Args[3].Val)
-					if err != nil {
-						log.Log.Warn(err)
-						continue
-					}
-
-					if height >= 16 && width >= 16 {
-						imageExtracted = true
-					}
+		// The script must extract an image with toDataURL or getImageData
+		if call.C == "CanvasRenderingContext2D" && call.F == "getImageData" {
+			if len(call.Args) >= 4 {
+				width, err := strconv.Atoi(call.Args[2].Val)
+				if err != nil {
+					log.Log.Warn(err)
+					continue
 				}
-			}
-			if call.C == "HTMLCanvasElement" && call.F == "toDataURL" {
-				imageExtracted = true
-			}
-
-			// The script must write at least 10 characters or at least 2 colors
-			if call.C == "CanvasRenderingContext2D" && (call.F == "fillText" || call.F == "strokeText") {
-				if len(call.Args) > 0 {
-					text := call.Args[0].Val
-					charMap := make(map[rune]bool)
-					for _, character := range text {
-						charMap[character] = true
-					}
-					if len(charMap) >= 10 {
-						moreThan10Characters = true
-					}
-				}
-			}
-			if call.C == "CanvasRenderingContext2D" && (call.F == "fillStyle" || call.F == "strokeStyle") {
-				if len(call.Args) > 0 {
-					styles[call.Args[0].Val] = true
-				}
-			}
-
-			// Canvas font fingerprinting checks
-			if call.T == "set" && call.C == "CanvasRenderingContext2D" && call.F == "font" {
-				fontCalls += 1
-			} else if call.C == "CanvasRenderingContext2D" && call.F == "measureText" {
-				measureTextCalls += 1
-			}
-
-			//WebRTC Checks
-			if call.C == "RTCPeerConnection" {
-				if call.F == "createDataChannel" {
-					createDataChannel = true
-				} else if call.F == "createOffer" {
-					createOffer = true
-				} else if call.F == "onicecandidate" && call.T == "set" {
-					onIceCandidate = true
-				}
-			}
-
-			// Audio Checks
-			if call.C == "BaseAudioContext" {
-				audioCalls[call.F] = true
-			} else if call.C == "OfflineAudioContext" {
-				audioCalls[call.F] = true
-			} else if call.C == "ScriptProcessorNode" {
-				audioCalls[call.F] = true
-			}
-
-			// Battery checks
-			if call.C == "BatteryManager" {
-				if call.F == "level" || call.F == "onlevelchange" {
-					level = true
-				} else if call.F == "charging" || call.F == "chargingTime" || call.F == "onchargingchange" || call.F == "onchargingtimechance" {
-					charging = true
-				} else if call.F == "dischargingTime" || call.F == "ondischargingtimechange" {
-					discharging = true
-				}
-			} else if call.C == "EventTarget" && call.F == "addEventListener" {
-				if len(call.Args) < 1 {
+				height, err := strconv.Atoi(call.Args[3].Val)
+				if err != nil {
+					log.Log.Warn(err)
 					continue
 				}
 
-				arg := call.Args[0].Val
-
-				if arg == "levelchange" {
-					level = true
-				} else if arg == "chargingchange" || arg == "chargingtimechange" {
-					charging = true
-				} else if arg == "dischargingchange" || arg == "dischargingtimechange" {
-					discharging = true
+				if height >= 16 && width >= 16 {
+					imageExtracted = true
 				}
+			}
+		}
+		if call.C == "HTMLCanvasElement" && call.F == "toDataURL" {
+			imageExtracted = true
+		}
+
+		// The script must write at least 10 characters or at least 2 colors
+		if call.C == "CanvasRenderingContext2D" && (call.F == "fillText" || call.F == "strokeText") {
+			if len(call.Args) > 0 {
+				text := call.Args[0].Val
+				charMap := make(map[rune]bool)
+				for _, character := range text {
+					charMap[character] = true
+				}
+				if len(charMap) >= 10 {
+					moreThan10Characters = true
+				}
+			}
+		}
+		if call.C == "CanvasRenderingContext2D" && (call.F == "fillStyle" || call.F == "strokeStyle") {
+			if len(call.Args) > 0 {
+				styles[call.Args[0].Val] = true
+			}
+		}
+
+		// Canvas font fingerprinting checks
+		if call.T == "set" && call.C == "CanvasRenderingContext2D" && call.F == "font" {
+			fontCalls += 1
+		} else if call.C == "CanvasRenderingContext2D" && call.F == "measureText" {
+			measureTextCalls += 1
+		}
+
+		//WebRTC Checks
+		if call.C == "RTCPeerConnection" {
+			if call.F == "createDataChannel" {
+				createDataChannel = true
+			} else if call.F == "createOffer" {
+				createOffer = true
+			} else if call.F == "onicecandidate" && call.T == "set" {
+				onIceCandidate = true
+			}
+		}
+
+		// Audio Checks
+		if call.C == "BaseAudioContext" {
+			audioCalls[call.F] = true
+		} else if call.C == "OfflineAudioContext" {
+			audioCalls[call.F] = true
+		} else if call.C == "ScriptProcessorNode" {
+			audioCalls[call.F] = true
+		}
+
+		// Battery checks
+		if call.C == "BatteryManager" {
+			if call.F == "level" || call.F == "onlevelchange" {
+				level = true
+			} else if call.F == "charging" || call.F == "chargingTime" || call.F == "onchargingchange" || call.F == "onchargingtimechance" {
+				charging = true
+			} else if call.F == "dischargingTime" || call.F == "ondischargingtimechange" {
+				discharging = true
+			}
+		} else if call.C == "EventTarget" && call.F == "addEventListener" {
+			if len(call.Args) < 1 {
+				continue
+			}
+
+			arg := call.Args[0].Val
+
+			if arg == "levelchange" {
+				level = true
+			} else if arg == "chargingchange" || arg == "chargingtimechange" {
+				charging = true
+			} else if arg == "dischargingchange" || arg == "dischargingtimechange" {
+				discharging = true
 			}
 		}
 	}

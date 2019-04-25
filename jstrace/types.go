@@ -8,37 +8,23 @@ type Arg struct {
 
 // A single API call
 type Call struct {
-	T    string `json:"type" bson:"calltype"`
-	C    string `json:"class" bson:"callclass"`
-	F    string `json:"func" bson:"callfunc"`
-	Args []Arg  `json:"args" bson:"args"`
-	Ret  Arg    `json:"ret" bson:"ret"`
+	T        string `json:"type" bson:"calltype"`
+	C        string `json:"class" bson:"callclass"`
+	F        string `json:"func" bson:"callfunc"`
+	Args     []Arg  `json:"args" bson:"args"`
+	Ret      Arg    `json:"ret" bson:"ret"`
+	ScriptId string `json:"script_id"`
 
 	ID       int64   `json:"-" bson:"_id"`
 	Parent   int64   `json:"-" bson:"parent"`
 	Children []int64 `json:"-" bson:"children"`
 }
-
-// A single execution of a single script. A script may
-// have multiple executions through callbacks
-type Execution struct {
-	Isolate  string  `json:"isolate" bson:"-"`
-	ScriptId string  `json:"script_id" bson:"-"`
-	TS       string  `json:"timestamp" bson:"-"`
-	Calls    []*Call `json:"calls" bson:"-"`
-
-	ID       int64   `json:"-" bson:"_id"`
-	Parent   int64   `json:"-" bson:"parent"`
-	Children []int64 `json:"-" bson:"children"`
-}
-
-type ExecutionStack []Execution
 
 // A single script, identified by a unique script ID
 type Script struct {
-	ScriptId   string      `json:"script_id" bson:"script_id"`
-	BaseUrl    string      `json:"base_url" bson:"base_url"`
-	Executions []Execution `json:"executions" bson:"-"`
+	ScriptId string `json:"script_id" bson:"script_id"`
+	BaseUrl  string `json:"base_url" bson:"base_url"`
+	Calls    []Call `json:"calls" bson:"-"`
 
 	// MongoDB-use only fields
 	ID       int64   `json:"-" bson:"_id"`
