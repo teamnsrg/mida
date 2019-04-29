@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/teamnsrg/mida/util"
+	"io/ioutil"
 
 	//"github.com/chromedp/cdproto/browser"
 	//"github.com/chromedp/cdproto/cdp"
@@ -71,6 +74,23 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	timeoutChan := time.After(time.Duration(st.Timeout) * time.Second)
 	loadEventChan := make(chan bool, 5)
 	postCrawlActionsChan := make(chan bool, 1)
+
+	// Event channels (used to asynchronously process DevTools events)
+	// Naming Convention: <event name>Chan
+	// Buffers need to be big enough that the demux never blocks
+	loadEventFiredChan := make(chan *page.EventLoadEventFired, 100)
+	domContentEventFiredChan := make(chan *page.EventDomContentEventFired, 100)
+	requestWillBeSentChan := make(chan *network.EventRequestWillBeSent, 100000)
+	responseReceivedChan := make(chan *network.EventResponseReceived, 100000)
+	loadingFinishedChan := make(chan *network.EventLoadingFinished, 100000)
+	webSocketCreatedChan := make(chan *network.EventWebSocketCreated, 100000)
+	webSocketFrameSentChan := make(chan *network.EventWebSocketFrameSent, 100000)
+	webSocketFrameReceivedChan := make(chan *network.EventWebSocketFrameReceived, 100000)
+	webSocketFrameErrorChan := make(chan *network.EventWebSocketFrameError, 100000)
+	webSocketClosedChan := make(chan *network.EventWebSocketClosed, 100000)
+	webSocketWillSendHandshakeRequestChan := make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
+	webSocketHandshakeResponseReceivedChan := make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
+	scriptParsedChan := make(chan *debugger.EventScriptParsed, 100000)
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
@@ -176,6 +196,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		opts = append(opts, chromedp.Flag(name, val))
 	}
 
+	opts = append(opts, chromedp.Flag("user-data-dir", st.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(st.BrowserBinary))
 
 	// Spawn the browser
@@ -183,12 +204,66 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	cxt, cancel := chromedp.NewContext(allocContext)
 	defer cancel()
 
-	/*
-		runnerOpts := append(st.BrowserFlags, chromedp.ExecPath(st.BrowserBinary),
-			chromedp.Flag("remote-debugging-port", port),
-			chromedp.Flag("user-data-dir", st.UserDataDirectory),
-		)
-	*/
+	// Event Demux - just receive the events and stick them in the applicable channels
+	chromedp.ListenTarget(cxt, func(ev interface{}) {
+		switch ev.(type) {
+		// Page Domain Events
+		case *page.EventLoadEventFired:
+			loadEventFiredChan <- ev.(*page.EventLoadEventFired)
+		case *page.EventDomContentEventFired:
+			domContentEventFiredChan <- ev.(*page.EventDomContentEventFired)
+
+		// General Network Domain Events
+		case *network.EventRequestWillBeSent:
+			requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
+		case *network.EventResponseReceived:
+			responseReceivedChan <- ev.(*network.EventResponseReceived)
+
+		// Websocket Network Domain Events
+		case *network.EventWebSocketCreated:
+			webSocketCreatedChan <- ev.(*network.EventWebSocketCreated)
+		case *network.EventWebSocketFrameSent:
+			webSocketFrameSentChan <- ev.(*network.EventWebSocketFrameSent)
+		case *network.EventWebSocketFrameReceived:
+			webSocketFrameReceivedChan <- ev.(*network.EventWebSocketFrameReceived)
+		case *network.EventWebSocketFrameError:
+			webSocketFrameErrorChan <- ev.(*network.EventWebSocketFrameError)
+		case *network.EventWebSocketClosed:
+			webSocketClosedChan <- ev.(*network.EventWebSocketClosed)
+		case *network.EventWebSocketWillSendHandshakeRequest:
+			webSocketWillSendHandshakeRequestChan <- ev.(*network.EventWebSocketWillSendHandshakeRequest)
+		case *network.EventWebSocketHandshakeResponseReceived:
+			webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
+
+		// Debugger Domain Events
+		case *debugger.EventScriptParsed:
+			scriptParsedChan <- ev.(*debugger.EventScriptParsed)
+
+		}
+	})
+
+	// Ensure the correct domains are enabled/disabled
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(ctx context.Context) error {
+		err = runtime.Disable().Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		_, err = debugger.Enable().Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		err = network.Enable().Do(ctx)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
+	if err != nil {
+		log.Log.Fatal(err)
+	}
 
 	/*
 		r, err := runner.New(runnerOpts...)
@@ -257,9 +332,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	*/
 
-	// Set up required listeners and timers
-	/*
-		err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
+	// Event Handler : Page.loadEventFired
+	go func() {
+		for range loadEventFiredChan {
 			rawResultLock.Lock()
 			if rawResult.Stats.Timing.LoadEvent.IsZero() {
 				rawResult.Stats.Timing.LoadEvent = time.Now()
@@ -279,12 +354,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 
 			postCrawlActionsChan <- true
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Page.domContentEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
+	// Event Handler: Page.domContentEventFired
+	go func() {
+		for range domContentEventFiredChan {
 			rawResultLock.Lock()
 			if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
 				rawResult.Stats.Timing.DOMContentEvent = time.Now()
@@ -292,49 +367,30 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				log.Log.Warn("Duplicate DOMContentLoaded event")
 			}
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Page.frameNavigated", func(param interface{}, handler *chromedp.TargetHandler) {
-			// data := param.(*page.EventFrameNavigated)
-			// Log.Warn("FrameNavigated: ", data.Frame.URL, " : ", data.Frame.ID," : ", data.Frame.Name," : ", data.Frame.State.String())
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
-		}
-
-		err = c.Run(cxt, chromedp.CallbackFunc("Page.lifecycleEvent", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*page.EventLifecycleEvent)
-			log.Log.Warn(data.Name, "    ", data.Timestamp.Time().String(), "    ", data.FrameID.String())
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
-		}
-
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventRequestWillBeSent)
+	// Event Handler: Network.requestWillBeSent
+	go func() {
+		for data := range requestWillBeSentChan {
 			rawResultLock.Lock()
 			rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.responseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventResponseReceived)
+	// Event Handler: Network.responseReceived
+	go func() {
+		for data := range responseReceivedChan {
 			rawResultLock.Lock()
 			rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventLoadingFinished)
+	// Event Handler: Network.loadingFinished
+	go func() {
+		for data := range loadingFinishedChan {
 			if st.AllResources {
 				rawResultLock.Lock()
 				if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
@@ -343,11 +399,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					return
 				}
 				rawResultLock.Unlock()
-				respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
+				respBody, err := network.GetResponseBody(data.RequestID).Do(cxt)
 				if err != nil {
 					// The browser was unable to provide the content of this particular resource
 					// This typically happens when we closed the browser before we could save all resources
-					log.Log.Warn("Failed to get response Body for known resource: ", data.RequestID)
+					log.Log.Debug("Failed to get response Body for known resource: ", data.RequestID)
 				} else {
 					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 					if err != nil {
@@ -355,153 +411,135 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					}
 				}
 			}
-
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		// Websocket instrumentation
-		if st.WebsocketTraffic {
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketCreated", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketCreated)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
-					// Create our new websocket connection
-					wsc := t.WSConnection{
-						Url:                data.URL,
-						Initiator:          data.Initiator,
-						HandshakeRequests:  make([]*network.EventWebSocketWillSendHandshakeRequest, 0),
-						HandshakeResponses: make([]*network.EventWebSocketHandshakeResponseReceived, 0),
-						FramesSent:         make([]*network.EventWebSocketFrameSent, 0),
-						FramesReceived:     make([]*network.EventWebSocketFrameReceived, 0),
-						FrameErrors:        make([]*network.EventWebSocketFrameError, 0),
-						TSOpen:             time.Now().String(),
-						TSClose:            "",
-					}
-					rawResult.WebsocketData[data.RequestID.String()] = &wsc
+	// Event Handler: Network.webSocketCreated
+	go func() {
+		for data := range webSocketCreatedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
+				// Create our new websocket connection
+				wsc := t.WSConnection{
+					Url:                data.URL,
+					Initiator:          data.Initiator,
+					HandshakeRequests:  make([]*network.EventWebSocketWillSendHandshakeRequest, 0),
+					HandshakeResponses: make([]*network.EventWebSocketHandshakeResponseReceived, 0),
+					FramesSent:         make([]*network.EventWebSocketFrameSent, 0),
+					FramesReceived:     make([]*network.EventWebSocketFrameReceived, 0),
+					FrameErrors:        make([]*network.EventWebSocketFrameError, 0),
+					TSOpen:             time.Now().String(),
+					TSClose:            "",
 				}
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
+				rawResult.WebsocketData[data.RequestID.String()] = &wsc
 			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameSent", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketFrameSent)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].FramesSent = append(
-						rawResult.WebsocketData[data.RequestID.String()].FramesSent, data)
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketFrameReceived)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].FramesReceived = append(
-						rawResult.WebsocketData[data.RequestID.String()].FramesReceived, data)
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameError", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketFrameError)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].FrameErrors = append(
-						rawResult.WebsocketData[data.RequestID.String()].FrameErrors, data)
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketClosed", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketClosed)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].TSClose = data.Timestamp.Time().String()
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketWillSendHandshakeRequest", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketWillSendHandshakeRequest)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests = append(
-						rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests, data)
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketHandshakeResponseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*network.EventWebSocketHandshakeResponseReceived)
-				rawResultLock.Lock()
-				if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
-					// Create our new websocket connection
-					rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses = append(
-						rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses, data)
-				}
-				// Otherwise, we ignore a frame for a connection we don't know about
-				rawResultLock.Unlock()
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
-			}
+			rawResultLock.Unlock()
 		}
+	}()
 
-		// Instrument the scriptParsed event if (and only if) we need data from it
-		if st.ScriptMetadata || st.AllScripts {
-			err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
-				data := param.(*debugger.EventScriptParsed)
-				rawResultLock.Lock()
-				rawResult.Scripts[data.ScriptID.String()] = *data
-				rawResultLock.Unlock()
-				if st.AllScripts {
-					source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
-					if err != nil && err.Error() != "context canceled" {
-						log.Log.Error("Failed to get script source")
-						log.Log.Error(err)
-					} else {
-						err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
-						if err != nil {
-							log.Log.Fatal(err)
-						}
+	// Event Handler: Network.webSocketFrameSent
+	go func() {
+		for data := range webSocketFrameSentChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FramesSent = append(
+					rawResult.WebsocketData[data.RequestID.String()].FramesSent, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.webSocketFrameReceived
+	go func() {
+		for data := range webSocketFrameReceivedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FramesReceived = append(
+					rawResult.WebsocketData[data.RequestID.String()].FramesReceived, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.webSocketFrameError
+	go func() {
+		for data := range webSocketFrameErrorChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].FrameErrors = append(
+					rawResult.WebsocketData[data.RequestID.String()].FrameErrors, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.webSocketClosed
+	go func() {
+		for data := range webSocketClosedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].TSClose = data.Timestamp.Time().String()
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.websocketWillSendHandshakeRequest
+	go func() {
+		for data := range webSocketWillSendHandshakeRequestChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests = append(
+					rawResult.WebsocketData[data.RequestID.String()].HandshakeRequests, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.websocketHandshakeResponseReceived
+	go func() {
+		for data := range webSocketHandshakeResponseReceivedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
+				// Create our new websocket connection
+				rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses = append(
+					rawResult.WebsocketData[data.RequestID.String()].HandshakeResponses, data)
+			}
+			// Otherwise, we ignore a frame for a connection we don't know about
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Debugger.scriptParsed
+	go func() {
+		for data := range scriptParsedChan {
+			rawResultLock.Lock()
+			rawResult.Scripts[data.ScriptID.String()] = *data
+			rawResultLock.Unlock()
+			if st.AllScripts {
+				source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt)
+				if err != nil && err.Error() != "context canceled" {
+					log.Log.Error("Failed to get script source")
+					log.Log.Error(err)
+				} else {
+					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
+					if err != nil {
+						log.Log.Fatal(err)
 					}
 				}
-			}))
-			if err != nil {
-				log.Log.Fatal(err)
 			}
 		}
-	*/
+	}()
 
 	// Below is the MIDA navigation logic. Since MIDA offers several different
 	// termination conditions (Terminate on timout, terminate on load event, etc.),
@@ -511,7 +549,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		if err != nil {
 			log.Log.Error("Nav error: ", err)
 		}
-		log.Log.Info("Finished nav")
+		navChan <- err
 	}()
 	select {
 	case err = <-navChan:
