@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/teamnsrg/mida/util"
@@ -218,6 +219,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
 		case *network.EventResponseReceived:
 			responseReceivedChan <- ev.(*network.EventResponseReceived)
+		case *network.EventLoadingFinished:
+			loadingFinishedChan <- ev.(*network.EventLoadingFinished)
 
 		// Websocket Network Domain Events
 		case *network.EventWebSocketCreated:
@@ -243,18 +246,18 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	})
 
 	// Ensure the correct domains are enabled/disabled
-	err = chromedp.Run(cxt, chromedp.ActionFunc(func(ctx context.Context) error {
-		err = runtime.Disable().Do(ctx)
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		err = runtime.Disable().Do(cxt)
 		if err != nil {
 			return err
 		}
 
-		_, err = debugger.Enable().Do(ctx)
+		_, err = debugger.Enable().Do(cxt)
 		if err != nil {
 			return err
 		}
 
-		err = network.Enable().Do(ctx)
+		err = network.Enable().Do(cxt)
 		if err != nil {
 			return err
 		}
@@ -265,41 +268,32 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		log.Log.Fatal(err)
 	}
 
+	// Get browser data from DevTools
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt)
+		rawResultLock.Lock()
+		rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
+		rawResult.CrawlHostInfo.Browser = product
+		rawResult.CrawlHostInfo.V8Version = jsVersion
+		rawResult.CrawlHostInfo.BrowserVersion = revision
+		rawResult.CrawlHostInfo.UserAgent = userAgent
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+		rawResult.CrawlHostInfo.HostName = hostname
+		rawResultLock.Unlock()
+		return err
+	}))
+	if err != nil {
+		log.Log.Fatal(err)
+	}
+
 	/*
-		r, err := runner.New(runnerOpts...)
-		if err != nil {
-			log.Log.Fatal(err)
-		}
-		err = r.Start(cxt)
-		if err != nil {
-			log.Log.Error("Could not locate a viable browser")
-			log.Log.Error("Do you have Chrome or Chromium installed?")
-			log.Log.Fatal(err)
-		}
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserOpen = time.Now()
 		rawResultLock.Unlock()
 
-		c, err := chromedp.New(cxt, chromedp.WithRunner(r))
-		if err != nil {
-			// Retry once
-			c, err = chromedp.New(cxt, chromedp.WithRunner(r))
-			if err != nil {
-				log.Log.Error(err)
-				log.Log.Error("If running without a display, preface command with \"xvfb-run\"")
-				log.Log.Error("Example: 'xvfb-run mida go illinois.edu'")
-				rawResultLock.Lock()
-				rawResult.SanitizedTask.TaskFailed = true
-				rawResult.SanitizedTask.FailureCode = err.Error()
-				rawResultLock.Unlock()
-
-				rawResultLock.Lock()
-				rawResult.Stats.Timing.BrowserClose = time.Now()
-				rawResultLock.Unlock()
-
-				return rawResult, nil
-			}
-		}
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.DevtoolsConnect = time.Now()
 		rawResultLock.Unlock()
@@ -399,7 +393,14 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					return
 				}
 				rawResultLock.Unlock()
-				respBody, err := network.GetResponseBody(data.RequestID).Do(cxt)
+				var respBody []byte
+				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					respBody, err = network.GetResponseBody(data.RequestID).Do(cxt)
+					if err != nil {
+						log.Log.Fatal(err)
+					}
+					return err
+				}))
 				if err != nil {
 					// The browser was unable to provide the content of this particular resource
 					// This typically happens when we closed the browser before we could save all resources
@@ -527,7 +528,15 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			rawResult.Scripts[data.ScriptID.String()] = *data
 			rawResultLock.Unlock()
 			if st.AllScripts {
-				source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt)
+				var source string
+				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					source, err = debugger.GetScriptSource(data.ScriptID).Do(cxt)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				}))
 				if err != nil && err.Error() != "context canceled" {
 					log.Log.Error("Failed to get script source")
 					log.Log.Error(err)
