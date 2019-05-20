@@ -14,7 +14,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	//"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/chromedp"
+	"github.com/pmurley/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
@@ -199,6 +199,16 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	opts = append(opts, chromedp.Flag("user-data-dir", st.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(st.BrowserBinary))
+
+	if st.JSTrace {
+		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+		// This allows us to redirect the output from the browser to a file we choose.
+		opts = append(opts, chromedp.StdoutWriter(midaBrowserOutfile))
+		opts = append(opts, chromedp.StderrWriter(midaBrowserOutfile))
+	}
 
 	// Spawn the browser
 	allocContext, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
@@ -396,9 +406,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				var respBody []byte
 				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 					respBody, err = network.GetResponseBody(data.RequestID).Do(cxt)
-					if err != nil {
-						log.Log.Fatal(err)
-					}
 					return err
 				}))
 				if err != nil {
@@ -554,7 +561,16 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	// termination conditions (Terminate on timout, terminate on load event, etc.),
 	// this logic gets a little complex.
 	go func() {
-		err = chromedp.Run(cxt, chromedp.Navigate(st.Url))
+		err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+			_, _, text, err := page.Navigate(st.Url).Do(cxt)
+			if err != nil {
+				return err
+			} else if text != "" {
+				return errors.New(text)
+			} else {
+				return nil
+			}
+		}))
 		if err != nil {
 			log.Log.Error("Nav error: ", err)
 		}
@@ -565,7 +581,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResult.Stats.Timing.ConnectionEstablished = time.Now()
 	case <-time.After(DefaultNavTimeout * time.Second):
 		// This usually happens because we successfully resolved DNS,
-		// but we could not connect to the server
+		// but we could not connect to the server (but reset didn't get a RST either)
 		err = errors.New("nav timeout during connection to site")
 	case <-timeoutChan:
 		// Timeout is set shorter than DefaultNavTimeout, so we are just done
