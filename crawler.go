@@ -206,8 +206,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Fatal(err)
 		}
 		// This allows us to redirect the output from the browser to a file we choose.
-		opts = append(opts, chromedp.StdoutWriter(midaBrowserOutfile))
-		opts = append(opts, chromedp.StderrWriter(midaBrowserOutfile))
+		opts = append(opts, chromedp.BrowserOutput(midaBrowserOutfile))
 	}
 
 	// Spawn the browser
