@@ -2,7 +2,6 @@ package util
 
 import (
 	"errors"
-	"github.com/teamnsrg/chromedp/runner"
 	"math/rand"
 	"net/url"
 	"strings"
@@ -24,18 +23,18 @@ func GenRandomIdentifier() string {
 
 // Takes a variety of possible flag formats and puts them
 // in a format that chromedp understands (key/value)
-func FormatFlag(f string) (runner.CommandLineOption, error) {
+func FormatFlag(f string) (string, interface{}, error) {
 	if strings.HasPrefix(f, "--") {
 		f = f[2:]
 	}
 
 	parts := strings.Split(f, "=")
 	if len(parts) == 1 {
-		return runner.Flag(parts[0], true), nil
+		return parts[0], true, nil
 	} else if len(parts) == 2 {
-		return runner.Flag(parts[0], parts[1]), nil
+		return parts[0], parts[1], nil
 	} else {
-		return runner.Flag("", ""), errors.New("Invalid flag: " + f)
+		return "", "", errors.New("Invalid flag: " + f)
 	}
 
 }

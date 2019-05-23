@@ -54,12 +54,23 @@ func CreateMongoDBConnection(uri string, collection string) (*MongoConn, error) 
 	// Make sure out default indices for the collection are in place
 	indexOpts := options.CreateIndexes().SetMaxTime(600 * time.Second)
 	keys := bsonx.Doc{{Key: "type", Value: bsonx.Int32(1)}}
-	index := mongo.IndexModel{}
-	index.Keys = keys
-	_, err = mc.Coll.Indexes().CreateOne(mc.Ctx, index, indexOpts)
+	index1 := mongo.IndexModel{}
+	index1.Keys = keys
+
+	keys = bsonx.Doc{{Key: "callclass", Value: bsonx.Int32(1)}}
+	index2 := mongo.IndexModel{}
+	index2.Keys = keys
+
+	keys = bsonx.Doc{{Key: "callfunc", Value: bsonx.Int32(1)}}
+	index3 := mongo.IndexModel{}
+	index3.Keys = keys
+
+	log.Log.Debug("Ensuring Indices")
+	_, err = mc.Coll.Indexes().CreateMany(mc.Ctx, []mongo.IndexModel{index1, index2, index3}, indexOpts)
 	if err != nil {
 		log.Log.Error(err)
 	}
+	log.Log.Debug("Done ensuring indices")
 
 	return mc, nil
 }

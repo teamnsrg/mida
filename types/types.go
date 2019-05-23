@@ -4,7 +4,6 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
-	"github.com/teamnsrg/chromedp/runner"
 	"github.com/teamnsrg/mida/jstrace"
 	"golang.org/x/crypto/ssh"
 	"sync"
@@ -87,9 +86,9 @@ type SanitizedMIDATask struct {
 	Url string
 
 	// Browser settings
-	BrowserBinary     string                     `json:"browser_binary"`
-	UserDataDirectory string                     `json:"user_data_directory"`
-	BrowserFlags      []runner.CommandLineOption `json:"-" bson:"-"`
+	BrowserBinary     string   `json:"browser_binary"`
+	UserDataDirectory string   `json:"user_data_directory"`
+	BrowserFlags      []string `json:"-" bson:"-"`
 
 	// Completion Settings
 	CCond         CompletionCondition `json:"completion_condition"`

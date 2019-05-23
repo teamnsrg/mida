@@ -4,17 +4,21 @@ import (
 	"context"
 	"errors"
 	"github.com/chromedp/cdproto/browser"
-	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
+	"github.com/teamnsrg/mida/util"
+	"io/ioutil"
+
+	//"github.com/chromedp/cdproto/browser"
+	//"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
-	"github.com/chromedp/cdproto/page"
-	"github.com/phayes/freeport"
-	"github.com/teamnsrg/chromedp"
-	"github.com/teamnsrg/chromedp/runner"
+	//"github.com/chromedp/cdproto/page"
+	"github.com/pmurley/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
-	"io/ioutil"
+	//"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -77,20 +81,34 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	loadEventChan := make(chan bool, 5)
 	postCrawlActionsChan := make(chan bool, 1)
 
+	// Event channels (used to asynchronously process DevTools events)
+	// Naming Convention: <event name>Chan
+	// Buffers need to be big enough that the demux never blocks
+	loadEventFiredChan := make(chan *page.EventLoadEventFired, 100)
+	domContentEventFiredChan := make(chan *page.EventDomContentEventFired, 100)
+	requestWillBeSentChan := make(chan *network.EventRequestWillBeSent, 100000)
+	responseReceivedChan := make(chan *network.EventResponseReceived, 100000)
+	loadingFinishedChan := make(chan *network.EventLoadingFinished, 100000)
+	webSocketCreatedChan := make(chan *network.EventWebSocketCreated, 100000)
+	webSocketFrameSentChan := make(chan *network.EventWebSocketFrameSent, 100000)
+	webSocketFrameReceivedChan := make(chan *network.EventWebSocketFrameReceived, 100000)
+	webSocketFrameErrorChan := make(chan *network.EventWebSocketFrameError, 100000)
+	webSocketClosedChan := make(chan *network.EventWebSocketClosed, 100000)
+	webSocketWillSendHandshakeRequestChan := make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
+	webSocketHandshakeResponseReceivedChan := make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
+	scriptParsedChan := make(chan *debugger.EventScriptParsed, 100000)
+
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
 	rawResult.SanitizedTask = st
 	rawResultLock.Unlock()
-
-	// Create our context and browser
-	cxt, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	// Create our user data directory, if it does not yet exist
 	if st.UserDataDirectory == "" {
 		st.UserDataDirectory = path.Join(storage.TempDir, st.RandomIdentifier)
 	}
 
+	// Make sure user data directory exists already. If not, create it
 	_, err := os.Stat(st.UserDataDirectory)
 	if err != nil {
 		err = os.MkdirAll(st.UserDataDirectory, 0744)
@@ -134,16 +152,19 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	}
 
 	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
+	/* Commented out for the moment. TODO
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
 		if err != nil {
 			log.Log.Fatal(err)
 		}
 		// This allows us to redirect the output from the browser to a file we choose.
-		// This happens in github.com/teamnsrg/chromedp/runner.go
+		// TODO: Implement in new version of chromedp
 		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
 	}
+	*/
 
+	/* Leave out browser coverage for now -- engineering ongoing
 	if st.BrowserCoverage {
 		// Set environment variable for browser
 		cxt = context.WithValue(cxt, "MIDA_LLVM_PROFILE_FILE", path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-%4m.profraw"))
@@ -158,69 +179,112 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 
 	}
+	*/
 
-	if st.NetworkTrace {
+	/* Leave out the network strace bit for now. We have pcap via docker
+	if st.NetworkStrace {
 		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
 	}
-
-	// Remote Debugging Protocol (DevTools) will listen on this port
-	port, err := freeport.GetFreePort()
-	if err != nil {
-		log.Log.Fatal(err)
-	}
+	*/
 
 	// Add these the port and the user data directory as arguments to the browser as we start it up
 	// No other flags should be added here unless there is a good reason they can't be put in
 	// the pipeline earlier.
-	runnerOpts := append(st.BrowserFlags, runner.ExecPath(st.BrowserBinary),
-		runner.Flag("remote-debugging-port", port),
-		runner.Flag("user-data-dir", st.UserDataDirectory),
-	)
 
-	r, err := runner.New(runnerOpts...)
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-	err = r.Start(cxt)
-	if err != nil {
-		log.Log.Error("Could not locate a viable browser")
-		log.Log.Error("Do you have Chrome or Chromium installed?")
-		log.Log.Fatal(err)
-	}
-	rawResultLock.Lock()
-	rawResult.Stats.Timing.BrowserOpen = time.Now()
-	rawResultLock.Unlock()
-
-	c, err := chromedp.New(cxt, chromedp.WithRunner(r))
-	if err != nil {
-		// Retry once
-		c, err = chromedp.New(cxt, chromedp.WithRunner(r))
+	// Append browser options along with exe path
+	var opts []chromedp.ExecAllocatorOption
+	for _, flagString := range st.BrowserFlags {
+		name, val, err := util.FormatFlag(flagString)
 		if err != nil {
 			log.Log.Error(err)
-			log.Log.Error("If running without a display, preface command with \"xvfb-run\"")
-			log.Log.Error("Example: 'xvfb-run mida go illinois.edu'")
-			rawResultLock.Lock()
-			rawResult.SanitizedTask.TaskFailed = true
-			rawResult.SanitizedTask.FailureCode = err.Error()
-			rawResultLock.Unlock()
-
-			rawResultLock.Lock()
-			rawResult.Stats.Timing.BrowserClose = time.Now()
-			rawResultLock.Unlock()
-
-			return rawResult, nil
+			continue
 		}
+		opts = append(opts, chromedp.Flag(name, val))
 	}
-	rawResultLock.Lock()
-	rawResult.Stats.Timing.DevtoolsConnect = time.Now()
-	rawResultLock.Unlock()
 
-	// Get browser info from DevTools
-	err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt, h)
+	opts = append(opts, chromedp.Flag("user-data-dir", st.UserDataDirectory))
+	opts = append(opts, chromedp.ExecPath(st.BrowserBinary))
+
+	if st.JSTrace {
+		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+		// This allows us to redirect the output from the browser to a file we choose.
+		opts = append(opts, chromedp.CombinedOutput(midaBrowserOutfile))
+	}
+
+	// Spawn the browser
+	allocContext, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	cxt, cancel := chromedp.NewContext(allocContext)
+	defer cancel()
+
+	// Event Demux - just receive the events and stick them in the applicable channels
+	chromedp.ListenTarget(cxt, func(ev interface{}) {
+		switch ev.(type) {
+		// Page Domain Events
+		case *page.EventLoadEventFired:
+			loadEventFiredChan <- ev.(*page.EventLoadEventFired)
+		case *page.EventDomContentEventFired:
+			domContentEventFiredChan <- ev.(*page.EventDomContentEventFired)
+
+		// General Network Domain Events
+		case *network.EventRequestWillBeSent:
+			requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
+		case *network.EventResponseReceived:
+			responseReceivedChan <- ev.(*network.EventResponseReceived)
+		case *network.EventLoadingFinished:
+			loadingFinishedChan <- ev.(*network.EventLoadingFinished)
+
+		// Websocket Network Domain Events
+		case *network.EventWebSocketCreated:
+			webSocketCreatedChan <- ev.(*network.EventWebSocketCreated)
+		case *network.EventWebSocketFrameSent:
+			webSocketFrameSentChan <- ev.(*network.EventWebSocketFrameSent)
+		case *network.EventWebSocketFrameReceived:
+			webSocketFrameReceivedChan <- ev.(*network.EventWebSocketFrameReceived)
+		case *network.EventWebSocketFrameError:
+			webSocketFrameErrorChan <- ev.(*network.EventWebSocketFrameError)
+		case *network.EventWebSocketClosed:
+			webSocketClosedChan <- ev.(*network.EventWebSocketClosed)
+		case *network.EventWebSocketWillSendHandshakeRequest:
+			webSocketWillSendHandshakeRequestChan <- ev.(*network.EventWebSocketWillSendHandshakeRequest)
+		case *network.EventWebSocketHandshakeResponseReceived:
+			webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
+
+		// Debugger Domain Events
+		case *debugger.EventScriptParsed:
+			scriptParsedChan <- ev.(*debugger.EventScriptParsed)
+
+		}
+	})
+
+	// Ensure the correct domains are enabled/disabled
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		err = runtime.Disable().Do(cxt)
 		if err != nil {
 			return err
 		}
+
+		_, err = debugger.Enable().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		err = network.Enable().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
+	if err != nil {
+		log.Log.Fatal(err)
+	}
+
+	// Get browser data from DevTools
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt)
 		rawResultLock.Lock()
 		rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
 		rawResult.CrawlHostInfo.Browser = product
@@ -236,122 +300,135 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return err
 	}))
 	if err != nil {
-		log.Log.Error(err)
-		rawResultLock.Lock()
-		rawResult.SanitizedTask.TaskFailed = true
-		rawResult.SanitizedTask.FailureCode = err.Error()
-		rawResultLock.Unlock()
-
-		return rawResult, nil
-	}
-
-	// Set up required listeners and timers
-	err = c.Run(cxt, chromedp.CallbackFunc("Page.loadEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
-		rawResultLock.Lock()
-		if rawResult.Stats.Timing.LoadEvent.IsZero() {
-			rawResult.Stats.Timing.LoadEvent = time.Now()
-		} else {
-			log.Log.Warn("Duplicate load event")
-		}
-		rawResultLock.Unlock()
-
-		var sendLoadEvent bool
-		rawResultLock.Lock()
-		if rawResult.SanitizedTask.CCond == CompleteOnTimeoutAfterLoad || rawResult.SanitizedTask.CCond == CompleteOnLoadEvent {
-			sendLoadEvent = true
-		}
-		rawResultLock.Unlock()
-		if sendLoadEvent {
-			loadEventChan <- true
-		}
-
-		postCrawlActionsChan <- true
-	}))
-	if err != nil {
 		log.Log.Fatal(err)
 	}
 
-	err = c.Run(cxt, chromedp.CallbackFunc("Page.domContentEventFired", func(param interface{}, handler *chromedp.TargetHandler) {
+	/*
 		rawResultLock.Lock()
-		if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
-			rawResult.Stats.Timing.DOMContentEvent = time.Now()
-		} else {
-			log.Log.Warn("Duplicate DOMContentLoaded event")
-		}
+		rawResult.Stats.Timing.BrowserOpen = time.Now()
 		rawResultLock.Unlock()
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
 
-	err = c.Run(cxt, chromedp.CallbackFunc("Page.frameNavigated", func(param interface{}, handler *chromedp.TargetHandler) {
-		// data := param.(*page.EventFrameNavigated)
-		// Log.Warn("FrameNavigated: ", data.Frame.URL, " : ", data.Frame.ID," : ", data.Frame.Name," : ", data.Frame.State.String())
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	err = c.Run(cxt, chromedp.CallbackFunc("Page.lifecycleEvent", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*page.EventLifecycleEvent)
-		log.Log.Warn(data.Name, "    ", data.Timestamp.Time().String(), "    ", data.FrameID.String())
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	err = c.Run(cxt, chromedp.CallbackFunc("Network.requestWillBeSent", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*network.EventRequestWillBeSent)
 		rawResultLock.Lock()
-		rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
+		rawResult.Stats.Timing.DevtoolsConnect = time.Now()
 		rawResultLock.Unlock()
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
 
-	err = c.Run(cxt, chromedp.CallbackFunc("Network.responseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*network.EventResponseReceived)
-		rawResultLock.Lock()
-		rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
-		rawResultLock.Unlock()
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	err = c.Run(cxt, chromedp.CallbackFunc("Network.loadingFinished", func(param interface{}, handler *chromedp.TargetHandler) {
-		data := param.(*network.EventLoadingFinished)
-		if st.AllResources {
+		// Get browser info from DevTools
+		err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+			protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt, h)
 			rawResultLock.Lock()
-			if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
-				log.Log.Debug("Will not get response body for unknown RequestID")
-				rawResultLock.Unlock()
-				return
+			rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
+			rawResult.CrawlHostInfo.Browser = product
+			rawResult.CrawlHostInfo.V8Version = jsVersion
+			rawResult.CrawlHostInfo.BrowserVersion = revision
+			rawResult.CrawlHostInfo.UserAgent = userAgent
+			hostname, err := os.Hostname()
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			rawResult.CrawlHostInfo.HostName = hostname
+			rawResultLock.Unlock()
+			return err
+		}))
+		if err != nil {
+			log.Log.Error(err)
+			rawResultLock.Lock()
+			rawResult.SanitizedTask.TaskFailed = true
+			rawResult.SanitizedTask.FailureCode = err.Error()
+			rawResultLock.Unlock()
+
+			return rawResult, nil
+		}
+	*/
+
+	// Event Handler : Page.loadEventFired
+	go func() {
+		for range loadEventFiredChan {
+			rawResultLock.Lock()
+			if rawResult.Stats.Timing.LoadEvent.IsZero() {
+				rawResult.Stats.Timing.LoadEvent = time.Now()
+			} else {
+				log.Log.Warn("Duplicate load event")
 			}
 			rawResultLock.Unlock()
-			respBody, err := network.GetResponseBody(data.RequestID).Do(cxt, handler)
-			if err != nil {
-				// The browser was unable to provide the content of this particular resource
-				// This typically happens when we closed the browser before we could save all resources
-				log.Log.Warn("Failed to get response Body for known resource: ", data.RequestID)
+
+			var sendLoadEvent bool
+			rawResultLock.Lock()
+			if rawResult.SanitizedTask.CCond == CompleteOnTimeoutAfterLoad || rawResult.SanitizedTask.CCond == CompleteOnLoadEvent {
+				sendLoadEvent = true
+			}
+			rawResultLock.Unlock()
+			if sendLoadEvent {
+				loadEventChan <- true
+			}
+
+			postCrawlActionsChan <- true
+		}
+	}()
+
+	// Event Handler: Page.domContentEventFired
+	go func() {
+		for range domContentEventFiredChan {
+			rawResultLock.Lock()
+			if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
+				rawResult.Stats.Timing.DOMContentEvent = time.Now()
 			} else {
-				err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+				log.Log.Warn("Duplicate DOMContentLoaded event")
+			}
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.requestWillBeSent
+	go func() {
+		for data := range requestWillBeSentChan {
+			rawResultLock.Lock()
+			rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.responseReceived
+	go func() {
+		for data := range responseReceivedChan {
+			rawResultLock.Lock()
+			rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
+			rawResultLock.Unlock()
+		}
+	}()
+
+	// Event Handler: Network.loadingFinished
+	go func() {
+		for data := range loadingFinishedChan {
+			if st.AllResources {
+				rawResultLock.Lock()
+				if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
+					log.Log.Debug("Will not get response body for unknown RequestID")
+					rawResultLock.Unlock()
+					return
+				}
+				rawResultLock.Unlock()
+				var respBody []byte
+				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					respBody, err = network.GetResponseBody(data.RequestID).Do(cxt)
+					return err
+				}))
 				if err != nil {
-					log.Log.Fatal(err)
+					// The browser was unable to provide the content of this particular resource
+					// This typically happens when we closed the browser before we could save all resources
+					log.Log.Debug("Failed to get response Body for known resource: ", data.RequestID)
+				} else {
+					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+					if err != nil {
+						log.Log.Fatal(err)
+					}
 				}
 			}
 		}
+	}()
 
-	}))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	// Websocket instrumentation
-	if st.WebsocketTraffic {
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketCreated", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketCreated)
+	// Event Handler: Network.webSocketCreated
+	go func() {
+		for data := range webSocketCreatedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
 				// Create our new websocket connection
@@ -369,13 +446,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				rawResult.WebsocketData[data.RequestID.String()] = &wsc
 			}
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameSent", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketFrameSent)
+	// Event Handler: Network.webSocketFrameSent
+	go func() {
+		for data := range webSocketFrameSentChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -384,13 +460,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketFrameReceived)
+	// Event Handler: Network.webSocketFrameReceived
+	go func() {
+		for data := range webSocketFrameReceivedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -399,13 +474,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketFrameError", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketFrameError)
+	// Event Handler: Network.webSocketFrameError
+	go func() {
+		for data := range webSocketFrameErrorChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -414,13 +488,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketClosed", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketClosed)
+	// Event Handler: Network.webSocketClosed
+	go func() {
+		for data := range webSocketClosedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -428,13 +501,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketWillSendHandshakeRequest", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketWillSendHandshakeRequest)
+	// Event Handler: Network.websocketWillSendHandshakeRequest
+	go func() {
+		for data := range webSocketWillSendHandshakeRequestChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -443,13 +515,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
+	}()
 
-		err = c.Run(cxt, chromedp.CallbackFunc("Network.webSocketHandshakeResponseReceived", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*network.EventWebSocketHandshakeResponseReceived)
+	// Event Handler: Network.websocketHandshakeResponseReceived
+	go func() {
+		for data := range webSocketHandshakeResponseReceivedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -458,21 +529,25 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
-	}
+	}()
 
-	// Instrument the scriptParsed event if (and only if) we need data from it
-	if st.ScriptMetadata || st.AllScripts {
-		err = c.Run(cxt, chromedp.CallbackFunc("Debugger.scriptParsed", func(param interface{}, handler *chromedp.TargetHandler) {
-			data := param.(*debugger.EventScriptParsed)
+	// Event Handler: Debugger.scriptParsed
+	go func() {
+		for data := range scriptParsedChan {
 			rawResultLock.Lock()
 			rawResult.Scripts[data.ScriptID.String()] = *data
 			rawResultLock.Unlock()
 			if st.AllScripts {
-				source, err := debugger.GetScriptSource(data.ScriptID).Do(cxt, handler)
+				var source string
+				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					source, err = debugger.GetScriptSource(data.ScriptID).Do(cxt)
+					if err != nil {
+						return err
+					}
+
+					return nil
+				}))
 				if err != nil && err.Error() != "context canceled" {
 					log.Log.Error("Failed to get script source")
 					log.Log.Error(err)
@@ -483,24 +558,34 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					}
 				}
 			}
-		}))
-		if err != nil {
-			log.Log.Fatal(err)
 		}
-	}
+	}()
 
 	// Below is the MIDA navigation logic. Since MIDA offers several different
 	// termination conditions (Terminate on timout, terminate on load event, etc.),
 	// this logic gets a little complex.
 	go func() {
-		navChan <- c.Run(cxt, chromedp.Navigate(st.Url))
+		err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+			_, _, text, err := page.Navigate(st.Url).Do(cxt)
+			if err != nil {
+				return err
+			} else if text != "" {
+				return errors.New(text)
+			} else {
+				return nil
+			}
+		}))
+		if err != nil {
+			log.Log.Error("Nav error: ", err)
+		}
+		navChan <- err
 	}()
 	select {
 	case err = <-navChan:
 		rawResult.Stats.Timing.ConnectionEstablished = time.Now()
 	case <-time.After(DefaultNavTimeout * time.Second):
 		// This usually happens because we successfully resolved DNS,
-		// but we could not connect to the server
+		// but we could not connect to the server (but reset didn't get a RST either)
 		err = errors.New("nav timeout during connection to site")
 	case <-timeoutChan:
 		// Timeout is set shorter than DefaultNavTimeout, so we are just done
@@ -513,7 +598,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResult.SanitizedTask.FailureCode = err.Error()
 		rawResultLock.Unlock()
 
-		err = c.Shutdown(cxt)
 		if err != nil {
 			log.Log.Error("Browser Shutdown Failed: ", err)
 		}
@@ -552,45 +636,32 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			// We are free to begin post crawl data gathering which requires the browser
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
 			// These actions may or may not finish -- We still have to observe the timeout
-			if st.ResourceTree {
-				go func() {
+			/*
+				if st.ResourceTree {
+					go func() {
 
-					var tree *page.FrameTree
-					err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-						ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
-						defer cancel()
-						tree, err = page.GetFrameTree().Do(ctxt, h)
-						return err
-					}))
-					if err != nil {
-						log.Log.Error(err)
-					}
-					rawResultLock.Lock()
-					rawResult.FrameTree = tree
-					rawResultLock.Unlock()
+						var tree *page.FrameTree
+						err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
+							ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
+							defer cancel()
+							tree, err = page.GetFrameTree().Do(ctxt, h)
+							return err
+						}))
+						if err != nil {
+							log.Log.Error(err)
+						}
+						rawResultLock.Lock()
+						rawResult.FrameTree = tree
+						rawResultLock.Unlock()
 
-				}()
-			}
+					}()
+				}
+			*/
 			<-timeoutChan
 		case <-timeoutChan:
 
 		}
 	}
-
-	// Clean up
-	err = c.Shutdown(cxt)
-	if err != nil {
-		log.Log.Error("Browser Shutdown Failed: ", err)
-	}
-
-	err = c.Wait()
-	if err != nil {
-		log.Log.Error(err)
-	}
-
-	// Make sure we free this memory -- danger of a leak
-	c = nil
-	r = nil
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
