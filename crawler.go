@@ -279,12 +279,34 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
-		log.Log.Fatal(err)
+		close(loadEventFiredChan)
+		close(domContentEventFiredChan)
+		close(requestWillBeSentChan)
+		close(responseReceivedChan)
+		close(loadingFinishedChan)
+		close(webSocketCreatedChan)
+		close(webSocketFrameSentChan)
+		close(webSocketFrameReceivedChan)
+		close(webSocketFrameErrorChan)
+		close(webSocketClosedChan)
+		close(webSocketWillSendHandshakeRequestChan)
+		close(webSocketHandshakeResponseReceivedChan)
+		close(scriptParsedChan)
+
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
+		return rawResult, nil
 	}
 
 	// Get browser data from DevTools
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 		protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt)
+		if err != nil {
+			return err
+		}
 		rawResultLock.Lock()
 		rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
 		rawResult.CrawlHostInfo.Browser = product
@@ -297,10 +319,31 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 		rawResult.CrawlHostInfo.HostName = hostname
 		rawResultLock.Unlock()
-		return err
+
+		return nil
 	}))
 	if err != nil {
-		log.Log.Fatal(err)
+
+		close(loadEventFiredChan)
+		close(domContentEventFiredChan)
+		close(requestWillBeSentChan)
+		close(responseReceivedChan)
+		close(loadingFinishedChan)
+		close(webSocketCreatedChan)
+		close(webSocketFrameSentChan)
+		close(webSocketFrameReceivedChan)
+		close(webSocketFrameErrorChan)
+		close(webSocketClosedChan)
+		close(webSocketWillSendHandshakeRequestChan)
+		close(webSocketHandshakeResponseReceivedChan)
+		close(scriptParsedChan)
+
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
+		return rawResult, nil
 	}
 
 	/*
@@ -599,12 +642,26 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResultLock.Unlock()
 
 		if err != nil {
-			log.Log.Error("Browser Shutdown Failed: ", err)
+			log.Log.Error("Failed to navigate to site: ", err)
 		}
 
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()
 		rawResultLock.Unlock()
+
+		close(loadEventFiredChan)
+		close(domContentEventFiredChan)
+		close(requestWillBeSentChan)
+		close(responseReceivedChan)
+		close(loadingFinishedChan)
+		close(webSocketCreatedChan)
+		close(webSocketFrameSentChan)
+		close(webSocketFrameReceivedChan)
+		close(webSocketFrameErrorChan)
+		close(webSocketClosedChan)
+		close(webSocketWillSendHandshakeRequestChan)
+		close(webSocketHandshakeResponseReceivedChan)
+		close(scriptParsedChan)
 
 		return rawResult, nil
 
@@ -662,6 +719,20 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 		}
 	}
+
+	close(loadEventFiredChan)
+	close(domContentEventFiredChan)
+	close(requestWillBeSentChan)
+	close(responseReceivedChan)
+	close(loadingFinishedChan)
+	close(webSocketCreatedChan)
+	close(webSocketFrameSentChan)
+	close(webSocketFrameReceivedChan)
+	close(webSocketFrameErrorChan)
+	close(webSocketClosedChan)
+	close(webSocketWillSendHandshakeRequestChan)
+	close(webSocketHandshakeResponseReceivedChan)
+	close(scriptParsedChan)
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()

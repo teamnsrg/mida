@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/teamnsrg/mida/log"
+	"net/http"
 	_ "net/http/pprof"
 )
 
@@ -10,6 +12,10 @@ import (
 func main() {
 	initConfig()
 	log.InitLogger()
+
+	go func() {
+		fmt.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+	}()
 
 	rootCmd := buildCommands()
 
