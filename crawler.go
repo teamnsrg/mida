@@ -279,6 +279,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+		cancel()
+
 		close(loadEventFiredChan)
 		close(domContentEventFiredChan)
 		close(requestWillBeSentChan)
@@ -323,6 +325,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+		cancel()
 
 		close(loadEventFiredChan)
 		close(domContentEventFiredChan)
@@ -645,6 +648,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Error("Failed to navigate to site: ", err)
 		}
 
+		cancel()
+
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()
 		rawResultLock.Unlock()
@@ -720,6 +725,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}
 
+	cancel()
+
+	rawResultLock.Lock()
+	rawResult.Stats.Timing.BrowserClose = time.Now()
+	rawResultLock.Unlock()
+
 	close(loadEventFiredChan)
 	close(domContentEventFiredChan)
 	close(requestWillBeSentChan)
@@ -733,10 +744,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	close(webSocketWillSendHandshakeRequestChan)
 	close(webSocketHandshakeResponseReceivedChan)
 	close(scriptParsedChan)
-
-	rawResultLock.Lock()
-	rawResult.Stats.Timing.BrowserClose = time.Now()
-	rawResultLock.Unlock()
 
 	return rawResult, nil
 
