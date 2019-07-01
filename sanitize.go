@@ -287,6 +287,24 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		st.MongoURI = *mt.Output.MongoURI
 	}
 
+	if mt.Output.PostgresURI == nil || *mt.Output.PostgresURI == "" {
+		st.PostgresURI = ""
+	} else {
+		st.PostgresURI = *mt.Output.PostgresURI
+	}
+
+	if mt.Output.PostgresDB == nil || *mt.Output.PostgresDB == "" {
+		st.PostgresDB = ""
+	} else {
+		if st.PostgresURI == "" {
+			log.Log.Error("You provided a PostgresDB param but no PostgresURI")
+		} else {
+			st.PostgresDB = *mt.Output.PostgresDB
+		}
+	}
+
+
+
 	///// END SANITIZE OUTPUT PARAMETERS /////
 
 	if mt.MaxAttempts == nil {

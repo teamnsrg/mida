@@ -68,17 +68,18 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 						if activeConn == nil {
 							log.Log.Error("Failed to correctly set activeConn")
+							continue
 						}
 
 						// Now that our new connection is in place, proceed with storage
 						activeConn.Lock()
-						backoff := 1
+						backOff := 1
 						err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
 						for err != nil {
-							log.Log.WithField("BackOff", backoff).Error(err)
-							time.Sleep(time.Duration(backoff) * time.Second)
+							log.Log.WithField("BackOff", backOff).Error(err)
+							time.Sleep(time.Duration(backOff) * time.Second)
 							err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
-							backoff *= DefaultSSHBackoffMultiplier
+							backOff *= DefaultSSHBackoffMultiplier
 						}
 						activeConn.Unlock()
 					}
@@ -129,6 +130,25 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						log.Log.Error(err)
 					}
 				}
+			}
+
+			if r.SanitizedTask.PostgresURI != "" {
+				// First, check and see if we have an existing connection for this database
+				if _, ok := connInfo.SSHConnInfo[r.SanitizedTask.PostgresURI]; !ok {
+					db, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
+						r.SanitizedTask.PostgresDB, )
+					if err != nil {
+						log.Log.Fatal(err)
+					} else {
+						connInfo.Lock()
+						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db = db
+						connInfo.Unlock()
+					}
+
+				} else {
+
+				}
+
 			}
 		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 			// We are abandoning trying this task. Too bad.
