@@ -66,6 +66,30 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			}
 		}
 
+		/// TESTING - TODO
+
+		for _, v := range finalResult.JSTrace.Isolates {
+			for _, scr := range v.Scripts {
+				if _, ok := rawResult.Scripts[scr.ScriptId]; !ok {
+					log.Log.Error("Failed to find ", scr.ScriptId, scr.BaseUrl)
+				} else {
+					if rawResult.Scripts[scr.ScriptId].URL == scr.BaseUrl {
+						log.Log.Info("URL MATCH", scr.BaseUrl)
+					} else {
+						log.Log.Info("	MISMATCH: ", scr.ScriptId, rawResult.Scripts[scr.ScriptId])
+					}
+				}
+			}
+		}
+
+		/*
+			for _, v := range rawResult.Scripts {
+				log.Log.Info(v.ScriptID, " - ", v.ExecutionContextID, " - ", string(v.ExecutionContextAuxData))
+			}
+		*/
+
+		/// END TESTING - TODO
+
 		if rawResult.SanitizedTask.WebsocketTraffic {
 			finalResult.WebsocketData = rawResult.WebsocketData
 		}

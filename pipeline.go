@@ -14,7 +14,7 @@ import (
 type ConnInfo struct {
 	sync.Mutex
 	SSHConnInfo map[string]*t.SSHConn
-	DBConnInfo map[string]*t.DBConn
+	DBConnInfo  map[string]*t.DBConn
 }
 
 func InitPipeline(cmd *cobra.Command, args []string) {
@@ -70,7 +70,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// We are done when all storage has completed
 	storageWG.Wait()
 
-	// Nicely close any SSH connections open
+	// Nicely close any connections open
 	connInfo.Lock()
 	for k, v := range connInfo.SSHConnInfo {
 		v.Lock()
@@ -79,6 +79,16 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 			log.Log.Error(err)
 		}
 		log.Log.Info("Closed SSH connection to: ", k)
+		v.Unlock()
+	}
+
+	for k, v := range connInfo.DBConnInfo {
+		v.Lock()
+		err := v.Db.Close()
+		if err != nil {
+			log.Log.Error(err)
+		}
+		log.Log.Info("Closed DB connection to: ", k)
 		v.Unlock()
 	}
 	connInfo.Unlock()

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/teamnsrg/mida/jstrace"
 	"github.com/teamnsrg/mida/log"
+	"time"
 )
 
 type SqlCall struct {
@@ -22,7 +23,18 @@ type SqlScript struct {
 	CrawlId   int    `gorm:"not null"`
 	IsolateId int    `gorm:"not null"`
 	ScriptId  int    `gorm:"not null"`
-	Url       string `gorm:""`
+	Bytes     int    `gorm:"not null"`
+	Calls     int    `gorm:"not null"`
+	Url       string `gorm:"not null"`
+	Sha256    string `gorm:"not null"`
+}
+
+type SqlMetadata struct {
+	CrawlId  int       `gorm:"not null"`
+	TS       time.Time `gorm:"not null"`
+	Url      string    `gorm:"not null"`
+	RandomId string    `gorm:"not null"`
+	Failed   bool      `gorm:"not null"`
 }
 
 // CreatePostgresConnection connects to the postgres server and creates the specified database, if it does not
@@ -46,6 +58,7 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 		return nil, err
 	}
 
+	// Send the logs from gorm into our own logging infrastructure
 	db.SetLogger(log.Log)
 
 	// This will error if the database already exists. That's okay - we are going to connect to it anyway
@@ -65,23 +78,18 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 
 }
 
-func ClosePostgresConnection(db *gorm.DB) error {
-	return db.Close()
-}
-
 func StoreJSTraceToDB(db *gorm.DB, trace *jstrace.JSTrace) error {
 
-	log.Log.Info("Printing JS Trace")
+	callStmt := `INSERT INTO calls(crawl_id,isolate_id,script_id,call_id,seq_num,args) VALUES %s`
 
-	for iso := range trace.Isolates {
-		for scr := range trace.Isolates[iso].Scripts {
-			for _, call := range trace.Isolates[iso].Scripts[scr].Calls {
-				log.Log.Info(call)
+	for _, iso := range trace.Isolates {
+		for _, scr := range iso.Scripts {
+			for _, _ = range scr.Calls {
+				db.Exec(callStmt, "5", scr.ScriptId)
+
 			}
 		}
 	}
-
-	log.Log.Info("Done printing JS trace")
 
 	return nil
 }

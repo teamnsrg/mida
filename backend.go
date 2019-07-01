@@ -133,8 +133,8 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			}
 
 			if r.SanitizedTask.PostgresURI != "" {
-				// First, check and see if we have an existing connection for this database
 
+				// First, check and see if we have an existing connection for this database
 				if _, ok := connInfo.SSHConnInfo[r.SanitizedTask.PostgresURI]; !ok {
 					db, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
 						r.SanitizedTask.PostgresDB)
