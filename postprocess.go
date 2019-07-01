@@ -71,12 +71,12 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 		for _, v := range finalResult.JSTrace.Isolates {
 			for _, scr := range v.Scripts {
 				if _, ok := rawResult.Scripts[scr.ScriptId]; !ok {
-					log.Log.Error("Failed to find ", scr.ScriptId, scr.BaseUrl)
+					log.Log.Error("Failed to find ", scr.ScriptId, " ", scr.BaseUrl)
 				} else {
 					if rawResult.Scripts[scr.ScriptId].URL == scr.BaseUrl {
 						log.Log.Info("URL MATCH", scr.BaseUrl)
 					} else {
-						log.Log.Info("	MISMATCH: ", scr.ScriptId, rawResult.Scripts[scr.ScriptId])
+						log.Log.Info("	MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, " ", rawResult.Scripts[scr.ScriptId].URL)
 					}
 				}
 			}
