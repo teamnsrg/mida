@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/teamnsrg/mida/jstrace"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/resourcetree"
@@ -68,19 +70,34 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 
 		/// TESTING - TODO
 
-		for _, v := range finalResult.JSTrace.Isolates {
+		totalScriptsFromJSTrace := 0
+		isolateSuccesses := make(map[string]int)
+
+		for k, v := range finalResult.JSTrace.Isolates {
+			isolateSuccesses[k] = 0
 			for _, scr := range v.Scripts {
+				totalScriptsFromJSTrace += 1
 				if _, ok := rawResult.Scripts[scr.ScriptId]; !ok {
 					log.Log.Error("Failed to find ", scr.ScriptId, " ", scr.BaseUrl)
 				} else {
 					if rawResult.Scripts[scr.ScriptId].URL == scr.BaseUrl {
 						log.Log.Info("URL MATCH", scr.BaseUrl)
+						isolateSuccesses[k] += 1
 					} else {
 						log.Log.Info("	MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, " ", rawResult.Scripts[scr.ScriptId].URL)
 					}
 				}
 			}
 		}
+
+		log.Log.Infof("Total Scripts from JS Trace: %d", totalScriptsFromJSTrace)
+		log.Log.Infof("Total Scripts from Script Metadata (Debugger): %d", len(rawResult.Scripts))
+
+		b, err := json.MarshalIndent(isolateSuccesses, "", "	")
+		if err != nil {
+			log.Log.Error(err)
+		}
+		fmt.Print(string(b))
 
 		/*
 			for _, v := range rawResult.Scripts {
