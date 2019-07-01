@@ -72,11 +72,16 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 
 		totalScriptsFromJSTrace := 0
 		isolateSuccesses := make(map[string]int)
+		isolateTotals := make(map[string]int)
+		isolateURLs := make(map[string]map[string]string)
 
 		for k, v := range finalResult.JSTrace.Isolates {
 			isolateSuccesses[k] = 0
+			isolateTotals[k] = 0
+			isolateURLs[k] = make(map[string]string)
 			for _, scr := range v.Scripts {
 				totalScriptsFromJSTrace += 1
+				isolateURLs[k][scr.ScriptId] = scr.BaseUrl
 				if _, ok := rawResult.Scripts[scr.ScriptId]; !ok {
 					log.Log.Error("Failed to find ", scr.ScriptId, " ", scr.BaseUrl)
 				} else {
@@ -87,6 +92,7 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 						log.Log.Info("	MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, " ", rawResult.Scripts[scr.ScriptId].URL)
 					}
 				}
+				isolateTotals[k] += 1
 			}
 		}
 
@@ -94,6 +100,18 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 		log.Log.Infof("Total Scripts from Script Metadata (Debugger): %d", len(rawResult.Scripts))
 
 		b, err := json.MarshalIndent(isolateSuccesses, "", "	")
+		if err != nil {
+			log.Log.Error(err)
+		}
+		fmt.Print(string(b))
+
+		b, err = json.MarshalIndent(isolateTotals, "", "	")
+		if err != nil {
+			log.Log.Error(err)
+		}
+		fmt.Print(string(b))
+
+		b, err = json.MarshalIndent(isolateURLs, "", "	")
 		if err != nil {
 			log.Log.Error(err)
 		}
