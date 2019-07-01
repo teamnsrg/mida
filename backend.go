@@ -134,19 +134,31 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 			if r.SanitizedTask.PostgresURI != "" {
 				// First, check and see if we have an existing connection for this database
+
 				if _, ok := connInfo.SSHConnInfo[r.SanitizedTask.PostgresURI]; !ok {
 					db, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
-						r.SanitizedTask.PostgresDB, )
+						r.SanitizedTask.PostgresDB)
 					if err != nil {
 						log.Log.Fatal(err)
 					} else {
 						connInfo.Lock()
+						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI] = new(t.DBConn)
 						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db = db
 						connInfo.Unlock()
 					}
 
 				} else {
 
+				}
+
+				// Now we store our js trace to postgres, if specified
+				if r.SanitizedTask.JSTrace {
+					connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Lock()
+					err := storage.StoreJSTraceToDB(connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db, r.JSTrace)
+					if err != nil {
+						log.Log.Error(err)
+					}
+					connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Unlock()
 				}
 
 			}
