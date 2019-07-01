@@ -86,10 +86,10 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 					log.Log.Error("Failed to find ", scr.ScriptId, " ", scr.BaseUrl)
 				} else {
 					if rawResult.Scripts[scr.ScriptId].URL == scr.BaseUrl {
-						log.Log.Info("URL MATCH", scr.BaseUrl)
+						log.Log.Info("URL MATCH ", k, " ", scr.ScriptId, "  [ ", scr.BaseUrl, " ]")
 						isolateSuccesses[k] += 1
 					} else {
-						log.Log.Info("	MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, " ", rawResult.Scripts[scr.ScriptId].URL)
+						log.Log.Info("MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, "  [ ", rawResult.Scripts[scr.ScriptId].URL, " ]")
 					}
 				}
 				isolateTotals[k] += 1
