@@ -80,12 +80,12 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 
 func StoreJSTraceToDB(db *gorm.DB, trace *jstrace.JSTrace) error {
 
-	callStmt := `INSERT INTO calls(crawl_id,isolate_id,script_id,call_id,seq_num,args) VALUES %s`
+	//callStmt := `INSERT INTO calls(crawl_id,isolate_id,script_id,call_id,seq_num,args) VALUES %s`
 
 	for _, iso := range trace.Isolates {
 		for _, scr := range iso.Scripts {
 			for _, _ = range scr.Calls {
-				db.Exec(callStmt, "5", scr.ScriptId)
+				log.Log.Debug("hello")
 
 			}
 		}
