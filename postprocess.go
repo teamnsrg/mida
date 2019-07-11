@@ -91,33 +91,25 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				}
 			}
 
-			numInMetadata := 0
-			for scriptId := range finalResult.JSTrace.Isolates[bestIsolate].Scripts {
-				if _, ok := finalResult.ScriptMetadata[scriptId]; ok {
-					numInMetadata += 1
-				}
-			}
-
-			log.Log.Infof("Best isolate (%s) covered %d of %d scripts from scriptParsed event",
-				bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
-			log.Log.Info("scriptParsed events covered %d of %d scripts in that isolate",
-				numInMetadata, len(finalResult.JSTrace.Isolates[bestIsolate].Scripts))
-
-			if rawResult.SanitizedTask.ScriptMetadata {
-				for isolate, scriptIds := range trace.UnknownScripts {
-					for scriptId := range scriptIds {
-						if _, ok := rawResult.Scripts[scriptId]; ok {
-							trace.Isolates[isolate].Scripts[scriptId].BaseUrl = rawResult.Scripts[scriptId].URL
-						}
+			if bestIsolate != "" {
+				numInMetadata := 0
+				for scriptId := range finalResult.JSTrace.Isolates[bestIsolate].Scripts {
+					if _, ok := finalResult.ScriptMetadata[scriptId]; ok {
+						numInMetadata += 1
 					}
 				}
-			}
 
-			// Fingerprinting checks using trace data
-			if rawResult.SanitizedTask.OpenWPMChecks {
-				err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
-				if err != nil {
-					log.Log.Error(err)
+				log.Log.Infof("Best isolate (%s) covered %d of %d scripts from scriptParsed event",
+					bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
+				log.Log.Info("scriptParsed events covered %d of %d scripts in that isolate",
+					numInMetadata, len(finalResult.JSTrace.Isolates[bestIsolate].Scripts))
+
+				// Fingerprinting checks using trace data
+				if rawResult.SanitizedTask.OpenWPMChecks {
+					err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
+					if err != nil {
+						log.Log.Error(err)
+					}
 				}
 			}
 		}
