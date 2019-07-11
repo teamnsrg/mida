@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/teamnsrg/mida/jstrace"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/resourcetree"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -48,7 +47,62 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				finalResult.JSTrace = trace
 			}
 
-			// Try to fix up JS trace using script metadata we gathered
+			// Try to fix up JS trace using script metadata we gathered. First, pick the isolate from
+			// our trace that makes the most sense as the one devtools was attached to.
+
+			// First, narrow off any isolates which contain scripts from Chrome extensions
+			isolatesToDelete := make([]string, 0)
+
+			for k, v := range finalResult.JSTrace.Isolates {
+				extScripts := 0
+				nonExtScripts := 0
+				for _, scr := range v.Scripts {
+					if strings.HasPrefix(scr.BaseUrl, "chrome-extension") {
+						extScripts += 1
+					} else {
+						nonExtScripts += 1
+					}
+				}
+
+				if extScripts > nonExtScripts {
+					isolatesToDelete = append(isolatesToDelete, k)
+				}
+			}
+
+			for _, i := range isolatesToDelete {
+				delete(finalResult.JSTrace.Isolates, i)
+			}
+
+			// Now, figure out which isolate best covers the scripts we saw being parsed from
+			// DevTools, and keep only that one
+
+			bestIsolate := ""
+			bestNumCovered := -1
+			for isolateId, isolate := range finalResult.JSTrace.Isolates {
+				numCovered := 0
+				for scriptId := range rawResult.Scripts {
+					if _, ok := isolate.Scripts[scriptId]; ok {
+						numCovered += 1
+					}
+				}
+				if numCovered > bestNumCovered {
+					bestIsolate = isolateId
+					bestNumCovered = numCovered
+				}
+			}
+
+			numInMetadata := 0
+			for scriptId := range finalResult.JSTrace.Isolates[bestIsolate].Scripts {
+				if _, ok := finalResult.ScriptMetadata[scriptId]; ok {
+					numInMetadata += 1
+				}
+			}
+
+			log.Log.Infof("Best isolate (%s) covered %d of %d scripts from scriptParsed event",
+				bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
+			log.Log.Info("scriptParsed events covered %d of %d scripts in that isolate",
+				numInMetadata, len(finalResult.JSTrace.Isolates[bestIsolate].Scripts))
+
 			if rawResult.SanitizedTask.ScriptMetadata {
 				for isolate, scriptIds := range trace.UnknownScripts {
 					for scriptId := range scriptIds {
@@ -67,63 +121,6 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				}
 			}
 		}
-
-		/// TESTING - TODO
-
-		totalScriptsFromJSTrace := 0
-		isolateSuccesses := make(map[string]int)
-		isolateTotals := make(map[string]int)
-		isolateURLs := make(map[string]map[string]string)
-
-		for k, v := range finalResult.JSTrace.Isolates {
-			isolateSuccesses[k] = 0
-			isolateTotals[k] = 0
-			isolateURLs[k] = make(map[string]string)
-			for _, scr := range v.Scripts {
-				totalScriptsFromJSTrace += 1
-				isolateURLs[k][scr.ScriptId] = scr.BaseUrl
-				if _, ok := rawResult.Scripts[scr.ScriptId]; !ok {
-					log.Log.Error("Failed to find ", scr.ScriptId, " ", scr.BaseUrl)
-				} else {
-					if rawResult.Scripts[scr.ScriptId].URL == scr.BaseUrl {
-						log.Log.Info("URL MATCH ", k, " ", scr.ScriptId, "  [ ", scr.BaseUrl, " ]")
-						isolateSuccesses[k] += 1
-					} else {
-						log.Log.Info("MISMATCH: ", scr.ScriptId, " ", scr.BaseUrl, "  [ ", rawResult.Scripts[scr.ScriptId].URL, " ]")
-					}
-				}
-				isolateTotals[k] += 1
-			}
-		}
-
-		log.Log.Infof("Total Scripts from JS Trace: %d", totalScriptsFromJSTrace)
-		log.Log.Infof("Total Scripts from Script Metadata (Debugger): %d", len(rawResult.Scripts))
-
-		b, err := json.MarshalIndent(isolateSuccesses, "", "	")
-		if err != nil {
-			log.Log.Error(err)
-		}
-		fmt.Print(string(b))
-
-		b, err = json.MarshalIndent(isolateTotals, "", "	")
-		if err != nil {
-			log.Log.Error(err)
-		}
-		fmt.Print(string(b))
-
-		b, err = json.MarshalIndent(isolateURLs, "", "	")
-		if err != nil {
-			log.Log.Error(err)
-		}
-		fmt.Print(string(b))
-
-		/*
-			for _, v := range rawResult.Scripts {
-				log.Log.Info(v.ScriptID, " - ", v.ExecutionContextID, " - ", string(v.ExecutionContextAuxData))
-			}
-		*/
-
-		/// END TESTING - TODO
 
 		if rawResult.SanitizedTask.WebsocketTraffic {
 			finalResult.WebsocketData = rawResult.WebsocketData
