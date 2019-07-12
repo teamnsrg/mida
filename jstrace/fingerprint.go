@@ -8,7 +8,7 @@ import (
 // OpenWPMCheckTraceForFingerprinting checks a given JavScript trace for fingerprinting
 // based on our interpretation of the checks laid out in the following paper:
 // http://randomwalker.info/publications/OpenWPM_1_million_site_tracking_measurement.pdf
-func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
+func OpenWPMCheckTraceForFingerprinting(trace *RawJSTrace) error {
 	for _, isolate := range trace.Isolates {
 		for _, script := range isolate.Scripts {
 			err := openWPMCheckScript(script)
@@ -17,19 +17,19 @@ func OpenWPMCheckTraceForFingerprinting(trace *JSTrace) error {
 			}
 
 			if script.OpenWPM.Canvas {
-				log.Log.Infof("Found canvas fingerprinting: %s", script.BaseUrl)
+				log.Log.Infof("Found canvas fingerprinting: %s", script.Url)
 			}
 			if script.OpenWPM.CanvasFont {
-				log.Log.Infof("Found canvas font fingerprinting: %s", script.BaseUrl)
+				log.Log.Infof("Found canvas font fingerprinting: %s", script.Url)
 			}
 			if script.OpenWPM.WebRTC {
-				log.Log.Infof("Found WebRTC fingerprinting: %s", script.BaseUrl)
+				log.Log.Infof("Found WebRTC fingerprinting: %s", script.Url)
 			}
 			if script.OpenWPM.Audio {
-				log.Log.Infof("Found audio fingerprinting: %s", script.BaseUrl)
+				log.Log.Infof("Found audio fingerprinting: %s", script.Url)
 			}
 			if script.OpenWPM.Battery {
-				log.Log.Infof("Found battery fingerprinting: %s", script.BaseUrl)
+				log.Log.Infof("Found battery fingerprinting: %s", script.Url)
 			}
 		}
 	}

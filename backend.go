@@ -108,14 +108,6 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						}
 					}
 
-					// Store our JavaScript trace to Mongo, if requested
-					if err == nil && r.SanitizedTask.JSTrace {
-						err = mongoConn.StoreJSTrace(&r)
-						if err != nil {
-							log.Log.Error(err)
-						}
-					}
-
 					// Store websocket data to Mongo, if requested
 					if err == nil && r.SanitizedTask.WebsocketTraffic {
 						_, err = mongoConn.StoreWebSocketData(&r)
@@ -136,7 +128,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 
 				// First, check and see if we have an existing connection for this database
 				if _, ok := connInfo.SSHConnInfo[r.SanitizedTask.PostgresURI]; !ok {
-					db, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
+					db, callNameMap, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
 						r.SanitizedTask.PostgresDB)
 					if err != nil {
 						log.Log.Fatal(err)
@@ -144,6 +136,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						connInfo.Lock()
 						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI] = new(t.DBConn)
 						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db = db
+						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].CallNameMap = callNameMap
 						connInfo.Unlock()
 					}
 
@@ -154,7 +147,8 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 				// Now we store our js trace to postgres, if specified
 				if r.SanitizedTask.JSTrace {
 					connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Lock()
-					err := storage.StoreJSTraceToDB(connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db, r.JSTrace)
+					err := storage.StoreJSTraceToDB(connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db,
+						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].CallNameMap, r.JSTrace)
 					if err != nil {
 						log.Log.Error(err)
 					}

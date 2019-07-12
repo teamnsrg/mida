@@ -14,22 +14,15 @@ type Call struct {
 	Args     []Arg  `json:"args" bson:"args"`
 	Ret      Arg    `json:"ret" bson:"ret"`
 	ScriptId string `json:"-" bson:"-"`
-
-	ID       int64   `json:"-" bson:"_id"`
-	Parent   int64   `json:"-" bson:"parent"`
-	Children []int64 `json:"-" bson:"children"`
 }
 
 // A single script, identified by a unique script ID
 type Script struct {
 	ScriptId string `json:"script_id" bson:"script_id"`
-	BaseUrl  string `json:"base_url" bson:"base_url"`
+	Url      string `json:"base_url" bson:"base_url"`
 	Calls    []Call `json:"calls" bson:"-"`
-
-	// MongoDB-use only fields
-	ID       int64   `json:"-" bson:"_id"`
-	Parent   int64   `json:"-" bson:"parent"`
-	Children []int64 `json:"-" bson:"children"`
+	SHA1     string `json:"sha1" bson:"-"`
+	Length   int    `json:"length" bson:"-"`
 
 	// Fingerprinting
 	OpenWPM OpenWPMResults `json:"openwpm_results,omitempty" bson:"openwpm_results,omitempty"`
@@ -47,7 +40,7 @@ type Isolate struct {
 }
 
 // A full trace, parsed and ready to be stored or processed further
-type JSTrace struct {
+type RawJSTrace struct {
 	Isolates map[string]*Isolate `json:"isolates,omitempty" bson:"-"`
 
 	// Scripts for which we saw calls but never saw an initial declaration
@@ -58,10 +51,11 @@ type JSTrace struct {
 	// Parsing data
 	IgnoredCalls int `json:"ignored_calls"`
 	StoredCalls  int `json:"stored_calls"`
+}
 
-	// MongoDB-use only fields
-	ID       int64   `json:"-" bson:"_id"`
-	Children []int64 `json:"-" bson:"children"`
+type CleanedJSTrace struct {
+	Url     string             `json:"url,omitempty"`
+	Scripts map[string]*Script `json:"scripts,omitempty"`
 }
 
 type OpenWPMResults struct {

@@ -16,6 +16,7 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 		finalResult := t.FinalMIDAResult{
 			SanitizedTask: rawResult.SanitizedTask,
 			Stats:         rawResult.Stats,
+			JSTrace:       new(jstrace.CleanedJSTrace),
 		}
 
 		finalResult.Stats.Timing.BeginPostprocess = time.Now()
@@ -43,8 +44,6 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				rawResult.SanitizedTask.RandomIdentifier, storage.DefaultBrowserLogFileName))
 			if err != nil {
 				log.Log.Info(err)
-			} else {
-				finalResult.JSTrace = trace
 			}
 
 			// Try to fix up JS trace using script metadata we gathered. First, pick the isolate from
@@ -53,11 +52,11 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			// First, narrow off any isolates which contain scripts from Chrome extensions
 			isolatesToDelete := make([]string, 0)
 
-			for k, v := range finalResult.JSTrace.Isolates {
+			for k, v := range trace.Isolates {
 				extScripts := 0
 				nonExtScripts := 0
 				for _, scr := range v.Scripts {
-					if strings.HasPrefix(scr.BaseUrl, "chrome-extension") {
+					if strings.HasPrefix(scr.Url, "chrome-extension") {
 						extScripts += 1
 					} else {
 						nonExtScripts += 1
@@ -70,15 +69,14 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			}
 
 			for _, i := range isolatesToDelete {
-				delete(finalResult.JSTrace.Isolates, i)
+				delete(trace.Isolates, i)
 			}
 
 			// Now, figure out which isolate best covers the scripts we saw being parsed from
 			// DevTools, and keep only that one
-
 			bestIsolate := ""
 			bestNumCovered := -1
-			for isolateId, isolate := range finalResult.JSTrace.Isolates {
+			for isolateId, isolate := range trace.Isolates {
 				numCovered := 0
 				for scriptId := range rawResult.Scripts {
 					if _, ok := isolate.Scripts[scriptId]; ok {
@@ -91,9 +89,9 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 				}
 			}
 
-			if bestIsolate != "" {
+			if bestIsolate != "" && bestNumCovered > 0 {
 				numInMetadata := 0
-				for scriptId := range finalResult.JSTrace.Isolates[bestIsolate].Scripts {
+				for scriptId := range trace.Isolates[bestIsolate].Scripts {
 					if _, ok := finalResult.ScriptMetadata[scriptId]; ok {
 						numInMetadata += 1
 					}
@@ -101,16 +99,20 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 
 				log.Log.Infof("Best isolate (%s) covered %d of %d scripts from scriptParsed event",
 					bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
-				log.Log.Info("scriptParsed events covered %d of %d scripts in that isolate",
-					numInMetadata, len(finalResult.JSTrace.Isolates[bestIsolate].Scripts))
+				log.Log.Infof("scriptParsed events covered %d of %d scripts in that isolate",
+					numInMetadata, len(trace.Isolates[bestIsolate].Scripts))
 
 				// Fingerprinting checks using trace data
 				if rawResult.SanitizedTask.OpenWPMChecks {
-					err = jstrace.OpenWPMCheckTraceForFingerprinting(finalResult.JSTrace)
+					err = jstrace.OpenWPMCheckTraceForFingerprinting(trace)
 					if err != nil {
 						log.Log.Error(err)
 					}
 				}
+
+				// Create our cleaned trace for our final result
+				finalResult.JSTrace.Scripts = trace.Isolates[bestIsolate].Scripts
+				finalResult.JSTrace.Url = rawResult.SanitizedTask.Url
 			}
 		}
 

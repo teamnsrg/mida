@@ -6,31 +6,35 @@ import (
 	"github.com/spf13/viper"
 	"github.com/teamnsrg/mida/jstrace"
 	"github.com/teamnsrg/mida/log"
+	"strconv"
 	"time"
 )
 
-type SqlCall struct {
-	gorm.Model
-
-	CrawlID   int `gorm:"not null"`
-	IsolateID int `gorm:"not null"`
-	ScriptID  int `gorm:"not null"`
-	CallID    int `gorm:"not null"`
-	SeqNum    int `gorm:"not null"`
+type CallNames struct {
+	CallId int    `gorm:"not null"`
+	Type   string `gorm:"not null"`
+	Class  string `gorm:"not null"`
+	Func   string `gorm:"not null"`
 }
 
-type SqlScript struct {
-	CrawlId   int    `gorm:"not null"`
-	IsolateId int    `gorm:"not null"`
-	ScriptId  int    `gorm:"not null"`
-	Bytes     int    `gorm:"not null"`
-	Calls     int    `gorm:"not null"`
-	Url       string `gorm:"not null"`
-	Sha256    string `gorm:"not null"`
+type Call struct {
+	CrawlID  int `gorm:"not null"`
+	ScriptID int `gorm:"not null"`
+	CallID   int `gorm:"not null"`
+	SeqNum   int `gorm:"not null"`
 }
 
-type SqlMetadata struct {
-	CrawlId  int       `gorm:"not null"`
+type Script struct {
+	CrawlId  int    `gorm:"not null"`
+	ScriptId int    `gorm:"not null"`
+	Length   int    `gorm:"not null"`
+	Calls    int    `gorm:"not null"`
+	Url      string `gorm:"not null"`
+	SHA1     string `gorm:"not null"`
+}
+
+type Metadata struct {
+	CrawlId  int       `gorm:"autoincrement;not null;primary_key"`
 	TS       time.Time `gorm:"not null"`
 	Url      string    `gorm:"not null"`
 	RandomId string    `gorm:"not null"`
@@ -39,7 +43,7 @@ type SqlMetadata struct {
 
 // CreatePostgresConnection connects to the postgres server and creates the specified database, if it does not
 // already exist.
-func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB, error) {
+func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB, map[string]int, error) {
 
 	log.Log.Info("Attempting connection:")
 	log.Log.Infof("Host: [ %s ]", host)
@@ -55,14 +59,14 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 			" dbname="+"postgres"+
 			" password="+viper.GetString("postgrespass"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Send the logs from gorm into our own logging infrastructure
 	db.SetLogger(log.Log)
 
 	// This will error if the database already exists. That's okay - we are going to connect to it anyway
-	db = db.Exec("CREATE DATABASE " + dbName + " WITH TEMPLATE mida_template OWNER mida;")
+	db = db.Exec("CREATE DATABASE " + dbName + " WITH TEMPLATE mida_template OWNER " + viper.GetString("postgresuser"))
 
 	db, err = gorm.Open("postgres",
 		"host="+host+
@@ -71,22 +75,63 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 			" dbname="+dbName+
 			" password="+viper.GetString("postgrespass"))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return db, nil
+	// Load the call name map from file
+	var cn []CallNames
+	db.Table("callnames").Find(&cn)
+	callNameMap := make(map[string]int)
+	for _, c := range cn {
+		callNameMap[c.Type+" "+c.Class+"::"+c.Func] = c.CallId
+	}
+
+	return db, callNameMap, nil
 
 }
 
-func StoreJSTraceToDB(db *gorm.DB, trace *jstrace.JSTrace) error {
+func StoreJSTraceToDB(db *gorm.DB, callNameMap map[string]int, trace *jstrace.CleanedJSTrace) error {
 
-	//callStmt := `INSERT INTO calls(crawl_id,isolate_id,script_id,call_id,seq_num,args) VALUES %s`
+	meta := Metadata{
+		TS:       time.Now(),
+		Url:      "test.test2",
+		RandomId: "jklfadsjlksadg",
+		Failed:   false,
+	}
 
-	for _, iso := range trace.Isolates {
-		for _, scr := range iso.Scripts {
-			for _, _ = range scr.Calls {
-				log.Log.Debug("hello")
+	log.Log.Info(meta)
+	db.Create(&meta)
 
+	for sId, scr := range trace.Scripts {
+		scriptId, err := strconv.Atoi(sId)
+		if err != nil {
+			log.Log.Warningf("Skipping invalid script ID: [ %s ]", sId)
+			continue
+		}
+
+		script := Script{
+			CrawlId:  meta.CrawlId,
+			ScriptId: scriptId,
+			Length:   scr.Length,
+			Calls:    len(scr.Calls),
+			Url:      scr.Url,
+			SHA1:     scr.SHA1,
+		}
+
+		db.Create(&script)
+
+		for i, call := range scr.Calls {
+			if _, ok := callNameMap[call.T+" "+call.C+"::"+call.F]; ok {
+				c := Call{
+					CrawlID:  meta.CrawlId,
+					ScriptID: scriptId,
+					CallID:   callNameMap[call.T+" "+call.C+"::"+call.F],
+					SeqNum:   i + 1,
+				}
+				db.Create(&c)
+			} else {
+				log.Log.Warningf("Unknown API Call: %s %s::%s",
+					call.T, call.C, call.F)
 			}
 		}
 	}

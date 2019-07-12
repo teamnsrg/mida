@@ -10,9 +10,9 @@ import (
 
 // ParseTraceFromFile parses a file created as raw output from an
 // instrumented version of the browser.
-func ParseTraceFromFile(fname string) (*JSTrace, error) {
+func ParseTraceFromFile(fname string) (*RawJSTrace, error) {
 
-	var trace JSTrace
+	var trace RawJSTrace
 	trace.Isolates = make(map[string]*Isolate)
 	file, err := os.Open(fname)
 	if err != nil {
@@ -70,7 +70,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
 						newScript := Script{
 							ScriptId: l.ScriptId,
-							BaseUrl:  "(UNKNOWN)",
+							Url:      "(UNKNOWN)",
 							Calls:    make([]Call, 0),
 						}
 						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
@@ -102,7 +102,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 				if _, ok := trace.Isolates[l.Isolate].Scripts[l.ScriptId]; !ok {
 					newScript := Script{
 						ScriptId: l.ScriptId,
-						BaseUrl:  l.BaseURL,
+						Url:      l.BaseURL,
 						Calls:    make([]Call, 0),
 					}
 					trace.Isolates[l.Isolate].Scripts[l.ScriptId] = &newScript
@@ -128,7 +128,7 @@ func ParseTraceFromFile(fname string) (*JSTrace, error) {
 					if _, ok := trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId]; !ok {
 						newScript := Script{
 							ScriptId: l.ScriptId,
-							BaseUrl:  "(UNKNOWN)",
+							Url:      "(UNKNOWN)",
 							Calls:    make([]Call, 0),
 						}
 						trace.Isolates[l.Isolate].Scripts[iActiveCalls[l.Isolate].ScriptId] = &newScript
