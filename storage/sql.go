@@ -99,8 +99,10 @@ func StoreJSTraceToDB(db *gorm.DB, callNameMap map[string]int, trace *jstrace.Cl
 		Failed:   false,
 	}
 
+	tx := db.Begin()
+
 	log.Log.Info(meta)
-	db.Create(&meta)
+	tx.Create(&meta)
 
 	for sId, scr := range trace.Scripts {
 		scriptId, err := strconv.Atoi(sId)
@@ -118,7 +120,7 @@ func StoreJSTraceToDB(db *gorm.DB, callNameMap map[string]int, trace *jstrace.Cl
 			SHA1:     scr.SHA1,
 		}
 
-		db.Create(&script)
+		tx.Create(&script)
 
 		for i, call := range scr.Calls {
 			if _, ok := callNameMap[call.T+" "+call.C+"::"+call.F]; ok {
@@ -128,13 +130,15 @@ func StoreJSTraceToDB(db *gorm.DB, callNameMap map[string]int, trace *jstrace.Cl
 					CallID:   callNameMap[call.T+" "+call.C+"::"+call.F],
 					SeqNum:   i + 1,
 				}
-				db.Create(&c)
+				tx.Create(&c)
 			} else {
 				log.Log.Warningf("Unknown API Call: %s %s::%s",
 					call.T, call.C, call.F)
 			}
 		}
 	}
+
+	tx.Commit()
 
 	return nil
 }
