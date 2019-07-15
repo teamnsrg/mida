@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/spf13/viper"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
@@ -34,54 +35,16 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						if err != nil {
 							log.Log.Fatal(err)
 						}
-						outpath := path.Join(r.SanitizedTask.OutputPath, dirName,
-							r.SanitizedTask.RandomIdentifier)
+						outpath := path.Join(r.SanitizedTask.OutputPath, dirName, r.SanitizedTask.RandomIdentifier)
 						err = storage.StoreResultsLocalFS(&r, outpath)
 						if err != nil {
 							log.Log.Error("Failed to store results: ", err)
 						}
 					} else {
-						// Begin remote storage
-						// Check if connection info exists already for host
-						var activeConn *t.SSHConn
-						connInfo.Lock()
-						if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
-							newConn, err := storage.CreateRemoteConnection(outputPathURL.Host)
-							connInfo.Unlock()
-							backoff := 1
-							for err != nil {
-								log.Log.WithField("Backoff", backoff).Error(err)
-								time.Sleep(time.Duration(backoff) * time.Second)
-								connInfo.Lock()
-								newConn, err = storage.CreateRemoteConnection(outputPathURL.Host)
-								connInfo.Unlock()
-								backoff *= DefaultSSHBackoffMultiplier
-							}
-
-							connInfo.SSHConnInfo[outputPathURL.Host] = newConn
-							activeConn = newConn
-							log.Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
-						} else {
-							activeConn = connInfo.SSHConnInfo[outputPathURL.Host]
-							connInfo.Unlock()
+						err := StoreOverSSH(&r, connInfo, outputPathURL)
+						if err != nil {
+							log.Log.Error(err)
 						}
-
-						if activeConn == nil {
-							log.Log.Error("Failed to correctly set activeConn")
-							continue
-						}
-
-						// Now that our new connection is in place, proceed with storage
-						activeConn.Lock()
-						backOff := 1
-						err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
-						for err != nil {
-							log.Log.WithField("BackOff", backOff).Error(err)
-							time.Sleep(time.Duration(backOff) * time.Second)
-							err = storage.StoreResultsSSH(&r, activeConn, outputPathURL.Path)
-							backOff *= DefaultSSHBackoffMultiplier
-						}
-						activeConn.Unlock()
 					}
 				}
 			}
@@ -89,13 +52,17 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			// Store data to Mongo, if you are in to that sort of thing
 			// For now, we create a new connection on every single trace
 			if r.SanitizedTask.MongoURI != "" {
-				StoreToMongo(&r)
+				err := StoreToMongo(&r)
+				if err != nil {
+					log.Log.Error(err)
+				}
 			}
 
 			if r.SanitizedTask.PostgresURI != "" {
-
-				StoreToPostgres(&r)
-
+				err := StoreToPostgres(&r)
+				if err != nil {
+					log.Log.Error(err)
+				}
 			}
 		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 			// We are abandoning trying this task. Too bad.
@@ -108,8 +75,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 		// TODO: Add ability to save user data directory (without saving crawl data inside it)
 
 		// There's an issue where os.RemoveAll throws an error while trying to delete the Chromium
-		// User Data Directory sometimes. It's still unclear exactly why. It doesn't happen consistently
-		// but it seems related to the
+		// User Data Directory sometimes. It's still unclear exactly why.
 		err := os.RemoveAll(r.SanitizedTask.UserDataDirectory)
 		if err != nil {
 			log.Log.Error("Retrying in 1 sec...")
@@ -141,6 +107,51 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 	}
 
 	storageWG.Done()
+}
+
+func StoreOverSSH(r *t.FinalMIDAResult, connInfo *ConnInfo, outputPathURL *url.URL) error {
+	// Begin remote storage
+	// Check if connection info exists already for host
+	var activeConn *t.SSHConn
+	connInfo.Lock()
+	if _, ok := connInfo.SSHConnInfo[outputPathURL.Host]; !ok {
+		newConn, err := storage.CreateRemoteConnection(outputPathURL.Host)
+		connInfo.Unlock()
+		backoff := 1
+		for err != nil {
+			log.Log.WithField("Backoff", backoff).Error(err)
+			time.Sleep(time.Duration(backoff) * time.Second)
+			connInfo.Lock()
+			newConn, err = storage.CreateRemoteConnection(outputPathURL.Host)
+			connInfo.Unlock()
+			backoff *= DefaultSSHBackoffMultiplier
+		}
+
+		connInfo.SSHConnInfo[outputPathURL.Host] = newConn
+		activeConn = newConn
+		log.Log.WithField("host", outputPathURL.Host).Info("Created new SSH connection")
+	} else {
+		activeConn = connInfo.SSHConnInfo[outputPathURL.Host]
+		connInfo.Unlock()
+	}
+
+	if activeConn == nil {
+		log.Log.Error("Failed to correctly set activeConn")
+		return errors.New("failed to correctly set activeConn")
+	}
+
+	// Now that our new connection is in place, proceed with storage
+	activeConn.Lock()
+	backOff := 1
+	err := storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
+	for err != nil {
+		log.Log.WithField("BackOff", backOff).Error(err)
+		time.Sleep(time.Duration(backOff) * time.Second)
+		err = storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
+		backOff *= DefaultSSHBackoffMultiplier
+	}
+	activeConn.Unlock()
+	return nil
 }
 
 func StoreToMongo(r *t.FinalMIDAResult) error {
