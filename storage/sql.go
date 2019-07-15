@@ -1,11 +1,11 @@
 package storage
 
 import (
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"database/sql"
+	"github.com/lib/pq"
 	"github.com/spf13/viper"
-	"github.com/teamnsrg/mida/jstrace"
 	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/types"
 	"strconv"
 	"time"
 )
@@ -43,16 +43,8 @@ type Metadata struct {
 
 // CreatePostgresConnection connects to the postgres server and creates the specified database, if it does not
 // already exist.
-func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB, map[string]int, error) {
-
-	log.Log.Info("Attempting connection:")
-	log.Log.Infof("Host: [ %s ]", host)
-	log.Log.Infof("Port: [ %s ]", port)
-	log.Log.Infof("DB: [ %s ]", dbName)
-	log.Log.Infof("Username: [ %s ]", viper.GetString("postgresuser"))
-	log.Log.Infof("Password: [ %s ]", viper.GetString("postgrespass"))
-
-	db, err := gorm.Open("postgres",
+func CreatePostgresConnection(host string, port string, dbName string) (*sql.DB, map[string]int, error) {
+	db, err := sql.Open("postgres",
 		"host="+host+
 			" port="+port+
 			" user="+viper.GetString("postgresuser")+
@@ -62,13 +54,13 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 		return nil, nil, err
 	}
 
-	// Send the logs from gorm into our own logging infrastructure
-	db.SetLogger(log.Log)
-
 	// This will error if the database already exists. That's okay - we are going to connect to it anyway
-	db = db.Exec("CREATE DATABASE " + dbName + " WITH TEMPLATE mida_template OWNER " + viper.GetString("postgresuser"))
+	_, err = db.Exec("CREATE DATABASE " + dbName + " WITH TEMPLATE mida_template OWNER " + viper.GetString("postgresuser"))
+	if err != nil && err.Error() != "pq: database \""+dbName+"\" already exists" {
+		log.Log.Error(err)
+	}
 
-	db, err = gorm.Open("postgres",
+	db, err = sql.Open("postgres",
 		"host="+host+
 			" port="+port+
 			" user="+viper.GetString("postgresuser")+
@@ -79,66 +71,83 @@ func CreatePostgresConnection(host string, port string, dbName string) (*gorm.DB
 	}
 
 	// Load the call name map from file
-	var cn []CallNames
-	db.Table("callnames").Find(&cn)
+	rows, err := db.Query("SELECT call_id, type, class, func FROM callnames")
+	if err != nil {
+		return nil, nil, err
+	}
 	callNameMap := make(map[string]int)
-	for _, c := range cn {
-		callNameMap[c.Type+" "+c.Class+"::"+c.Func] = c.CallId
+	for rows.Next() {
+		var callId int
+		var callType, callClass, callFunc string
+		err = rows.Scan(&callId, &callType, &callClass, &callFunc)
+
+		callNameMap[callType+" "+callClass+"::"+callFunc] = callId
 	}
 
 	return db, callNameMap, nil
 
 }
 
-func StoreJSTraceToDB(db *gorm.DB, callNameMap map[string]int, trace *jstrace.CleanedJSTrace) error {
-
-	meta := Metadata{
-		TS:       time.Now(),
-		Url:      "test.test2",
-		RandomId: "jklfadsjlksadg",
-		Failed:   false,
+func StoreJSTraceToDB(db *sql.DB, callNameMap map[string]int, r *types.FinalMIDAResult) error {
+	var crawlId int
+	metaStmt := "INSERT INTO metadata (ts, url, random_id, failed) VALUES ($1, $2, $3, $4) RETURNING crawl_id"
+	err := db.QueryRow(metaStmt, time.Now(), r.SanitizedTask.Url,
+		r.SanitizedTask.RandomIdentifier, r.SanitizedTask.TaskFailed).Scan(&crawlId)
+	if err != nil {
+		log.Log.Fatal(err)
 	}
 
-	tx := db.Begin()
-
-	log.Log.Info(meta)
-	tx.Create(&meta)
-
-	for sId, scr := range trace.Scripts {
+	for sId, scr := range r.JSTrace.Scripts {
 		scriptId, err := strconv.Atoi(sId)
 		if err != nil {
 			log.Log.Warningf("Skipping invalid script ID: [ %s ]", sId)
 			continue
 		}
 
-		script := Script{
-			CrawlId:  meta.CrawlId,
-			ScriptId: scriptId,
-			Length:   scr.Length,
-			Calls:    len(scr.Calls),
-			Url:      scr.Url,
-			SHA1:     scr.SHA1,
+		scriptStmt := `INSERT INTO scripts (crawl_id, script_id, url, length, calls, sha1) VALUES ($1, $2, $3, $4, $5, $6)`
+		_, err = db.Exec(scriptStmt, crawlId, scriptId, scr.Url, scr.Length, len(scr.Calls), scr.SHA1)
+		if err != nil {
+			log.Log.Fatal(err)
 		}
 
-		tx.Create(&script)
+		tx, err := db.Begin()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+
+		callStmt, err := tx.Prepare(pq.CopyIn("calls", "crawl_id", "script_id", "call_id", "ret", "seq_num"))
+		if err != nil {
+			log.Log.Fatal(err)
+		}
 
 		for i, call := range scr.Calls {
-			if _, ok := callNameMap[call.T+" "+call.C+"::"+call.F]; ok {
-				c := Call{
-					CrawlID:  meta.CrawlId,
-					ScriptID: scriptId,
-					CallID:   callNameMap[call.T+" "+call.C+"::"+call.F],
-					SeqNum:   i + 1,
+			if callId, ok := callNameMap[call.T+" "+call.C+"::"+call.F]; ok {
+				_, err = callStmt.Exec(crawlId, scriptId, callId, call.Ret.Val, i)
+				if err != nil {
+					log.Log.Fatal(err)
 				}
-				tx.Create(&c)
 			} else {
 				log.Log.Warningf("Unknown API Call: %s %s::%s",
 					call.T, call.C, call.F)
 			}
 		}
-	}
 
-	tx.Commit()
+		_, err = callStmt.Exec()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+
+		err = callStmt.Close()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			log.Log.Fatal(err)
+		}
+
+	}
 
 	return nil
 }

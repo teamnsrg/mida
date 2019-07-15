@@ -82,15 +82,6 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 		v.Unlock()
 	}
 
-	for k, v := range connInfo.DBConnInfo {
-		v.Lock()
-		err := v.Db.Close()
-		if err != nil {
-			log.Log.Error(err)
-		}
-		log.Log.Info("Closed DB connection to: ", k)
-		v.Unlock()
-	}
 	connInfo.Unlock()
 
 	// Cleanup remaining artifacts

@@ -89,71 +89,12 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			// Store data to Mongo, if you are in to that sort of thing
 			// For now, we create a new connection on every single trace
 			if r.SanitizedTask.MongoURI != "" {
-				// Create our connection
-				mongoConn, err := storage.CreateMongoDBConnection(r.SanitizedTask.MongoURI, r.SanitizedTask.GroupID)
-				if err != nil {
-					log.Log.Error(err)
-				} else {
-					// Store metadata
-					_, err := mongoConn.StoreMetadata(&r)
-					if err != nil {
-						log.Log.Error(err)
-					}
-
-					// Store resource info to Mongo, if requested
-					if err == nil && r.SanitizedTask.ResourceMetadata {
-						_, err := mongoConn.StoreResources(&r)
-						if err != nil {
-							log.Log.Error(err)
-						}
-					}
-
-					// Store websocket data to Mongo, if requested
-					if err == nil && r.SanitizedTask.WebsocketTraffic {
-						_, err = mongoConn.StoreWebSocketData(&r)
-						if err != nil {
-							log.Log.Error(err)
-						}
-					}
-
-					// Close our connection to MongoDB nicely
-					err = mongoConn.TeardownConnection()
-					if err != nil {
-						log.Log.Error(err)
-					}
-				}
+				StoreToMongo(&r)
 			}
 
 			if r.SanitizedTask.PostgresURI != "" {
 
-				// First, check and see if we have an existing connection for this database
-				if _, ok := connInfo.SSHConnInfo[r.SanitizedTask.PostgresURI]; !ok {
-					db, callNameMap, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
-						r.SanitizedTask.PostgresDB)
-					if err != nil {
-						log.Log.Fatal(err)
-					} else {
-						connInfo.Lock()
-						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI] = new(t.DBConn)
-						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db = db
-						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].CallNameMap = callNameMap
-						connInfo.Unlock()
-					}
-
-				} else {
-
-				}
-
-				// Now we store our js trace to postgres, if specified
-				if r.SanitizedTask.JSTrace {
-					connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Lock()
-					err := storage.StoreJSTraceToDB(connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Db,
-						connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].CallNameMap, r.JSTrace)
-					if err != nil {
-						log.Log.Error(err)
-					}
-					connInfo.DBConnInfo[r.SanitizedTask.PostgresURI].Unlock()
-				}
+				StoreToPostgres(&r)
 
 			}
 		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
@@ -200,4 +141,61 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 	}
 
 	storageWG.Done()
+}
+
+func StoreToMongo(r *t.FinalMIDAResult) error {
+	mongoConn, err := storage.CreateMongoDBConnection(r.SanitizedTask.MongoURI, r.SanitizedTask.GroupID)
+	if err != nil {
+		return err
+	}
+	// Store metadata
+	_, err = mongoConn.StoreMetadata(r)
+	if err != nil {
+		return err
+	}
+
+	// Store resource info to Mongo, if requested
+	if r.SanitizedTask.ResourceMetadata {
+		_, err := mongoConn.StoreResources(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Store websocket data to Mongo, if requested
+	if r.SanitizedTask.WebsocketTraffic {
+		_, err = mongoConn.StoreWebSocketData(r)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Close our connection to MongoDB nicely
+	err = mongoConn.TeardownConnection()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func StoreToPostgres(r *t.FinalMIDAResult) error {
+	// First, check and see if we have an existing connection for this database
+	db, callNameMap, err := storage.CreatePostgresConnection(r.SanitizedTask.PostgresURI, "54330",
+		r.SanitizedTask.PostgresDB)
+	if err != nil {
+		log.Log.Fatal(err)
+	}
+
+	// Now we store our js trace to postgres, if specified
+	if r.SanitizedTask.JSTrace {
+		err := storage.StoreJSTraceToDB(db,
+			callNameMap, r)
+		if err != nil {
+			log.Log.Error(err)
+		}
+	}
+
+	return db.Close()
 }

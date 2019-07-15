@@ -1,10 +1,10 @@
 package types
 
 import (
+	"database/sql"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
-	"github.com/jinzhu/gorm"
 	"github.com/teamnsrg/mida/jstrace"
 	"golang.org/x/crypto/ssh"
 	"sync"
@@ -255,6 +255,6 @@ type SSHConn struct {
 
 type DBConn struct {
 	sync.Mutex
-	Db          *gorm.DB
+	Db          *sql.DB
 	CallNameMap map[string]int
 }

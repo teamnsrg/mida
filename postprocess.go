@@ -97,10 +97,10 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 					}
 				}
 
-				log.Log.Infof("Best isolate (%s) covered %d of %d scripts from scriptParsed event",
-					bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
-				log.Log.Infof("scriptParsed events covered %d of %d scripts in that isolate",
-					numInMetadata, len(trace.Isolates[bestIsolate].Scripts))
+				log.Log.Infof("[ %s ] Best isolate (%s) covered %d of %d scripts from scriptParsed event",
+					rawResult.SanitizedTask.Url, bestIsolate, bestNumCovered, len(finalResult.ScriptMetadata))
+				log.Log.Infof("[ %s ] scriptParsed events covered %d of %d scripts in that isolate",
+					rawResult.SanitizedTask.Url, numInMetadata, len(trace.Isolates[bestIsolate].Scripts))
 
 				// Fingerprinting checks using trace data
 				if rawResult.SanitizedTask.OpenWPMChecks {
