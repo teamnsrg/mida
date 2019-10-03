@@ -80,21 +80,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	// Naming Convention: <event name>Chan
 	// Buffers need to be big enough that the demux never blocks
 	ec := openEventChannels()
-	/*
-		loadEventFiredChan := make(chan *page.EventLoadEventFired, 100)
-		domContentEventFiredChan := make(chan *page.EventDomContentEventFired, 100)
-		requestWillBeSentChan := make(chan *network.EventRequestWillBeSent, 100000)
-		responseReceivedChan := make(chan *network.EventResponseReceived, 100000)
-		loadingFinishedChan := make(chan *network.EventLoadingFinished, 100000)
-		webSocketCreatedChan := make(chan *network.EventWebSocketCreated, 100000)
-		webSocketFrameSentChan := make(chan *network.EventWebSocketFrameSent, 100000)
-		webSocketFrameReceivedChan := make(chan *network.EventWebSocketFrameReceived, 100000)
-		webSocketFrameErrorChan := make(chan *network.EventWebSocketFrameError, 100000)
-		webSocketClosedChan := make(chan *network.EventWebSocketClosed, 100000)
-		webSocketWillSendHandshakeRequestChan := make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
-		webSocketHandshakeResponseReceivedChan := make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
-		scriptParsedChan := make(chan *debugger.EventScriptParsed, 100000)
-	*/
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
