@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -40,9 +41,11 @@ type DataSettings struct {
 }
 
 type OutputSettings struct {
-	Path     *string `json:"path"`
-	GroupID  *string `json:"group_id"`
-	MongoURI *string `json:"mongo_uri,omitempty"`
+	Path        *string `json:"path"`
+	GroupID     *string `json:"group_id"`
+	MongoURI    *string `json:"mongo_uri,omitempty"`
+	PostgresURI *string `json:"postgres_uri,omitempty"`
+	PostgresDB  *string `json:"postgres_db, omitempty"`
 }
 
 type MIDATask struct {
@@ -113,6 +116,8 @@ type SanitizedMIDATask struct {
 	GroupID          string `json:"group_id"`
 	RandomIdentifier string `json:"random_identifier"`
 	MongoURI         string `json:"mongo_uri,omitempty"`
+	PostgresURI      string `json:"postgres_uri,omitempty"`
+	PostgresDB       string `json:"postgres_db,omitempty"`
 
 	// Parameters for retrying a task if it fails to complete
 	MaxAttempts      int      `json:"max_attempts"`
@@ -208,7 +213,7 @@ type FinalMIDAResult struct {
 	SanitizedTask    SanitizedMIDATask
 	ScriptMetadata   map[string]debugger.EventScriptParsed
 	Stats            TaskStats
-	JSTrace          *jstrace.JSTrace
+	JSTrace          *jstrace.CleanedJSTrace
 	WebsocketData    map[string]*WSConnection
 	RTree            *ResourceTree
 }
@@ -246,4 +251,10 @@ type TaskStats struct {
 type SSHConn struct {
 	sync.Mutex
 	Client *ssh.Client
+}
+
+type DBConn struct {
+	sync.Mutex
+	Db          *sql.DB
+	CallNameMap map[string]int
 }

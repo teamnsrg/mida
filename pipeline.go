@@ -14,6 +14,7 @@ import (
 type ConnInfo struct {
 	sync.Mutex
 	SSHConnInfo map[string]*t.SSHConn
+	DBConnInfo  map[string]*t.DBConn
 }
 
 func InitPipeline(cmd *cobra.Command, args []string) {
@@ -32,9 +33,10 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	var storageWG sync.WaitGroup  // Tracks active storage workers
 	var pipelineWG sync.WaitGroup // Tracks tasks currently in pipeline
 
-	// Initialize directory for SSH connections, which are effectively global
+	// Initialize structure storing SSH and database connections
 	var connInfo ConnInfo
 	connInfo.SSHConnInfo = make(map[string]*t.SSHConn)
+	connInfo.DBConnInfo = make(map[string]*t.DBConn)
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
@@ -68,7 +70,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// We are done when all storage has completed
 	storageWG.Wait()
 
-	// Nicely close any SSH connections open
+	// Nicely close any connections open
 	connInfo.Lock()
 	for k, v := range connInfo.SSHConnInfo {
 		v.Lock()
@@ -79,6 +81,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 		log.Log.Info("Closed SSH connection to: ", k)
 		v.Unlock()
 	}
+
 	connInfo.Unlock()
 
 	// Cleanup remaining artifacts

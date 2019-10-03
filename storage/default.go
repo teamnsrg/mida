@@ -19,4 +19,7 @@ const (
 	MongoStorageResourceBufferLen = 100
 	TempDir                       = ".tmp"
 	MaxInt64                      = 9223372036854775807
+
+	DefaultPostgresPort			  = 54330
+	DefaultPos
 )

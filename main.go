@@ -13,6 +13,8 @@ func main() {
 	initConfig()
 	log.InitLogger()
 
+	log.Log.Debug("MIDA Starts")
+
 	go func() {
 		fmt.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 	}()
@@ -23,4 +25,6 @@ func main() {
 	if err != nil {
 		log.Log.Debug(err)
 	}
+
+	log.Log.Debug("MIDA Exits")
 }

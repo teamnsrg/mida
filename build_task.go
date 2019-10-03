@@ -233,6 +233,8 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			Path:     new(string),
 			GroupID:  new(string),
 			MongoURI: new(string),
+			PostgresURI: new(string),
+			PostgresDB: new(string),
 		},
 		MaxAttempts: new(int),
 		Priority:    new(int),
