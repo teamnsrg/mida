@@ -47,6 +47,7 @@ func buildCommands() *cobra.Command {
 		webSocket        bool
 		networkTrace     bool
 		openWPMChecks    bool
+		browserCoverage	 bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -124,7 +125,7 @@ func buildCommands() *cobra.Command {
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
-	cmdBuild.Flags().BoolVarP(&openWPMChecks, "browser-coverage", "", DefaultBrowserCoverage,
+	cmdBuild.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", DefaultBrowserCoverage,
 		"Gather browser coverage data (requires browser instrumented for coverage)")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
@@ -204,7 +205,7 @@ to crawl, using default parameters where not specified`,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
-	cmdGo.Flags().BoolVarP(&openWPMChecks, "browser-coverage", "", DefaultBrowserCoverage,
+	cmdGo.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", DefaultBrowserCoverage,
 		"Gather browser coverage data (requires browser instrumented for coverage)")
 	cmdGo.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
 		"Task priority (when loaded into RabbitMQ")

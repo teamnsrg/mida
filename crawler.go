@@ -14,7 +14,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	//"github.com/chromedp/cdproto/page"
-	"github.com/pmurley/chromedp"
+	"github.com/chromedp/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
@@ -151,42 +151,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}
 
-	// Set the output file where chrome stdout and stderr will be stored if we are gathering a JavaScript trace
-	/* Commented out for the moment. TODO
-	if st.JSTrace {
-		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
-		if err != nil {
-			log.Log.Fatal(err)
-		}
-		// This allows us to redirect the output from the browser to a file we choose.
-		// TODO: Implement in new version of chromedp
-		cxt = context.WithValue(cxt, "MIDA_Browser_Output_File", midaBrowserOutfile)
-	}
-	*/
-
-	/* Leave out browser coverage for now -- engineering ongoing
-	if st.BrowserCoverage {
-		// Set environment variable for browser
-		cxt = context.WithValue(cxt, "MIDA_LLVM_PROFILE_FILE", path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-%4m.profraw"))
-
-		// Create directory which will contain coverage files
-		_, err = os.Stat(path.Join(resultsDir, storage.DefaultCoverageSubdir))
-		if err != nil {
-			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultCoverageSubdir), 0744)
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-		}
-
-	}
-	*/
-
-	/* Leave out the network strace bit for now. We have pcap via docker
-	if st.NetworkStrace {
-		cxt = context.WithValue(cxt, "MIDA_STRACE_FILE", path.Join(resultsDir, storage.DefaultNetworkStraceFileName))
-	}
-	*/
-
 	// Add these the port and the user data directory as arguments to the browser as we start it up
 	// No other flags should be added here unless there is a good reason they can't be put in
 	// the pipeline earlier.
@@ -204,6 +168,21 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	opts = append(opts, chromedp.Flag("user-data-dir", st.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(st.BrowserBinary))
+	if st.BrowserCoverage {
+
+		// Set up environment so that Chromium will save coverage data
+		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE=" + path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-.%4m.profraw")))
+		opts = append(opts, chromedp.Env("LD_PRELOAD=/home/jscrawl/.mida/libsig.so"))
+
+		// Create directory which will contain coverage files
+		_, err = os.Stat(path.Join(resultsDir, storage.DefaultCoverageSubdir))
+		if err != nil {
+			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultCoverageSubdir), 0744)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+		}
+	}
 
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
@@ -218,6 +197,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	allocContext, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	cxt, cancel := chromedp.NewContext(allocContext)
 	defer cancel()
+
 
 	// Event Demux - just receive the events and stick them in the applicable channels
 	chromedp.ListenTarget(cxt, func(ev interface{}) {
@@ -348,43 +328,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 		return rawResult, nil
 	}
-
-	/*
-		rawResultLock.Lock()
-		rawResult.Stats.Timing.BrowserOpen = time.Now()
-		rawResultLock.Unlock()
-
-		rawResultLock.Lock()
-		rawResult.Stats.Timing.DevtoolsConnect = time.Now()
-		rawResultLock.Unlock()
-
-		// Get browser info from DevTools
-		err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-			protocolVersion, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt, h)
-			rawResultLock.Lock()
-			rawResult.CrawlHostInfo.DevToolsVersion = protocolVersion
-			rawResult.CrawlHostInfo.Browser = product
-			rawResult.CrawlHostInfo.V8Version = jsVersion
-			rawResult.CrawlHostInfo.BrowserVersion = revision
-			rawResult.CrawlHostInfo.UserAgent = userAgent
-			hostname, err := os.Hostname()
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			rawResult.CrawlHostInfo.HostName = hostname
-			rawResultLock.Unlock()
-			return err
-		}))
-		if err != nil {
-			log.Log.Error(err)
-			rawResultLock.Lock()
-			rawResult.SanitizedTask.TaskFailed = true
-			rawResult.SanitizedTask.FailureCode = err.Error()
-			rawResultLock.Unlock()
-
-			return rawResult, nil
-		}
-	*/
 
 	// Event Handler : Page.loadEventFired
 	go func() {
