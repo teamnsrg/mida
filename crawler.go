@@ -4,21 +4,16 @@ import (
 	"context"
 	"errors"
 	"github.com/chromedp/cdproto/browser"
-	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/cdproto/runtime"
-	"github.com/teamnsrg/mida/util"
-	"io/ioutil"
-
-	//"github.com/chromedp/cdproto/browser"
-	//"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
-	//"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
-	//"io/ioutil"
+	"github.com/teamnsrg/mida/util"
+	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -84,19 +79,22 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	// Event channels (used to asynchronously process DevTools events)
 	// Naming Convention: <event name>Chan
 	// Buffers need to be big enough that the demux never blocks
-	loadEventFiredChan := make(chan *page.EventLoadEventFired, 100)
-	domContentEventFiredChan := make(chan *page.EventDomContentEventFired, 100)
-	requestWillBeSentChan := make(chan *network.EventRequestWillBeSent, 100000)
-	responseReceivedChan := make(chan *network.EventResponseReceived, 100000)
-	loadingFinishedChan := make(chan *network.EventLoadingFinished, 100000)
-	webSocketCreatedChan := make(chan *network.EventWebSocketCreated, 100000)
-	webSocketFrameSentChan := make(chan *network.EventWebSocketFrameSent, 100000)
-	webSocketFrameReceivedChan := make(chan *network.EventWebSocketFrameReceived, 100000)
-	webSocketFrameErrorChan := make(chan *network.EventWebSocketFrameError, 100000)
-	webSocketClosedChan := make(chan *network.EventWebSocketClosed, 100000)
-	webSocketWillSendHandshakeRequestChan := make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
-	webSocketHandshakeResponseReceivedChan := make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
-	scriptParsedChan := make(chan *debugger.EventScriptParsed, 100000)
+	ec := openEventChannels()
+	/*
+		loadEventFiredChan := make(chan *page.EventLoadEventFired, 100)
+		domContentEventFiredChan := make(chan *page.EventDomContentEventFired, 100)
+		requestWillBeSentChan := make(chan *network.EventRequestWillBeSent, 100000)
+		responseReceivedChan := make(chan *network.EventResponseReceived, 100000)
+		loadingFinishedChan := make(chan *network.EventLoadingFinished, 100000)
+		webSocketCreatedChan := make(chan *network.EventWebSocketCreated, 100000)
+		webSocketFrameSentChan := make(chan *network.EventWebSocketFrameSent, 100000)
+		webSocketFrameReceivedChan := make(chan *network.EventWebSocketFrameReceived, 100000)
+		webSocketFrameErrorChan := make(chan *network.EventWebSocketFrameError, 100000)
+		webSocketClosedChan := make(chan *network.EventWebSocketClosed, 100000)
+		webSocketWillSendHandshakeRequestChan := make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
+		webSocketHandshakeResponseReceivedChan := make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
+		scriptParsedChan := make(chan *debugger.EventScriptParsed, 100000)
+	*/
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BeginCrawl = time.Now()
@@ -171,7 +169,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if st.BrowserCoverage {
 
 		// Set up environment so that Chromium will save coverage data
-		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE=" + path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-.%4m.profraw")))
+		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-.%4m.profraw")))
 		opts = append(opts, chromedp.Env("LD_PRELOAD=/home/jscrawl/.mida/libsig.so"))
 
 		// Create directory which will contain coverage files
@@ -198,43 +196,42 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	cxt, cancel := chromedp.NewContext(allocContext)
 	defer cancel()
 
-
 	// Event Demux - just receive the events and stick them in the applicable channels
 	chromedp.ListenTarget(cxt, func(ev interface{}) {
 		switch ev.(type) {
 		// Page Domain Events
 		case *page.EventLoadEventFired:
-			loadEventFiredChan <- ev.(*page.EventLoadEventFired)
+			ec.loadEventFiredChan <- ev.(*page.EventLoadEventFired)
 		case *page.EventDomContentEventFired:
-			domContentEventFiredChan <- ev.(*page.EventDomContentEventFired)
+			ec.domContentEventFiredChan <- ev.(*page.EventDomContentEventFired)
 
 		// General Network Domain Events
 		case *network.EventRequestWillBeSent:
-			requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
+			ec.requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
 		case *network.EventResponseReceived:
-			responseReceivedChan <- ev.(*network.EventResponseReceived)
+			ec.responseReceivedChan <- ev.(*network.EventResponseReceived)
 		case *network.EventLoadingFinished:
-			loadingFinishedChan <- ev.(*network.EventLoadingFinished)
+			ec.loadingFinishedChan <- ev.(*network.EventLoadingFinished)
 
 		// Websocket Network Domain Events
 		case *network.EventWebSocketCreated:
-			webSocketCreatedChan <- ev.(*network.EventWebSocketCreated)
+			ec.webSocketCreatedChan <- ev.(*network.EventWebSocketCreated)
 		case *network.EventWebSocketFrameSent:
-			webSocketFrameSentChan <- ev.(*network.EventWebSocketFrameSent)
+			ec.webSocketFrameSentChan <- ev.(*network.EventWebSocketFrameSent)
 		case *network.EventWebSocketFrameReceived:
-			webSocketFrameReceivedChan <- ev.(*network.EventWebSocketFrameReceived)
+			ec.webSocketFrameReceivedChan <- ev.(*network.EventWebSocketFrameReceived)
 		case *network.EventWebSocketFrameError:
-			webSocketFrameErrorChan <- ev.(*network.EventWebSocketFrameError)
+			ec.webSocketFrameErrorChan <- ev.(*network.EventWebSocketFrameError)
 		case *network.EventWebSocketClosed:
-			webSocketClosedChan <- ev.(*network.EventWebSocketClosed)
+			ec.webSocketClosedChan <- ev.(*network.EventWebSocketClosed)
 		case *network.EventWebSocketWillSendHandshakeRequest:
-			webSocketWillSendHandshakeRequestChan <- ev.(*network.EventWebSocketWillSendHandshakeRequest)
+			ec.webSocketWillSendHandshakeRequestChan <- ev.(*network.EventWebSocketWillSendHandshakeRequest)
 		case *network.EventWebSocketHandshakeResponseReceived:
-			webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
+			ec.webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
 
 		// Debugger Domain Events
 		case *debugger.EventScriptParsed:
-			scriptParsedChan <- ev.(*debugger.EventScriptParsed)
+			ec.scriptParsedChan <- ev.(*debugger.EventScriptParsed)
 
 		}
 	})
@@ -261,19 +258,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if err != nil {
 		cancel()
 
-		close(loadEventFiredChan)
-		close(domContentEventFiredChan)
-		close(requestWillBeSentChan)
-		close(responseReceivedChan)
-		close(loadingFinishedChan)
-		close(webSocketCreatedChan)
-		close(webSocketFrameSentChan)
-		close(webSocketFrameReceivedChan)
-		close(webSocketFrameErrorChan)
-		close(webSocketClosedChan)
-		close(webSocketWillSendHandshakeRequestChan)
-		close(webSocketHandshakeResponseReceivedChan)
-		close(scriptParsedChan)
+		closeEventChannels(ec)
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -307,19 +292,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if err != nil {
 		cancel()
 
-		close(loadEventFiredChan)
-		close(domContentEventFiredChan)
-		close(requestWillBeSentChan)
-		close(responseReceivedChan)
-		close(loadingFinishedChan)
-		close(webSocketCreatedChan)
-		close(webSocketFrameSentChan)
-		close(webSocketFrameReceivedChan)
-		close(webSocketFrameErrorChan)
-		close(webSocketClosedChan)
-		close(webSocketWillSendHandshakeRequestChan)
-		close(webSocketHandshakeResponseReceivedChan)
-		close(scriptParsedChan)
+		closeEventChannels(ec)
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -331,7 +304,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler : Page.loadEventFired
 	go func() {
-		for range loadEventFiredChan {
+		for range ec.loadEventFiredChan {
 			rawResultLock.Lock()
 			if rawResult.Stats.Timing.LoadEvent.IsZero() {
 				rawResult.Stats.Timing.LoadEvent = time.Now()
@@ -356,7 +329,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Page.domContentEventFired
 	go func() {
-		for range domContentEventFiredChan {
+		for range ec.domContentEventFiredChan {
 			rawResultLock.Lock()
 			if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
 				rawResult.Stats.Timing.DOMContentEvent = time.Now()
@@ -369,7 +342,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.requestWillBeSent
 	go func() {
-		for data := range requestWillBeSentChan {
+		for data := range ec.requestWillBeSentChan {
 			rawResultLock.Lock()
 			rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
@@ -378,7 +351,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.responseReceived
 	go func() {
-		for data := range responseReceivedChan {
+		for data := range ec.responseReceivedChan {
 			rawResultLock.Lock()
 			rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
@@ -387,7 +360,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.loadingFinished
 	go func() {
-		for data := range loadingFinishedChan {
+		for data := range ec.loadingFinishedChan {
 			if st.AllResources {
 				rawResultLock.Lock()
 				if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
@@ -417,7 +390,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.webSocketCreated
 	go func() {
-		for data := range webSocketCreatedChan {
+		for data := range ec.webSocketCreatedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; !ok {
 				// Create our new websocket connection
@@ -440,7 +413,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.webSocketFrameSent
 	go func() {
-		for data := range webSocketFrameSentChan {
+		for data := range ec.webSocketFrameSentChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -454,7 +427,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.webSocketFrameReceived
 	go func() {
-		for data := range webSocketFrameReceivedChan {
+		for data := range ec.webSocketFrameReceivedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -468,7 +441,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.webSocketFrameError
 	go func() {
-		for data := range webSocketFrameErrorChan {
+		for data := range ec.webSocketFrameErrorChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -482,7 +455,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.webSocketClosed
 	go func() {
-		for data := range webSocketClosedChan {
+		for data := range ec.webSocketClosedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -495,7 +468,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.websocketWillSendHandshakeRequest
 	go func() {
-		for data := range webSocketWillSendHandshakeRequestChan {
+		for data := range ec.webSocketWillSendHandshakeRequestChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -509,7 +482,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Network.websocketHandshakeResponseReceived
 	go func() {
-		for data := range webSocketHandshakeResponseReceivedChan {
+		for data := range ec.webSocketHandshakeResponseReceivedChan {
 			rawResultLock.Lock()
 			if _, ok := rawResult.WebsocketData[data.RequestID.String()]; ok {
 				// Create our new websocket connection
@@ -523,7 +496,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	// Event Handler: Debugger.scriptParsed
 	go func() {
-		for data := range scriptParsedChan {
+		for data := range ec.scriptParsedChan {
 			rawResultLock.Lock()
 			rawResult.Scripts[data.ScriptID.String()] = *data
 			rawResultLock.Unlock()
@@ -597,19 +570,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResult.Stats.Timing.BrowserClose = time.Now()
 		rawResultLock.Unlock()
 
-		close(loadEventFiredChan)
-		close(domContentEventFiredChan)
-		close(requestWillBeSentChan)
-		close(responseReceivedChan)
-		close(loadingFinishedChan)
-		close(webSocketCreatedChan)
-		close(webSocketFrameSentChan)
-		close(webSocketFrameReceivedChan)
-		close(webSocketFrameErrorChan)
-		close(webSocketClosedChan)
-		close(webSocketWillSendHandshakeRequestChan)
-		close(webSocketHandshakeResponseReceivedChan)
-		close(scriptParsedChan)
+		closeEventChannels(ec)
 
 		return rawResult, nil
 
@@ -674,20 +635,59 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	rawResult.Stats.Timing.BrowserClose = time.Now()
 	rawResultLock.Unlock()
 
-	close(loadEventFiredChan)
-	close(domContentEventFiredChan)
-	close(requestWillBeSentChan)
-	close(responseReceivedChan)
-	close(loadingFinishedChan)
-	close(webSocketCreatedChan)
-	close(webSocketFrameSentChan)
-	close(webSocketFrameReceivedChan)
-	close(webSocketFrameErrorChan)
-	close(webSocketClosedChan)
-	close(webSocketWillSendHandshakeRequestChan)
-	close(webSocketHandshakeResponseReceivedChan)
-	close(scriptParsedChan)
+	closeEventChannels(ec)
 
 	return rawResult, nil
 
+}
+
+type EventChannels struct {
+	loadEventFiredChan                     chan *page.EventLoadEventFired
+	domContentEventFiredChan               chan *page.EventDomContentEventFired
+	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
+	responseReceivedChan                   chan *network.EventResponseReceived
+	loadingFinishedChan                    chan *network.EventLoadingFinished
+	webSocketCreatedChan                   chan *network.EventWebSocketCreated
+	webSocketFrameSentChan                 chan *network.EventWebSocketFrameSent
+	webSocketFrameReceivedChan             chan *network.EventWebSocketFrameReceived
+	webSocketFrameErrorChan                chan *network.EventWebSocketFrameError
+	webSocketClosedChan                    chan *network.EventWebSocketClosed
+	webSocketWillSendHandshakeRequestChan  chan *network.EventWebSocketWillSendHandshakeRequest
+	webSocketHandshakeResponseReceivedChan chan *network.EventWebSocketHandshakeResponseReceived
+	scriptParsedChan                       chan *debugger.EventScriptParsed
+}
+
+func openEventChannels() EventChannels {
+	ec := EventChannels{}
+	ec.loadEventFiredChan = make(chan *page.EventLoadEventFired, 100)
+	ec.domContentEventFiredChan = make(chan *page.EventDomContentEventFired, 100)
+	ec.requestWillBeSentChan = make(chan *network.EventRequestWillBeSent, 100000)
+	ec.responseReceivedChan = make(chan *network.EventResponseReceived, 100000)
+	ec.loadingFinishedChan = make(chan *network.EventLoadingFinished, 100000)
+	ec.webSocketCreatedChan = make(chan *network.EventWebSocketCreated, 100000)
+	ec.webSocketFrameSentChan = make(chan *network.EventWebSocketFrameSent, 100000)
+	ec.webSocketFrameReceivedChan = make(chan *network.EventWebSocketFrameReceived, 100000)
+	ec.webSocketFrameErrorChan = make(chan *network.EventWebSocketFrameError, 100000)
+	ec.webSocketClosedChan = make(chan *network.EventWebSocketClosed, 100000)
+	ec.webSocketWillSendHandshakeRequestChan = make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
+	ec.webSocketHandshakeResponseReceivedChan = make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
+	ec.scriptParsedChan = make(chan *debugger.EventScriptParsed, 100000)
+
+	return ec
+}
+
+func closeEventChannels(ec EventChannels) {
+	close(ec.loadEventFiredChan)
+	close(ec.domContentEventFiredChan)
+	close(ec.requestWillBeSentChan)
+	close(ec.responseReceivedChan)
+	close(ec.loadingFinishedChan)
+	close(ec.webSocketCreatedChan)
+	close(ec.webSocketFrameSentChan)
+	close(ec.webSocketFrameReceivedChan)
+	close(ec.webSocketFrameErrorChan)
+	close(ec.webSocketClosedChan)
+	close(ec.webSocketWillSendHandshakeRequestChan)
+	close(ec.webSocketHandshakeResponseReceivedChan)
+	close(ec.scriptParsedChan)
 }
