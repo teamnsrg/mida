@@ -35,6 +35,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						if err != nil {
 							log.Log.Fatal(err)
 						}
+						log.Log.Info(dirName)
 						outpath := path.Join(r.SanitizedTask.OutputPath, dirName, r.SanitizedTask.RandomIdentifier)
 						err = storage.StoreResultsLocalFS(&r, outpath)
 						if err != nil {

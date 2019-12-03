@@ -8,7 +8,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
-	"github.com/chromedp/chromedp"
+	"github.com/teamnsrg/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
@@ -154,8 +154,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if st.BrowserCoverage {
 
 		// Set up environment so that Chromium will save coverage data
-		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-.%4m.profraw")))
-		opts = append(opts, chromedp.Env("LD_PRELOAD=/home/jscrawl/.mida/libsig.so"))
+		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-%4m.profraw")))
 
 		// Create directory which will contain coverage files
 		_, err = os.Stat(path.Join(resultsDir, storage.DefaultCoverageSubdir))
@@ -614,13 +613,20 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}
 
-	cancel()
+	chromedp.RemoveListenTarget(cxt)
+	closeEventChannels(ec)
+
+	c2, cancel2 := context.WithTimeout(cxt, 5 * time.Second)
+	defer cancel2()
+	err = chromedp.Cancel(c2)
+	if err != nil {
+		log.Log.Error(err)
+	}
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
 	rawResultLock.Unlock()
 
-	closeEventChannels(ec)
 
 	return rawResult, nil
 
