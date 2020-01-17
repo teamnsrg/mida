@@ -139,6 +139,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	if err != nil {
 		return ts, err
 	}
+	*ts.Data.ScreenShot, err = cmd.Flags().GetBool("screenshot")
+	if err != nil {
+		return ts, err
+	}
 
 	// Fill in output settings
 	*ts.Output.Path, err = cmd.Flags().GetString("results-output-path")
@@ -228,13 +232,14 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			NetworkTrace:     new(bool),
 			OpenWPMChecks:    new(bool),
 			BrowserCoverage:  new(bool),
+			ScreenShot:       new(bool),
 		},
 		Output: &t.OutputSettings{
-			Path:     new(string),
-			GroupID:  new(string),
-			MongoURI: new(string),
+			Path:        new(string),
+			GroupID:     new(string),
+			MongoURI:    new(string),
 			PostgresURI: new(string),
-			PostgresDB: new(string),
+			PostgresDB:  new(string),
 		},
 		MaxAttempts: new(int),
 		Priority:    new(int),

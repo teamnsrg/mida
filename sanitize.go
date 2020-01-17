@@ -261,6 +261,11 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.BrowserCoverage = DefaultBrowserCoverage
 	}
+	if mt.Data.ScreenShot != nil {
+		st.ScreenShot = *mt.Data.ScreenShot
+	} else {
+		st.ScreenShot = DefaultScreenShot
+	}
 
 	///// END SANITIZE DATA GATHERING PARAMETERS /////
 	///// BEGIN SANITIZE OUTPUT PARAMETERS /////
@@ -302,8 +307,6 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 			st.PostgresDB = *mt.Output.PostgresDB
 		}
 	}
-
-
 
 	///// END SANITIZE OUTPUT PARAMETERS /////
 

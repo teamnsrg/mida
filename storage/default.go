@@ -14,12 +14,13 @@ const (
 	DefaultWebSocketTrafficFile   = "websocket_data.json"
 	DefaultBrowserLogFileName     = "browser.log"
 	DefaultNetworkStraceFileName  = "network.strace"
+	DefaultScreenShotFileName     = "screenshot.png"
 	MongoStorageTimeoutSeconds    = 90
 	MongoStorageJSBufferLen       = 10000
 	MongoStorageResourceBufferLen = 100
 	TempDir                       = ".tmp"
 	MaxInt64                      = 9223372036854775807
 
-	DefaultPostgresPort			  = 54330
+	DefaultPostgresPort = 54330
 	DefaultPos
 )

@@ -47,7 +47,8 @@ func buildCommands() *cobra.Command {
 		webSocket        bool
 		networkTrace     bool
 		openWPMChecks    bool
-		browserCoverage	 bool
+		browserCoverage  bool
+		screenshot       bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -127,6 +128,8 @@ func buildCommands() *cobra.Command {
 		"Run OpenWPM fingerprinting checks on JavaScript trace")
 	cmdBuild.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", DefaultBrowserCoverage,
 		"Gather browser coverage data (requires browser instrumented for coverage)")
+	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", DefaultScreenShot,
+		"Collect a PNG screenshot of the web page after the load event fires")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -209,6 +212,8 @@ to crawl, using default parameters where not specified`,
 		"Gather browser coverage data (requires browser instrumented for coverage)")
 	cmdGo.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
 		"Task priority (when loaded into RabbitMQ")
+	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", DefaultScreenShot,
+		"Collect a PNG screenshot of the web page after the load event fires")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

@@ -38,6 +38,7 @@ type DataSettings struct {
 	NetworkTrace     *bool `json:"network_trace"`
 	OpenWPMChecks    *bool `json:"open_wpm_checks"`
 	BrowserCoverage  *bool `json:"browser_coverage"`
+	ScreenShot       *bool `json:"screenshot"`
 }
 
 type OutputSettings struct {
@@ -110,6 +111,7 @@ type SanitizedMIDATask struct {
 	NetworkTrace     bool `json:"network_trace"`
 	OpenWPMChecks    bool `json:"open_wpm_checks"`
 	BrowserCoverage  bool `json:"browser_coverage"`
+	ScreenShot       bool `json:"screenshot"`
 
 	// Output Settings
 	OutputPath       string `json:"output_path"`

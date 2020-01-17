@@ -28,23 +28,22 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			if r.SanitizedTask.OutputPath != "" {
 				outputPathURL, err := url.Parse(r.SanitizedTask.OutputPath)
 				if err != nil {
-					log.Log.Error(err)
+					log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 				} else {
 					if outputPathURL.Host == "" {
 						dirName, err := util.DirNameFromURL(r.SanitizedTask.Url)
 						if err != nil {
-							log.Log.Fatal(err)
+							log.Log.WithField("URL", r.SanitizedTask.Url).Fatal(err)
 						}
-						log.Log.Info(dirName)
 						outpath := path.Join(r.SanitizedTask.OutputPath, dirName, r.SanitizedTask.RandomIdentifier)
 						err = storage.StoreResultsLocalFS(&r, outpath)
 						if err != nil {
-							log.Log.Error("Failed to store results: ", err)
+							log.Log.WithField("URL", r.SanitizedTask.Url).Error("Failed to store results: ", err)
 						}
 					} else {
 						err := StoreOverSSH(&r, connInfo, outputPathURL)
 						if err != nil {
-							log.Log.Error(err)
+							log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 						}
 					}
 				}
@@ -55,14 +54,14 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			if r.SanitizedTask.MongoURI != "" {
 				err := StoreToMongo(&r)
 				if err != nil {
-					log.Log.Error(err)
+					log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 				}
 			}
 
 			if r.SanitizedTask.PostgresURI != "" {
 				err := StoreToPostgres(&r)
 				if err != nil {
-					log.Log.Error(err)
+					log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 				}
 			}
 		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
@@ -84,7 +83,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 			err = os.RemoveAll(r.SanitizedTask.UserDataDirectory)
 			if err != nil {
 				log.Log.WithField("URL", r.SanitizedTask.Url).Error("Failure Deleting UDD on second try")
-				log.Log.Fatal(err)
+				log.Log.WithField("URL", r.SanitizedTask.Url).Fatal(err)
 			} else {
 				log.Log.WithField("URL", r.SanitizedTask.Url).Info("Deleted UDD on second try")
 			}
@@ -120,7 +119,7 @@ func StoreOverSSH(r *t.FinalMIDAResult, connInfo *ConnInfo, outputPathURL *url.U
 		connInfo.Unlock()
 		backoff := 1
 		for err != nil {
-			log.Log.WithField("Backoff", backoff).Error(err)
+			log.Log.WithField("URL", r.SanitizedTask.Url).WithField("Backoff", backoff).Error(err)
 			time.Sleep(time.Duration(backoff) * time.Second)
 			connInfo.Lock()
 			newConn, err = storage.CreateRemoteConnection(outputPathURL.Host)
@@ -137,7 +136,7 @@ func StoreOverSSH(r *t.FinalMIDAResult, connInfo *ConnInfo, outputPathURL *url.U
 	}
 
 	if activeConn == nil {
-		log.Log.Error("Failed to correctly set activeConn")
+		log.Log.WithField("URL", r.SanitizedTask.Url).Error("Failed to correctly set activeConn")
 		return errors.New("failed to correctly set activeConn")
 	}
 
@@ -146,7 +145,7 @@ func StoreOverSSH(r *t.FinalMIDAResult, connInfo *ConnInfo, outputPathURL *url.U
 	backOff := 1
 	err := storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
 	for err != nil {
-		log.Log.WithField("BackOff", backOff).Error(err)
+		log.Log.WithField("URL", r.SanitizedTask.Url).WithField("BackOff", backOff).Error(err)
 		time.Sleep(time.Duration(backOff) * time.Second)
 		err = storage.StoreResultsSSH(r, activeConn, outputPathURL.Path)
 		backOff *= DefaultSSHBackoffMultiplier
@@ -205,7 +204,7 @@ func StoreToPostgres(r *t.FinalMIDAResult) error {
 		err := storage.StoreJSTraceToDB(db,
 			callNameMap, r)
 		if err != nil {
-			log.Log.Error(err)
+			log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 		}
 	}
 

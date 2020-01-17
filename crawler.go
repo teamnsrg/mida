@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/debugger"
+	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
@@ -96,7 +97,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if err != nil {
 		err = os.MkdirAll(st.UserDataDirectory, 0744)
 		if err != nil {
-			log.Log.Fatal(err)
+			log.Log.WithField("URL", st.Url).Fatal(err)
 		}
 	}
 
@@ -106,10 +107,10 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if err != nil {
 		err = os.MkdirAll(resultsDir, 0755)
 		if err != nil {
-			log.Log.Fatal("Error creating results directory")
+			log.Log.WithField("URL", st.Url).Fatal("Error creating results directory")
 		}
 	} else {
-		log.Log.Error("Results directory already existed within user data directory")
+		log.Log.WithField("URL", st.Url).Error("Results directory already existed within user data directory")
 	}
 
 	if st.AllResources {
@@ -118,7 +119,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		if err != nil {
 			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultFileSubdir), 0744)
 			if err != nil {
-				log.Log.Fatal(err)
+				log.Log.WithField("URL", st.Url).Fatal(err)
 			}
 		}
 	}
@@ -129,7 +130,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		if err != nil {
 			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultScriptSubdir), 0744)
 			if err != nil {
-				log.Log.Fatal(err)
+				log.Log.WithField("URL", st.Url).Fatal(err)
 			}
 		}
 	}
@@ -143,7 +144,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	for _, flagString := range st.BrowserFlags {
 		name, val, err := util.FormatFlag(flagString)
 		if err != nil {
-			log.Log.Error(err)
+			log.Log.WithField("URL", st.Url).Error(err)
 			continue
 		}
 		opts = append(opts, chromedp.Flag(name, val))
@@ -152,7 +153,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	opts = append(opts, chromedp.Flag("user-data-dir", st.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(st.BrowserBinary))
 	if st.BrowserCoverage {
-
 		// Set up environment so that Chromium will save coverage data
 		opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+path.Join(resultsDir, storage.DefaultCoverageSubdir, "coverage-%4m.profraw")))
 
@@ -161,7 +161,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		if err != nil {
 			err = os.MkdirAll(path.Join(resultsDir, storage.DefaultCoverageSubdir), 0744)
 			if err != nil {
-				log.Log.Fatal(err)
+				log.Log.WithField("URL", st.Url).Fatal(err)
 			}
 		}
 	}
@@ -169,7 +169,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	if st.JSTrace {
 		midaBrowserOutfile, err := os.Create(path.Join(resultsDir, storage.DefaultBrowserLogFileName))
 		if err != nil {
-			log.Log.Fatal(err)
+			log.Log.WithField("URL", st.Url).Fatal(err)
 		}
 		// This allows us to redirect the output from the browser to a file we choose.
 		opts = append(opts, chromedp.CombinedOutput(midaBrowserOutfile))
@@ -213,6 +213,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		case *network.EventWebSocketHandshakeResponseReceived:
 			ec.webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
 
+		case *fetch.EventRequestPaused:
+			ec.requestPausedChan <- ev.(*fetch.EventRequestPaused)
+
 		// Debugger Domain Events
 		case *debugger.EventScriptParsed:
 			ec.scriptParsedChan <- ev.(*debugger.EventScriptParsed)
@@ -220,9 +223,42 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	})
 
+	// Maximize browser window
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		windowId, _, err := browser.GetWindowForTarget().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		err = browser.SetWindowBounds(windowId, &browser.Bounds{WindowState: "fullscreen"}).Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		return nil
+
+	}))
+	if err != nil {
+		cancel()
+
+		closeEventChannels(ec)
+
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
+		return rawResult, nil
+	}
+
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 		err = runtime.Disable().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		err = page.Enable().Do(cxt)
 		if err != nil {
 			return err
 		}
@@ -233,6 +269,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 
 		err = network.Enable().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		err = fetch.Enable().Do(cxt)
 		if err != nil {
 			return err
 		}
@@ -266,7 +307,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResult.CrawlHostInfo.UserAgent = userAgent
 		hostname, err := os.Hostname()
 		if err != nil {
-			log.Log.Fatal(err)
+			log.Log.WithField("URL", st.Url).Fatal(err)
 		}
 		rawResult.CrawlHostInfo.HostName = hostname
 		rawResultLock.Unlock()
@@ -293,7 +334,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			if rawResult.Stats.Timing.LoadEvent.IsZero() {
 				rawResult.Stats.Timing.LoadEvent = time.Now()
 			} else {
-				log.Log.Warn("Duplicate load event")
+				log.Log.WithField("URL", st.Url).Warn("Duplicate load event")
 			}
 			rawResultLock.Unlock()
 
@@ -318,7 +359,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			if rawResult.Stats.Timing.DOMContentEvent.IsZero() {
 				rawResult.Stats.Timing.DOMContentEvent = time.Now()
 			} else {
-				log.Log.Warn("Duplicate DOMContentLoaded event")
+				log.Log.WithField("URL", st.Url).Warn("Duplicate DOMContentLoaded event")
 			}
 			rawResultLock.Unlock()
 		}
@@ -348,7 +389,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			if st.AllResources {
 				rawResultLock.Lock()
 				if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
-					log.Log.Debug("Will not get response body for unknown RequestID")
+					log.Log.WithField("URL", st.Url).Debug("Will not get response body for unknown RequestID")
 					rawResultLock.Unlock()
 					return
 				}
@@ -361,11 +402,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				if err != nil {
 					// The browser was unable to provide the content of this particular resource
 					// This typically happens when we closed the browser before we could save all resources
-					log.Log.Debug("Failed to get response Body for known resource: ", data.RequestID)
+					log.Log.WithField("URL", st.Url).Debug("Failed to get response Body for known resource: ", data.RequestID)
 				} else {
 					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 					if err != nil {
-						log.Log.Fatal(err)
+						log.Log.WithField("URL", st.Url).Fatal(err)
 					}
 				}
 			}
@@ -478,6 +519,19 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}()
 
+	// Event Handler: fetch.requestPaused
+	go func() {
+		for data := range ec.requestPausedChan {
+			err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+				err = fetch.ContinueRequest(data.RequestID).Do(cxt)
+				return err
+			}))
+			if err != nil {
+				log.Log.WithField("URL", st.Url).Error(err)
+			}
+		}
+	}()
+
 	// Event Handler: Debugger.scriptParsed
 	go func() {
 		for data := range ec.scriptParsedChan {
@@ -495,12 +549,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					return nil
 				}))
 				if err != nil && err.Error() != "context canceled" {
-					log.Log.Error("Failed to get script source")
-					log.Log.Error(err)
+					log.Log.WithField("URL", st.Url).Error("Failed to get script source")
+					log.Log.WithField("URL", st.Url).Error(err)
 				} else {
 					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
 					if err != nil {
-						log.Log.Fatal(err)
+						log.Log.WithField("URL", st.Url).Fatal(err)
 					}
 				}
 			}
@@ -522,7 +576,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 		}))
 		if err != nil {
-			log.Log.Error("Nav error: ", err)
+			log.Log.WithField("URL", st.Url).Error("Nav error: ", err)
 		}
 		navChan <- err
 	}()
@@ -545,7 +599,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResultLock.Unlock()
 
 		if err != nil {
-			log.Log.Error("Failed to navigate to site: ", err)
+			log.Log.WithField("URL", st.Url).Error("Failed to navigate to site: ", err)
 		}
 
 		cancel()
@@ -580,34 +634,37 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			} else if ccond == CompleteOnLoadEvent {
 				// Do nothing here -- The load event happened already, we are done
 			} else if ccond == CompleteOnTimeoutOnly {
-				log.Log.Error("Unexpectedly received load event through channel on TimeoutOnly crawl")
+				log.Log.WithField("URL", st.Url).Error("Unexpectedly received load event through channel on TimeoutOnly crawl")
 			}
 		case <-postCrawlActionsChan:
 			// We are free to begin post crawl data gathering which requires the browser
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
-			// These actions may or may not finish -- We still have to observe the timeout
-			/*
-				if st.ResourceTree {
-					go func() {
+			// These actions may or may not finish -- We still have to be careful to observe the timeout
+			log.Log.WithField("URL", st.Url).Info("Beginning post crawl actions")
 
-						var tree *page.FrameTree
-						err = c.Run(cxt, chromedp.ActionFunc(func(ctxt context.Context, h cdp.Executor) error {
-							ctxt, cancel := context.WithTimeout(ctxt, 2*time.Second)
-							defer cancel()
-							tree, err = page.GetFrameTree().Do(ctxt, h)
-							return err
-						}))
+			go func() {
+				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+
+					if st.ScreenShot {
+						data, err := page.CaptureScreenshot().Do(cxt)
 						if err != nil {
-							log.Log.Error(err)
+							return err
 						}
-						rawResultLock.Lock()
-						rawResult.FrameTree = tree
-						rawResultLock.Unlock()
 
-					}()
-				}
-			*/
+						err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScreenShotFileName), data, os.ModePerm)
+						if err != nil {
+							log.Log.WithField("URL", st.Url).Error(err)
+						} else {
+							log.Log.WithField("URL", st.Url).Debug("ScreenShot Recorded")
+						}
+					}
+
+					return nil
+				}))
+			}()
+			// Wait for the timeout to happen
 			<-timeoutChan
+
 		case <-timeoutChan:
 
 		}
@@ -616,25 +673,20 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	chromedp.RemoveListenTarget(cxt)
 	closeEventChannels(ec)
 
-	c2, cancel2 := context.WithTimeout(cxt, 5 * time.Second)
-	defer cancel2()
-	err = chromedp.Cancel(c2)
-	if err != nil {
-		log.Log.Error(err)
-	}
+	cancel()
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
 	rawResultLock.Unlock()
-
 
 	return rawResult, nil
 
 }
 
 type EventChannels struct {
-	loadEventFiredChan                     chan *page.EventLoadEventFired
-	domContentEventFiredChan               chan *page.EventDomContentEventFired
+	loadEventFiredChan       chan *page.EventLoadEventFired
+	domContentEventFiredChan chan *page.EventDomContentEventFired
+
 	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
 	responseReceivedChan                   chan *network.EventResponseReceived
 	loadingFinishedChan                    chan *network.EventLoadingFinished
@@ -645,24 +697,31 @@ type EventChannels struct {
 	webSocketClosedChan                    chan *network.EventWebSocketClosed
 	webSocketWillSendHandshakeRequestChan  chan *network.EventWebSocketWillSendHandshakeRequest
 	webSocketHandshakeResponseReceivedChan chan *network.EventWebSocketHandshakeResponseReceived
-	scriptParsedChan                       chan *debugger.EventScriptParsed
+
+	requestPausedChan chan *fetch.EventRequestPaused
+
+	scriptParsedChan chan *debugger.EventScriptParsed
 }
 
 func openEventChannels() EventChannels {
 	ec := EventChannels{}
 	ec.loadEventFiredChan = make(chan *page.EventLoadEventFired, 100)
 	ec.domContentEventFiredChan = make(chan *page.EventDomContentEventFired, 100)
-	ec.requestWillBeSentChan = make(chan *network.EventRequestWillBeSent, 100000)
-	ec.responseReceivedChan = make(chan *network.EventResponseReceived, 100000)
-	ec.loadingFinishedChan = make(chan *network.EventLoadingFinished, 100000)
-	ec.webSocketCreatedChan = make(chan *network.EventWebSocketCreated, 100000)
-	ec.webSocketFrameSentChan = make(chan *network.EventWebSocketFrameSent, 100000)
-	ec.webSocketFrameReceivedChan = make(chan *network.EventWebSocketFrameReceived, 100000)
-	ec.webSocketFrameErrorChan = make(chan *network.EventWebSocketFrameError, 100000)
-	ec.webSocketClosedChan = make(chan *network.EventWebSocketClosed, 100000)
-	ec.webSocketWillSendHandshakeRequestChan = make(chan *network.EventWebSocketWillSendHandshakeRequest, 100000)
-	ec.webSocketHandshakeResponseReceivedChan = make(chan *network.EventWebSocketHandshakeResponseReceived, 100000)
-	ec.scriptParsedChan = make(chan *debugger.EventScriptParsed, 100000)
+
+	ec.requestWillBeSentChan = make(chan *network.EventRequestWillBeSent, 10000)
+	ec.responseReceivedChan = make(chan *network.EventResponseReceived, 10000)
+	ec.loadingFinishedChan = make(chan *network.EventLoadingFinished, 10000)
+	ec.webSocketCreatedChan = make(chan *network.EventWebSocketCreated, 10000)
+	ec.webSocketFrameSentChan = make(chan *network.EventWebSocketFrameSent, 10000)
+	ec.webSocketFrameReceivedChan = make(chan *network.EventWebSocketFrameReceived, 10000)
+	ec.webSocketFrameErrorChan = make(chan *network.EventWebSocketFrameError, 10000)
+	ec.webSocketClosedChan = make(chan *network.EventWebSocketClosed, 10000)
+	ec.webSocketWillSendHandshakeRequestChan = make(chan *network.EventWebSocketWillSendHandshakeRequest, 10000)
+	ec.webSocketHandshakeResponseReceivedChan = make(chan *network.EventWebSocketHandshakeResponseReceived, 10000)
+
+	ec.requestPausedChan = make(chan *fetch.EventRequestPaused, 10000)
+
+	ec.scriptParsedChan = make(chan *debugger.EventScriptParsed, 10000)
 
 	return ec
 }
@@ -670,6 +729,7 @@ func openEventChannels() EventChannels {
 func closeEventChannels(ec EventChannels) {
 	close(ec.loadEventFiredChan)
 	close(ec.domContentEventFiredChan)
+
 	close(ec.requestWillBeSentChan)
 	close(ec.responseReceivedChan)
 	close(ec.loadingFinishedChan)
@@ -680,5 +740,8 @@ func closeEventChannels(ec EventChannels) {
 	close(ec.webSocketClosedChan)
 	close(ec.webSocketWillSendHandshakeRequestChan)
 	close(ec.webSocketHandshakeResponseReceivedChan)
+
+	close(ec.requestPausedChan)
+
 	close(ec.scriptParsedChan)
 }

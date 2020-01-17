@@ -69,12 +69,14 @@ const (
 	DefaultNetworkStrace    = false
 	DefaultOpenWPMChecks    = false
 	DefaultBrowserCoverage  = false
+	DefaultScreenShot       = true
 
 	// Other/Util
 
 )
 
 var DefaultBrowserFlags = []string{
+	"--enable-features=NetworkService",
 	"--disable-background-networking",
 	"--disable-background-timer-throttling",
 	"--disable-backgrounding-occluded-windows",
