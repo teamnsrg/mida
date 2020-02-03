@@ -288,6 +288,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
 		closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
 		err = chromedp.Cancel(closeCxt)
 		if err != nil {
@@ -295,11 +301,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 		closeEventChannels(ec)
 		eventHandlerWG.Wait()
-
-		rawResultLock.Lock()
-		rawResult.SanitizedTask.TaskFailed = true
-		rawResult.SanitizedTask.FailureCode = err.Error()
-		rawResultLock.Unlock()
 
 		return rawResult, nil
 	}
@@ -326,6 +327,11 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+		rawResultLock.Lock()
+		rawResult.SanitizedTask.TaskFailed = true
+		rawResult.SanitizedTask.FailureCode = err.Error()
+		rawResultLock.Unlock()
+
 		closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
 		err = chromedp.Cancel(closeCxt)
 		if err != nil {
@@ -333,11 +339,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 		closeEventChannels(ec)
 		eventHandlerWG.Wait()
-
-		rawResultLock.Lock()
-		rawResult.SanitizedTask.TaskFailed = true
-		rawResult.SanitizedTask.FailureCode = err.Error()
-		rawResultLock.Unlock()
 
 		return rawResult, nil
 	}
