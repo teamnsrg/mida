@@ -9,7 +9,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
-	"github.com/teamnsrg/chromedp"
+	"github.com/chromedp/chromedp"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
@@ -76,6 +76,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	timeoutChan := time.After(time.Duration(st.Timeout) * time.Second)
 	loadEventChan := make(chan bool, 5)
 	postCrawlActionsChan := make(chan bool, 1)
+
+	var eventHandlerWG sync.WaitGroup
 
 	// Event channels (used to asynchronously process DevTools events)
 	// Naming Convention: <event name>Chan
@@ -178,10 +180,10 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	// Spawn the browser
 	allocContext, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	cxt, cancel := chromedp.NewContext(allocContext)
-	defer cancel()
 
 	// Event Demux - just receive the events and stick them in the applicable channels
 	chromedp.ListenTarget(cxt, func(ev interface{}) {
+		eventHandlerWG.Add(1)
 		switch ev.(type) {
 		// Page Domain Events
 		case *page.EventLoadEventFired:
@@ -220,36 +222,41 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		case *debugger.EventScriptParsed:
 			ec.scriptParsedChan <- ev.(*debugger.EventScriptParsed)
 
+		default:
+			eventHandlerWG.Done()
+
 		}
 	})
 
-	// Maximize browser window
-	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-		windowId, _, err := browser.GetWindowForTarget().Do(cxt)
+	/*
+		// Maximize browser window
+		err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+			windowId, _, err := browser.GetWindowForTarget().Do(cxt)
+			if err != nil {
+				return err
+			}
+
+				err = browser.SetWindowBounds(windowId, &browser.Bounds{WindowState: "fullscreen"}).Do(cxt)
+			if err != nil {
+				return err
+			}
+
+				return nil
+
+			}))
 		if err != nil {
-			return err
+			closeEventChannels(ec)
+				eventHandlerWG.Wait()
+				cancel()
+
+				rawResultLock.Lock()
+			rawResult.SanitizedTask.TaskFailed = true
+			rawResult.SanitizedTask.FailureCode = err.Error()
+			rawResultLock.Unlock()
+
+				return rawResult, nil
 		}
-
-		err = browser.SetWindowBounds(windowId, &browser.Bounds{WindowState: "fullscreen"}).Do(cxt)
-		if err != nil {
-			return err
-		}
-
-		return nil
-
-	}))
-	if err != nil {
-		cancel()
-
-		closeEventChannels(ec)
-
-		rawResultLock.Lock()
-		rawResult.SanitizedTask.TaskFailed = true
-		rawResult.SanitizedTask.FailureCode = err.Error()
-		rawResultLock.Unlock()
-
-		return rawResult, nil
-	}
+	*/
 
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
@@ -281,9 +288,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
-		cancel()
-
 		closeEventChannels(ec)
+		eventHandlerWG.Wait()
+		cancel()
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -315,9 +322,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
-		cancel()
-
 		closeEventChannels(ec)
+		eventHandlerWG.Wait()
+		cancel()
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -349,6 +356,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 
 			postCrawlActionsChan <- true
+
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -362,6 +371,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				log.Log.WithField("URL", st.Url).Warn("Duplicate DOMContentLoaded event")
 			}
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -371,6 +381,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			rawResultLock.Lock()
 			rawResult.Requests[data.RequestID.String()] = append(rawResult.Requests[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -380,6 +391,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			rawResultLock.Lock()
 			rawResult.Responses[data.RequestID.String()] = append(rawResult.Responses[data.RequestID.String()], *data)
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -410,6 +422,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					}
 				}
 			}
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -433,6 +446,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				rawResult.WebsocketData[data.RequestID.String()] = &wsc
 			}
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -447,6 +461,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -461,6 +476,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -475,6 +491,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -488,6 +505,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -502,6 +520,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -516,6 +535,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			}
 			// Otherwise, we ignore a frame for a connection we don't know about
 			rawResultLock.Unlock()
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -529,6 +549,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			if err != nil {
 				log.Log.WithField("URL", st.Url).Error(err)
 			}
+
+			eventHandlerWG.Done()
 		}
 	}()
 
@@ -541,7 +563,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			if st.AllScripts {
 				var source string
 				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-					source, err = debugger.GetScriptSource(data.ScriptID).Do(cxt)
+					// Second return value here is Wasm bytecode -- may want to grab that at some point
+					source, _, err = debugger.GetScriptSource(data.ScriptID).Do(cxt)
 					if err != nil {
 						return err
 					}
@@ -558,8 +581,25 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					}
 				}
 			}
+
+			eventHandlerWG.Done()
 		}
 	}()
+
+	// Cloaking
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		_, err := page.AddScriptToEvaluateOnNewDocument(
+			`Object.defineProperty(navigator, 'webdriver', { get: () => false, });
+			window.navigator.chrome = {runtime: {},};
+			window.chrome = {runtime: {},};`).Do(cxt)
+		if err != nil {
+			return err
+		}
+		return nil
+	}))
+	if err != nil {
+		log.Log.WithField("URL", st.Url).Error(err)
+	}
 
 	// Below is the MIDA navigation logic. Since MIDA offers several different
 	// termination conditions (Terminate on timout, terminate on load event, etc.),
@@ -602,13 +642,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.WithField("URL", st.Url).Error("Failed to navigate to site: ", err)
 		}
 
+		closeEventChannels(ec)
+		eventHandlerWG.Wait()
 		cancel()
 
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()
 		rawResultLock.Unlock()
-
-		closeEventChannels(ec)
 
 		return rawResult, nil
 
@@ -670,9 +710,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}
 
-	chromedp.RemoveListenTarget(cxt)
 	closeEventChannels(ec)
-
+	eventHandlerWG.Wait()
 	cancel()
 
 	rawResultLock.Lock()

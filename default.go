@@ -58,8 +58,8 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Defaults for data gathering settings
-	DefaultAllResources     = false
-	DefaultAllScripts       = false
+	DefaultAllResources     = true
+	DefaultAllScripts       = true
 	DefaultJSTrace          = false
 	DefaultSaveRawTrace     = false
 	DefaultResourceMetadata = true
