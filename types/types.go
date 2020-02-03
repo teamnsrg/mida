@@ -62,6 +62,9 @@ type MIDATask struct {
 
 	// Integer between one and ten (inclusive), sets priority in queue, defaults to 5
 	Priority *int `json:"priority,omitempty"`
+
+	// How many times to repeat task. Must be positive integer, defaults to 1
+	Repeat *int `json:"repeat"`
 }
 
 type MIDATaskSet []MIDATask
@@ -79,6 +82,9 @@ type CompressedMIDATaskSet struct {
 
 	// Integer between one and ten (inclusive), sets priority in queue, defaults to 5
 	Priority *int `json:"priority,omitempty"`
+
+	// How many times to repeat task. Must be positive integer, defaults to 1
+	Repeat *int `json:"repeat"`
 }
 
 // Crawl Completion Conditions

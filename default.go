@@ -71,8 +71,8 @@ const (
 	DefaultBrowserCoverage  = false
 	DefaultScreenShot       = true
 
-	// Other/Util
-
+	// Whether to shuffle order of task processing
+	DefaultShuffle = true
 )
 
 var DefaultBrowserFlags = []string{

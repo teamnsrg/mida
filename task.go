@@ -9,6 +9,8 @@ import (
 	"github.com/teamnsrg/mida/queue"
 	t "github.com/teamnsrg/mida/types"
 	"io/ioutil"
+	"math/rand"
+	"time"
 )
 
 // Reads in a single task or task list from a byte array
@@ -72,6 +74,7 @@ func ExpandCompressedTaskSet(ts t.CompressedMIDATaskSet) []t.MIDATask {
 			Data:        ts.Data,
 			Output:      ts.Output,
 			MaxAttempts: ts.MaxAttempts,
+			Repeat:      ts.Repeat,
 		}
 		rawTasks = append(rawTasks, newTask)
 	}
@@ -126,7 +129,24 @@ func TaskIntake(rtc chan<- t.MIDATask, cmd *cobra.Command, args []string) {
 			log.Log.Fatal(err)
 		}
 
+		var expandedTasks []t.MIDATask
 		for _, rt := range rawTasks {
+			if rt.Repeat != nil {
+				for i := 0; i < *rt.Repeat; i++ {
+					expandedTasks = append(expandedTasks, rt)
+				}
+			} else {
+				expandedTasks = append(expandedTasks, rt)
+			}
+		}
+
+		if viper.GetBool("shuffle") {
+			rand.Seed(time.Now().UnixNano())
+			rand.Shuffle(len(expandedTasks),
+				func(i, j int) { expandedTasks[i], expandedTasks[j] = expandedTasks[j], expandedTasks[i] })
+		}
+
+		for _, rt := range expandedTasks {
 			rtc <- rt
 		}
 	} else if cmd.Name() == "go" {

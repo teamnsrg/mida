@@ -56,6 +56,12 @@ func buildCommands() *cobra.Command {
 
 		outputPath string // Task file path
 		overwrite  bool
+
+		// How many times a task should be repeated
+		repeat int
+
+		// For load: Shuffle tasks before loading
+		shuffle bool
 	)
 
 	var cmdBuild = &cobra.Command{
@@ -140,6 +146,9 @@ func buildCommands() *cobra.Command {
 		"Allow overwriting of an existing task file")
 	cmdBuild.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
 		"Group ID used for identifying experiments")
+
+	cmdBuild.Flags().IntVarP(&repeat, "repeat", "", 1,
+		"How many times to repeat a given task")
 
 	_ = cmdBuild.MarkFlagRequired("urlfile")
 	_ = cmdBuild.MarkFlagFilename("urlfile")
@@ -243,6 +252,8 @@ file, exiting when all tasks in the file are completed.`,
 
 	cmdFile.Flags().StringVarP(&taskfile, "taskfile", "f", viper.GetString("taskfile"),
 		"Task file to process")
+	cmdFile.Flags().BoolVarP(&shuffle, "shuffle", "", DefaultShuffle,
+		"Randomize processing order for tasks")
 	err := viper.BindPFlag("taskfile", cmdFile.Flags().Lookup("taskfile"))
 	if err != nil {
 		log.Log.Fatal(err)
@@ -268,13 +279,17 @@ file, exiting when all tasks in the file are completed.`,
 			if err != nil {
 				log.Log.Fatal(err)
 			}
-			numTasksLoaded, err := queue.AMQPLoadTasks(tasks)
+
+			numTasksLoaded, err := queue.AMQPLoadTasks(tasks, true)
 			if err != nil {
 				log.Log.Fatal(err)
 			}
 			log.Log.Infof("Loaded %d tasks into queue.", numTasksLoaded)
 		},
 	}
+
+	cmdLoad.Flags().BoolVarP(&shuffle, "shuffle", "",
+		DefaultShuffle, "Shuffle tasks before loading into queue (Default: True)")
 
 	var cmdClient = &cobra.Command{
 		Use:   "client",
@@ -292,6 +307,7 @@ lost.`,
 			if err != nil {
 				log.Log.Fatal(err)
 			}
+
 			InitPipeline(cmd, args)
 		},
 	}

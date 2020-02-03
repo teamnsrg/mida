@@ -165,6 +165,11 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 		return ts, err
 	}
 
+	*ts.Repeat, err = cmd.Flags().GetInt("repeat")
+	if err != nil {
+		return ts, err
+	}
+
 	if cmd.Name() == "go" {
 		return ts, nil
 	} else if cmd.Name() == "build" {
@@ -243,6 +248,7 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 		},
 		MaxAttempts: new(int),
 		Priority:    new(int),
+		Repeat:      new(int),
 	}
 	return cts
 }

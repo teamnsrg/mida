@@ -7,7 +7,9 @@ import (
 	"github.com/teamnsrg/mida/log"
 	t "github.com/teamnsrg/mida/types"
 	"github.com/teamnsrg/mida/util"
+	"math/rand"
 	"os"
+	"time"
 )
 
 type Consumer struct {
@@ -19,7 +21,7 @@ type Consumer struct {
 
 // Takes an array of MIDATasks and loads them into a RabbitMQ queue
 // Requires the RabbitMQ URI (along with valid credentials)
-func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
+func AMQPLoadTasks(tasks []t.MIDATask, shuffle bool) (int, error) {
 	tasksLoaded := 0
 
 	// Build our URI, including creds. User and pass can be set with, in order
@@ -43,7 +45,25 @@ func AMQPLoadTasks(tasks []t.MIDATask) (int, error) {
 		return tasksLoaded, err
 	}
 
+	var expandedTasks []t.MIDATask
+
 	for _, task := range tasks {
+		if task.Repeat != nil {
+			for i := 0; i < *task.Repeat; i++ {
+				expandedTasks = append(expandedTasks, task)
+			}
+		} else {
+			expandedTasks = append(expandedTasks, task)
+		}
+	}
+
+	if shuffle {
+		rand.Seed(time.Now().UnixNano())
+		rand.Shuffle(len(expandedTasks),
+			func(i, j int) { expandedTasks[i], expandedTasks[j] = expandedTasks[j], expandedTasks[i] })
+	}
+
+	for _, task := range expandedTasks {
 		taskBytes, err := json.Marshal(task)
 		if err != nil {
 			return tasksLoaded, err
