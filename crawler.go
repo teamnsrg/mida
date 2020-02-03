@@ -178,8 +178,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	}
 
 	// Spawn the browser
-	allocContext, cancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	cxt, cancel := chromedp.NewContext(allocContext)
+	allocContext, _ := chromedp.NewExecAllocator(context.Background(), opts...)
+	cxt, _ := chromedp.NewContext(allocContext)
 
 	// Event Demux - just receive the events and stick them in the applicable channels
 	chromedp.ListenTarget(cxt, func(ev interface{}) {
@@ -288,9 +288,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+		closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
+		err = chromedp.Cancel(closeCxt)
+		if err != nil {
+			log.Log.Error(err)
+		}
 		closeEventChannels(ec)
 		eventHandlerWG.Wait()
-		cancel()
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -322,9 +326,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		return nil
 	}))
 	if err != nil {
+		closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
+		err = chromedp.Cancel(closeCxt)
+		if err != nil {
+			log.Log.Error(err)
+		}
 		closeEventChannels(ec)
 		eventHandlerWG.Wait()
-		cancel()
 
 		rawResultLock.Lock()
 		rawResult.SanitizedTask.TaskFailed = true
@@ -642,9 +650,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.WithField("URL", st.Url).Error("Failed to navigate to site: ", err)
 		}
 
+		closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
+		err = chromedp.Cancel(closeCxt)
+		if err != nil {
+			log.Log.Error(err)
+		}
 		closeEventChannels(ec)
 		eventHandlerWG.Wait()
-		cancel()
 
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()
@@ -680,7 +692,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			// We are free to begin post crawl data gathering which requires the browser
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
 			// These actions may or may not finish -- We still have to be careful to observe the timeout
-			log.Log.WithField("URL", st.Url).Info("Beginning post crawl actions")
+			log.Log.WithField("URL", st.Url).Debug("Beginning post crawl actions")
 
 			go func() {
 				err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
@@ -710,9 +722,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}
 
+	closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
+	err = chromedp.Cancel(closeCxt)
+	if err != nil {
+		log.Log.Error(err)
+	}
 	closeEventChannels(ec)
 	eventHandlerWG.Wait()
-	cancel()
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
