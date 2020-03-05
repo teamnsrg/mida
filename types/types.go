@@ -169,6 +169,7 @@ type RawMIDAResult struct {
 	Stats         TaskStats
 	Requests      map[string][]network.EventRequestWillBeSent
 	Responses     map[string][]network.EventResponseReceived
+	DataLengths   map[string]int64
 	Scripts       map[string]debugger.EventScriptParsed
 	FrameTree     *page.FrameTree
 	WebsocketData map[string]*WSConnection
@@ -183,8 +184,9 @@ type ResourceNode struct {
 }
 
 type Resource struct {
-	Requests  []network.EventRequestWillBeSent `json:"requests"`
-	Responses []network.EventResponseReceived  `json:"responses"`
+	Requests        []network.EventRequestWillBeSent `json:"requests"`
+	Responses       []network.EventResponseReceived  `json:"responses"`
+	TotalDataLength int64                            `json:"totalDataLength"`
 
 	// MongoDB use only
 	ID    int64  `json:"-" bson:"_id"`

@@ -26,9 +26,16 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			finalResult.ResourceMetadata = make(map[string]t.Resource)
 			for k := range rawResult.Requests {
 				if _, ok := rawResult.Responses[k]; ok {
+
+					var tdl int64 = -1
+					if _, okData := rawResult.DataLengths[k]; okData {
+						tdl = rawResult.DataLengths[k]
+					}
+
 					finalResult.ResourceMetadata[k] = t.Resource{
-						Requests:  rawResult.Requests[k],
-						Responses: rawResult.Responses[k],
+						Requests:        rawResult.Requests[k],
+						Responses:       rawResult.Responses[k],
+						TotalDataLength: tdl,
 					}
 				}
 			}

@@ -66,6 +66,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	rawResult := t.RawMIDAResult{
 		Requests:      make(map[string][]network.EventRequestWillBeSent),
 		Responses:     make(map[string][]network.EventResponseReceived),
+		DataLengths:   make(map[string]int64),
 		Scripts:       make(map[string]debugger.EventScriptParsed),
 		WebsocketData: make(map[string]*t.WSConnection),
 		SanitizedTask: st,
@@ -178,7 +179,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	}
 
 	// Spawn the browser
-	allocContext, _ := chromedp.NewExecAllocator(context.Background(), opts...)
+	allocContext, forceClose := chromedp.NewExecAllocator(context.Background(), opts...)
 	cxt, _ := chromedp.NewContext(allocContext)
 
 	// Event Demux - just receive the events and stick them in the applicable channels
@@ -198,6 +199,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			ec.responseReceivedChan <- ev.(*network.EventResponseReceived)
 		case *network.EventLoadingFinished:
 			ec.loadingFinishedChan <- ev.(*network.EventLoadingFinished)
+		case *network.EventDataReceived:
+			ec.dataReceivedChan <- ev.(*network.EventDataReceived)
 
 		// Websocket Network Domain Events
 		case *network.EventWebSocketCreated:
@@ -319,7 +322,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		rawResult.CrawlHostInfo.UserAgent = userAgent
 		hostname, err := os.Hostname()
 		if err != nil {
-			log.Log.WithField("URL", st.Url).Fatal(err)
+			log.Log.WithField("URL", st.Url).Error(err)
 		}
 		rawResult.CrawlHostInfo.HostName = hostname
 		rawResultLock.Unlock()
@@ -402,6 +405,21 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			rawResultLock.Unlock()
 			eventHandlerWG.Done()
 		}
+		return
+	}()
+
+	// Event Handler: Network.dataReceived
+	go func() {
+		for data := range ec.dataReceivedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.DataLengths[data.RequestID.String()]; !ok {
+				rawResult.DataLengths[data.RequestID.String()] = 0
+			}
+			rawResult.DataLengths[data.RequestID.String()] += data.DataLength
+			rawResultLock.Unlock()
+			eventHandlerWG.Done()
+		}
+		return
 	}()
 
 	// Event Handler: Network.loadingFinished
@@ -412,7 +430,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				if _, ok := rawResult.Requests[data.RequestID.String()]; !ok {
 					log.Log.WithField("URL", st.Url).Debug("Will not get response body for unknown RequestID")
 					rawResultLock.Unlock()
-					return
+					eventHandlerWG.Done()
+					continue
 				}
 				rawResultLock.Unlock()
 				var respBody []byte
@@ -425,14 +444,15 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					// This typically happens when we closed the browser before we could save all resources
 					log.Log.WithField("URL", st.Url).Debug("Failed to get response Body for known resource: ", data.RequestID)
 				} else {
-					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
+					err := ioutil.WriteFile(path.Join(resultsDir, storage.DefaultFileSubdir, data.RequestID.String()), respBody, os.ModePerm)
 					if err != nil {
-						log.Log.WithField("URL", st.Url).Fatal(err)
+						log.Log.WithField("URL", st.Url).Error(err)
 					}
 				}
 			}
 			eventHandlerWG.Done()
 		}
+		return
 	}()
 
 	// Event Handler: Network.webSocketCreated
@@ -584,9 +604,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 					log.Log.WithField("URL", st.Url).Error("Failed to get script source")
 					log.Log.WithField("URL", st.Url).Error(err)
 				} else {
-					err = ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
+					err := ioutil.WriteFile(path.Join(resultsDir, storage.DefaultScriptSubdir, data.ScriptID.String()), []byte(source), os.ModePerm)
 					if err != nil {
-						log.Log.WithField("URL", st.Url).Fatal(err)
+						log.Log.WithField("URL", st.Url).Error(err)
 					}
 				}
 			}
@@ -727,9 +747,12 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	err = chromedp.Cancel(closeCxt)
 	if err != nil {
 		log.Log.Error(err)
+		forceClose()
 	}
 	closeEventChannels(ec)
-	eventHandlerWG.Wait()
+	if waitTimeout(&eventHandlerWG, 5*time.Second) {
+		log.Log.Error("Timeout waiting on event WaitGroup")
+	}
 
 	rawResultLock.Lock()
 	rawResult.Stats.Timing.BrowserClose = time.Now()
@@ -739,6 +762,20 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 }
 
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
+	}
+}
+
 type EventChannels struct {
 	loadEventFiredChan       chan *page.EventLoadEventFired
 	domContentEventFiredChan chan *page.EventDomContentEventFired
@@ -746,6 +783,7 @@ type EventChannels struct {
 	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
 	responseReceivedChan                   chan *network.EventResponseReceived
 	loadingFinishedChan                    chan *network.EventLoadingFinished
+	dataReceivedChan                       chan *network.EventDataReceived
 	webSocketCreatedChan                   chan *network.EventWebSocketCreated
 	webSocketFrameSentChan                 chan *network.EventWebSocketFrameSent
 	webSocketFrameReceivedChan             chan *network.EventWebSocketFrameReceived
@@ -766,6 +804,7 @@ func openEventChannels() EventChannels {
 
 	ec.requestWillBeSentChan = make(chan *network.EventRequestWillBeSent, 10000)
 	ec.responseReceivedChan = make(chan *network.EventResponseReceived, 10000)
+	ec.dataReceivedChan = make(chan *network.EventDataReceived, 10000)
 	ec.loadingFinishedChan = make(chan *network.EventLoadingFinished, 10000)
 	ec.webSocketCreatedChan = make(chan *network.EventWebSocketCreated, 10000)
 	ec.webSocketFrameSentChan = make(chan *network.EventWebSocketFrameSent, 10000)
@@ -789,6 +828,7 @@ func closeEventChannels(ec EventChannels) {
 	close(ec.requestWillBeSentChan)
 	close(ec.responseReceivedChan)
 	close(ec.loadingFinishedChan)
+	close(ec.dataReceivedChan)
 	close(ec.webSocketCreatedChan)
 	close(ec.webSocketFrameSentChan)
 	close(ec.webSocketFrameReceivedChan)

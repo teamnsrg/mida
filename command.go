@@ -229,6 +229,8 @@ to crawl, using default parameters where not specified`,
 
 	cmdGo.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
 		"Group ID used for identifying experiments")
+	cmdGo.Flags().IntVarP(&repeat, "repeat", "", 1,
+		"How many times to repeat a given task")
 
 	var cmdFile = &cobra.Command{
 		Use:   "file",
