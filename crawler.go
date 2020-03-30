@@ -680,6 +680,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	case <-timeoutChan:
 		// Timeout is set shorter than DefaultNavTimeout, so we are just done
 		err = errors.New("full timeout during connection to site")
+	case <-allocContext.Done():
+		// Browser closed somehow before navigation completed, we failed to visit site
+		err = errors.New("browser closed during connection to site")
 	}
 	if err != nil {
 		// We failed to connect to the site. Shut things down.
@@ -732,6 +735,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			} else if ccond == CompleteOnTimeoutOnly {
 				log.Log.WithField("URL", st.Url).Error("Unexpectedly received load event through channel on TimeoutOnly crawl")
 			}
+		case <-cxt.Done():
+			// Browser closed somehow before navigation completed, we failed to visit site
+			log.Log.Warn("browser was closed manually or crashed")
 		case <-postCrawlActionsChan:
 			// We are free to begin post crawl data gathering which requires the browser
 			// Examples: Screenshot, DOM snapshot, code coverage, etc.
@@ -759,7 +765,13 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				}))
 			}()
 			// Wait for the timeout to happen
-			<-timeoutChan
+			select {
+			case <-cxt.Done():
+				// Browser closed somehow before navigation completed, we failed to visit site
+				log.Log.Warn("browser was closed manually or crashed")
+			case <-timeoutChan:
+				log.Log.Info("timeout")
+			}
 
 		case <-timeoutChan:
 
@@ -769,7 +781,6 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 	closeCxt, _ := context.WithTimeout(cxt, 5*time.Second)
 	err = chromedp.Cancel(closeCxt)
 	if err != nil {
-		log.Log.Error(err)
 		forceClose()
 	}
 	closeEventChannels(ec)

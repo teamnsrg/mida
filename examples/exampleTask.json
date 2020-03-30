@@ -1,6 +1,7 @@
 {
   "url": [
-    "demo.howopensource.com/sse/"
+    "queue.mida.sprai.org",
+    "twitter.com"
   ],
   "browser": {
     "browser_binary": "",
@@ -12,7 +13,7 @@
   },
   "completion": {
     "completion_condition": "CompleteOnTimeoutOnly",
-    "timeout": 20
+    "timeout": 45
   },
   "data": {
     "all_files": true,
