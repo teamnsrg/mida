@@ -39,8 +39,8 @@ func setDefaults() {
 const (
 	// MIDA Configuration Defaults
 
-	DefaultTaskAttempts         = 2
-	DefaultNavTimeout           = 7
+	DefaultTaskAttempts         = 1
+	DefaultNavTimeout           = 30
 	DefaultSSHBackoffMultiplier = 5
 	DefaultTaskPriority         = 5
 

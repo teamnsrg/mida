@@ -303,7 +303,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Error(err)
 		}
 		closeEventChannels(ec)
-		eventHandlerWG.Wait()
+		if waitTimeout(&eventHandlerWG, 5*time.Second) {
+			log.Log.Error("Timeout waiting on event WaitGroup")
+		}
 
 		return rawResult, nil
 	}
@@ -341,7 +343,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Error(err)
 		}
 		closeEventChannels(ec)
-		eventHandlerWG.Wait()
+		if waitTimeout(&eventHandlerWG, 5*time.Second) {
+			log.Log.Error("Timeout waiting on event WaitGroup")
+		}
 
 		return rawResult, nil
 	}
@@ -677,7 +681,9 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			log.Log.Error(err)
 		}
 		closeEventChannels(ec)
-		eventHandlerWG.Wait()
+		if waitTimeout(&eventHandlerWG, 5*time.Second) {
+			log.Log.Error("Timeout waiting on event WaitGroup")
+		}
 
 		rawResultLock.Lock()
 		rawResult.Stats.Timing.BrowserClose = time.Now()

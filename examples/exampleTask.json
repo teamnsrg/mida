@@ -5,7 +5,7 @@
     "murley.io"
   ],
   "browser": {
-    "browser_binary": "",
+    "browser_binary": "/home/pmurley/test/out/BuildThree/chrome",
     "user_data_directory": "",
     "add_browser_flags": [],
     "remove_browser_flags": [],
@@ -14,18 +14,20 @@
   },
   "completion": {
     "completion_condition": "CompleteOnTimeoutOnly",
-    "timeout": 5
+    "timeout": 90
   },
   "data": {
     "all_files": true,
     "all_scripts": true,
     "js_trace": true,
     "resource_metadata": true,
-    "script_metadata": true
+    "script_metadata": true,
+    "screenshot": true,
+    "browser_coverage": true
   },
   "output": {
-    "path": "example_results",
+    "path": "results",
     "group_id": "default"
   },
-  "max_attempts": 5
+  "max_attempts": 2
 }
