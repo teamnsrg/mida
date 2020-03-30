@@ -1,8 +1,8 @@
 {
   "url": [
-    "google.com",
     "cnn.com",
-    "wikipedia.org"
+    "cbs.com",
+    "murley.io"
   ],
   "browser": {
     "browser_binary": "",
@@ -14,22 +14,18 @@
   },
   "completion": {
     "completion_condition": "CompleteOnTimeoutOnly",
-    "timeout": 45
+    "timeout": 5
   },
   "data": {
     "all_files": true,
     "all_scripts": true,
     "js_trace": true,
     "resource_metadata": true,
-    "script_metadata": true,
-    "screenshot": true,
-    "browser_coverage": true,
-    "websocket_traffic": true,
-    "event_source_traffic": true
+    "script_metadata": true
   },
   "output": {
-    "path": "results",
+    "path": "example_results",
     "group_id": "default"
   },
-  "max_attempts": 2
+  "max_attempts": 5
 }
