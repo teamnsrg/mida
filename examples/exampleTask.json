@@ -1,7 +1,8 @@
 {
   "url": [
-    "queue.mida.sprai.org",
-    "twitter.com"
+    "google.com",
+    "cnn.com",
+    "wikipedia.org"
   ],
   "browser": {
     "browser_binary": "",
