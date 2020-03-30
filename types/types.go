@@ -27,18 +27,19 @@ type CompletionSettings struct {
 }
 
 type DataSettings struct {
-	AllResources     *bool `json:"all_files"`
-	AllScripts       *bool `json:"all_scripts"`
-	JSTrace          *bool `json:"js_trace"`
-	SaveRawTrace     *bool `json:"save_raw_trace"`
-	ResourceMetadata *bool `json:"resource_metadata"`
-	ScriptMetadata   *bool `json:"script_metadata"`
-	ResourceTree     *bool `json:"resource_tree"`
-	WebsocketTraffic *bool `json:"websocket_traffic"`
-	NetworkTrace     *bool `json:"network_trace"`
-	OpenWPMChecks    *bool `json:"open_wpm_checks"`
-	BrowserCoverage  *bool `json:"browser_coverage"`
-	ScreenShot       *bool `json:"screenshot"`
+	AllResources       *bool `json:"all_files"`
+	AllScripts         *bool `json:"all_scripts"`
+	JSTrace            *bool `json:"js_trace"`
+	SaveRawTrace       *bool `json:"save_raw_trace"`
+	ResourceMetadata   *bool `json:"resource_metadata"`
+	ScriptMetadata     *bool `json:"script_metadata"`
+	ResourceTree       *bool `json:"resource_tree"`
+	WebsocketTraffic   *bool `json:"websocket_traffic"`
+	EventSourceTraffic *bool `json:"event_source_traffic"`
+	NetworkTrace       *bool `json:"network_trace"`
+	OpenWPMChecks      *bool `json:"open_wpm_checks"`
+	BrowserCoverage    *bool `json:"browser_coverage"`
+	ScreenShot         *bool `json:"screenshot"`
 }
 
 type OutputSettings struct {
@@ -106,18 +107,19 @@ type SanitizedMIDATask struct {
 	TimeAfterLoad int                 `json:"time_after_load"`
 
 	// Data settings
-	AllResources     bool `json:"all_resources"`
-	AllScripts       bool `json:"all_scripts"`
-	JSTrace          bool `json:"js_trace"`
-	SaveRawTrace     bool `json:"save_raw_trace"`
-	ResourceMetadata bool `json:"resource_metadata"`
-	ScriptMetadata   bool `json:"script_metadata"`
-	ResourceTree     bool `json:"resource_tree"`
-	WebsocketTraffic bool `json:"websocket_traffic"`
-	NetworkTrace     bool `json:"network_trace"`
-	OpenWPMChecks    bool `json:"open_wpm_checks"`
-	BrowserCoverage  bool `json:"browser_coverage"`
-	ScreenShot       bool `json:"screenshot"`
+	AllResources       bool `json:"all_resources"`
+	AllScripts         bool `json:"all_scripts"`
+	JSTrace            bool `json:"js_trace"`
+	SaveRawTrace       bool `json:"save_raw_trace"`
+	ResourceMetadata   bool `json:"resource_metadata"`
+	ScriptMetadata     bool `json:"script_metadata"`
+	ResourceTree       bool `json:"resource_tree"`
+	WebsocketTraffic   bool `json:"websocket_traffic"`
+	EventSourceTraffic bool `json:"event_source_traffic"`
+	NetworkTrace       bool `json:"network_trace"`
+	OpenWPMChecks      bool `json:"open_wpm_checks"`
+	BrowserCoverage    bool `json:"browser_coverage"`
+	ScreenShot         bool `json:"screenshot"`
 
 	// Output Settings
 	OutputPath       string `json:"output_path"`
@@ -164,15 +166,16 @@ type HostInfo struct {
 }
 
 type RawMIDAResult struct {
-	CrawlHostInfo HostInfo
-	SanitizedTask SanitizedMIDATask
-	Stats         TaskStats
-	Requests      map[string][]network.EventRequestWillBeSent
-	Responses     map[string][]network.EventResponseReceived
-	DataLengths   map[string]int64
-	Scripts       map[string]debugger.EventScriptParsed
-	FrameTree     *page.FrameTree
-	WebsocketData map[string]*WSConnection
+	CrawlHostInfo   HostInfo
+	SanitizedTask   SanitizedMIDATask
+	Stats           TaskStats
+	Requests        map[string][]network.EventRequestWillBeSent
+	Responses       map[string][]network.EventResponseReceived
+	DataLengths     map[string]int64
+	Scripts         map[string]debugger.EventScriptParsed
+	FrameTree       *page.FrameTree
+	WebsocketData   map[string]*WSConnection
+	EventSourceData map[string][]*network.EventEventSourceMessageReceived
 }
 
 type ResourceNode struct {
@@ -225,6 +228,7 @@ type FinalMIDAResult struct {
 	Stats            TaskStats
 	JSTrace          *jstrace.CleanedJSTrace
 	WebsocketData    map[string]*WSConnection
+	EventSourceData  map[string][]*network.EventEventSourceMessageReceived
 	RTree            *ResourceTree
 }
 

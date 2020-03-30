@@ -1,11 +1,9 @@
 {
   "url": [
-    "cnn.com",
-    "cbs.com",
-    "murley.io"
+    "demo.howopensource.com/sse/"
   ],
   "browser": {
-    "browser_binary": "/home/pmurley/test/out/BuildThree/chrome",
+    "browser_binary": "",
     "user_data_directory": "",
     "add_browser_flags": [],
     "remove_browser_flags": [],
@@ -14,7 +12,7 @@
   },
   "completion": {
     "completion_condition": "CompleteOnTimeoutOnly",
-    "timeout": 90
+    "timeout": 20
   },
   "data": {
     "all_files": true,
@@ -23,7 +21,9 @@
     "resource_metadata": true,
     "script_metadata": true,
     "screenshot": true,
-    "browser_coverage": true
+    "browser_coverage": true,
+    "websocket_traffic": true,
+    "event_source_traffic": true
   },
   "output": {
     "path": "results",

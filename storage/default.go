@@ -12,6 +12,7 @@ const (
 	DefaultJSTracePath            = "js_trace.json"
 	DefaultResourceTreePath       = "resource_tree.json"
 	DefaultWebSocketTrafficFile   = "websocket_data.json"
+	DefaultEventSourceDataFile    = "event_source_data.json"
 	DefaultBrowserLogFileName     = "browser.log"
 	DefaultNetworkStraceFileName  = "network.strace"
 	DefaultScreenShotFileName     = "screenshot.png"

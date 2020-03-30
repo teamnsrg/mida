@@ -58,18 +58,19 @@ const (
 	DefaultCompletionCondition = CompleteOnTimeoutOnly
 
 	// Defaults for data gathering settings
-	DefaultAllResources     = true
-	DefaultAllScripts       = true
-	DefaultJSTrace          = false
-	DefaultSaveRawTrace     = false
-	DefaultResourceMetadata = true
-	DefaultScriptMetadata   = true
-	DefaultResourceTree     = false
-	DefaultWebsocketTraffic = false
-	DefaultNetworkStrace    = false
-	DefaultOpenWPMChecks    = false
-	DefaultBrowserCoverage  = false
-	DefaultScreenShot       = true
+	DefaultAllResources       = true
+	DefaultAllScripts         = true
+	DefaultJSTrace            = false
+	DefaultSaveRawTrace       = false
+	DefaultResourceMetadata   = true
+	DefaultScriptMetadata     = true
+	DefaultResourceTree       = false
+	DefaultWebsocketTraffic   = true
+	DefaultEventSourceTraffic = true
+	DefaultNetworkStrace      = false
+	DefaultOpenWPMChecks      = false
+	DefaultBrowserCoverage    = false
+	DefaultScreenShot         = true
 
 	// Whether to shuffle order of task processing
 	DefaultShuffle = true

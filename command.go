@@ -45,6 +45,7 @@ func buildCommands() *cobra.Command {
 		allScripts       bool
 		resourceTree     bool
 		webSocket        bool
+		eventSource      bool
 		networkTrace     bool
 		openWPMChecks    bool
 		browserCoverage  bool
@@ -128,6 +129,8 @@ func buildCommands() *cobra.Command {
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdBuild.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
+	cmdBuild.Flags().BoolVarP(&eventSource, "event-source", "", DefaultEventSourceTraffic,
+		"Gather and store event source (Server Sent Events) messages")
 	cmdBuild.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
@@ -213,6 +216,8 @@ to crawl, using default parameters where not specified`,
 		"Construct and store a best-effort dependency tree for resources encountered during crawl")
 	cmdGo.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
 		"Gather and store data and metadata on websocket messages")
+	cmdGo.Flags().BoolVarP(&eventSource, "event-source", "", DefaultEventSourceTraffic,
+		"Gather and store event source (Server Sent Events) messages")
 	cmdGo.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
 		"Gather a raw trace of all networking system calls made by the browser")
 	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,

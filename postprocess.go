@@ -127,6 +127,10 @@ func PostprocessResult(rawResultChan <-chan t.RawMIDAResult, finalResultChan cha
 			finalResult.WebsocketData = rawResult.WebsocketData
 		}
 
+		if rawResult.SanitizedTask.EventSourceTraffic {
+			finalResult.EventSourceData = rawResult.EventSourceData
+		}
+
 		if rawResult.SanitizedTask.ResourceTree {
 			rootNode, orphans, err := resourcetree.BuildResourceTree(&rawResult)
 			if err != nil {

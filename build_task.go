@@ -123,6 +123,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	if err != nil {
 		return ts, err
 	}
+	*ts.Data.EventSourceTraffic, err = cmd.Flags().GetBool("event-source")
+	if err != nil {
+		return ts, err
+	}
 	*ts.Data.NetworkTrace, err = cmd.Flags().GetBool("network-strace")
 	if err != nil {
 		return ts, err
@@ -226,18 +230,19 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			TimeAfterLoad:       new(int),
 		},
 		Data: &t.DataSettings{
-			AllResources:     new(bool),
-			AllScripts:       new(bool),
-			JSTrace:          new(bool),
-			SaveRawTrace:     new(bool),
-			ResourceMetadata: new(bool),
-			ScriptMetadata:   new(bool),
-			ResourceTree:     new(bool),
-			WebsocketTraffic: new(bool),
-			NetworkTrace:     new(bool),
-			OpenWPMChecks:    new(bool),
-			BrowserCoverage:  new(bool),
-			ScreenShot:       new(bool),
+			AllResources:       new(bool),
+			AllScripts:         new(bool),
+			JSTrace:            new(bool),
+			SaveRawTrace:       new(bool),
+			ResourceMetadata:   new(bool),
+			ScriptMetadata:     new(bool),
+			ResourceTree:       new(bool),
+			WebsocketTraffic:   new(bool),
+			EventSourceTraffic: new(bool),
+			NetworkTrace:       new(bool),
+			OpenWPMChecks:      new(bool),
+			BrowserCoverage:    new(bool),
+			ScreenShot:         new(bool),
 		},
 		Output: &t.OutputSettings{
 			Path:        new(string),

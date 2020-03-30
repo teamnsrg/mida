@@ -64,12 +64,13 @@ func CrawlerInstance(sanitizedTaskChan <-chan t.SanitizedMIDATask, rawResultChan
 func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 
 	rawResult := t.RawMIDAResult{
-		Requests:      make(map[string][]network.EventRequestWillBeSent),
-		Responses:     make(map[string][]network.EventResponseReceived),
-		DataLengths:   make(map[string]int64),
-		Scripts:       make(map[string]debugger.EventScriptParsed),
-		WebsocketData: make(map[string]*t.WSConnection),
-		SanitizedTask: st,
+		Requests:        make(map[string][]network.EventRequestWillBeSent),
+		Responses:       make(map[string][]network.EventResponseReceived),
+		DataLengths:     make(map[string]int64),
+		Scripts:         make(map[string]debugger.EventScriptParsed),
+		WebsocketData:   make(map[string]*t.WSConnection),
+		EventSourceData: make(map[string][]*network.EventEventSourceMessageReceived),
+		SanitizedTask:   st,
 	}
 	var rawResultLock sync.Mutex // Should be used any time this object is updated
 
@@ -217,6 +218,8 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 			ec.webSocketWillSendHandshakeRequestChan <- ev.(*network.EventWebSocketWillSendHandshakeRequest)
 		case *network.EventWebSocketHandshakeResponseReceived:
 			ec.webSocketHandshakeResponseReceivedChan <- ev.(*network.EventWebSocketHandshakeResponseReceived)
+		case *network.EventEventSourceMessageReceived:
+			ec.EventSourceMessageReceivedChan <- ev.(*network.EventEventSourceMessageReceived)
 
 		case *fetch.EventRequestPaused:
 			ec.requestPausedChan <- ev.(*fetch.EventRequestPaused)
@@ -572,6 +575,20 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 		}
 	}()
 
+	// Event Handler: Network.EventSourceMessageReceived
+	go func() {
+		for data := range ec.EventSourceMessageReceivedChan {
+			rawResultLock.Lock()
+			if _, ok := rawResult.EventSourceData[data.RequestID.String()]; !ok {
+				rawResult.EventSourceData[data.RequestID.String()] = make([]*network.EventEventSourceMessageReceived, 0)
+			}
+			rawResult.EventSourceData[data.RequestID.String()] = append(rawResult.EventSourceData[data.RequestID.String()], data)
+
+			rawResultLock.Unlock()
+			eventHandlerWG.Done()
+		}
+	}()
+
 	// Event Handler: fetch.requestPaused
 	go func() {
 		for data := range ec.requestPausedChan {
@@ -797,6 +814,7 @@ type EventChannels struct {
 	webSocketClosedChan                    chan *network.EventWebSocketClosed
 	webSocketWillSendHandshakeRequestChan  chan *network.EventWebSocketWillSendHandshakeRequest
 	webSocketHandshakeResponseReceivedChan chan *network.EventWebSocketHandshakeResponseReceived
+	EventSourceMessageReceivedChan         chan *network.EventEventSourceMessageReceived
 
 	requestPausedChan chan *fetch.EventRequestPaused
 
@@ -819,6 +837,7 @@ func openEventChannels() EventChannels {
 	ec.webSocketClosedChan = make(chan *network.EventWebSocketClosed, 10000)
 	ec.webSocketWillSendHandshakeRequestChan = make(chan *network.EventWebSocketWillSendHandshakeRequest, 10000)
 	ec.webSocketHandshakeResponseReceivedChan = make(chan *network.EventWebSocketHandshakeResponseReceived, 10000)
+	ec.EventSourceMessageReceivedChan = make(chan *network.EventEventSourceMessageReceived, 10000)
 
 	ec.requestPausedChan = make(chan *fetch.EventRequestPaused, 10000)
 
@@ -842,6 +861,7 @@ func closeEventChannels(ec EventChannels) {
 	close(ec.webSocketClosedChan)
 	close(ec.webSocketWillSendHandshakeRequestChan)
 	close(ec.webSocketHandshakeResponseReceivedChan)
+	close(ec.EventSourceMessageReceivedChan)
 
 	close(ec.requestPausedChan)
 

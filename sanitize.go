@@ -246,6 +246,11 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 	} else {
 		st.WebsocketTraffic = DefaultWebsocketTraffic
 	}
+	if mt.Data.EventSourceTraffic != nil {
+		st.EventSourceTraffic = *mt.Data.EventSourceTraffic
+	} else {
+		st.EventSourceTraffic = DefaultEventSourceTraffic
+	}
 	if mt.Data.NetworkTrace != nil {
 		st.NetworkTrace = *mt.Data.NetworkTrace
 	} else {
