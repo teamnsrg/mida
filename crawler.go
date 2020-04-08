@@ -770,7 +770,7 @@ func ProcessSanitizedTask(st t.SanitizedMIDATask) (t.RawMIDAResult, error) {
 				// Browser closed somehow before navigation completed, we failed to visit site
 				log.Log.Warn("browser was closed manually or crashed")
 			case <-timeoutChan:
-				log.Log.Info("timeout")
+				// Continue on!
 			}
 
 		case <-timeoutChan:

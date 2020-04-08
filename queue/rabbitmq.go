@@ -104,6 +104,46 @@ func AMQPLoadTasks(tasks []t.MIDATask, shuffle bool) (int, error) {
 	return tasksLoaded, nil
 }
 
+func AMQPLoadStringInQueue(s string, q string) error {
+	rabbitURI := "amqp://" + viper.GetString("rabbitmquser") + ":" +
+		viper.GetString("rabbitmqpass") + "@" + viper.GetString("rabbitmqurl")
+
+	// TODO: TLS pls
+	connection, err := amqp.Dial(rabbitURI)
+	if err != nil {
+		return err
+	}
+
+	channel, err := connection.Channel()
+	if err != nil {
+		return err
+	}
+
+	err = channel.Publish(
+		"",    // Exchange
+		q,     // Key (queue)
+		false, // Mandatory
+		false, // Immediate
+		amqp.Publishing{
+			Headers:         amqp.Table{},
+			ContentType:     "text/plain",
+			ContentEncoding: "",
+			DeliveryMode:    0,
+			Priority:        5,
+			Body:            []byte(s),
+		})
+	if err != nil {
+		return err
+	}
+
+	err = connection.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewAMQPTasksConsumer() (*Consumer, <-chan amqp.Delivery, error) {
 	c := &Consumer{
 		conn:    nil,

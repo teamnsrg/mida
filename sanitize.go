@@ -291,6 +291,12 @@ func SanitizeTask(mt t.MIDATask) (t.SanitizedMIDATask, error) {
 		st.GroupID = *mt.Output.GroupID
 	}
 
+	if mt.Output.PostCrawlQueue == nil || *mt.Output.PostCrawlQueue == "" {
+		st.PostCrawlQueue = ""
+	} else {
+		st.PostCrawlQueue = *mt.Output.PostCrawlQueue
+	}
+
 	if mt.Output.MongoURI == nil || *mt.Output.MongoURI == "" {
 		st.MongoURI = ""
 	} else {

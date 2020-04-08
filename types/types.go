@@ -43,11 +43,12 @@ type DataSettings struct {
 }
 
 type OutputSettings struct {
-	Path        *string `json:"path"`
-	GroupID     *string `json:"group_id"`
-	MongoURI    *string `json:"mongo_uri,omitempty"`
-	PostgresURI *string `json:"postgres_uri,omitempty"`
-	PostgresDB  *string `json:"postgres_db, omitempty"`
+	Path           *string `json:"path"`
+	GroupID        *string `json:"group_id"`
+	PostCrawlQueue *string `json:"post_crawl_queue"`
+	MongoURI       *string `json:"mongo_uri,omitempty"`
+	PostgresURI    *string `json:"postgres_uri,omitempty"`
+	PostgresDB     *string `json:"postgres_db, omitempty"`
 }
 
 type MIDATask struct {
@@ -124,6 +125,7 @@ type SanitizedMIDATask struct {
 	// Output Settings
 	OutputPath       string `json:"output_path"`
 	GroupID          string `json:"group_id"`
+	PostCrawlQueue   string `json:"post_crawl_queue"`
 	RandomIdentifier string `json:"random_identifier"`
 	MongoURI         string `json:"mongo_uri,omitempty"`
 	PostgresURI      string `json:"postgres_uri,omitempty"`

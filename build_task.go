@@ -157,6 +157,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (t.CompressedMIDA
 	if err != nil {
 		return ts, err
 	}
+	*ts.Output.PostCrawlQueue, err = cmd.Flags().GetString("post-crawl-queue")
+	if err != nil {
+		return ts, err
+	}
 
 	// Fill in miscellaneous other settings
 	*ts.MaxAttempts, err = cmd.Flags().GetInt("attempts")
@@ -245,11 +249,12 @@ func InitializeCompressedTaskSet() t.CompressedMIDATaskSet {
 			ScreenShot:         new(bool),
 		},
 		Output: &t.OutputSettings{
-			Path:        new(string),
-			GroupID:     new(string),
-			MongoURI:    new(string),
-			PostgresURI: new(string),
-			PostgresDB:  new(string),
+			Path:           new(string),
+			GroupID:        new(string),
+			PostCrawlQueue: new(string),
+			MongoURI:       new(string),
+			PostgresURI:    new(string),
+			PostgresDB:     new(string),
 		},
 		MaxAttempts: new(int),
 		Priority:    new(int),

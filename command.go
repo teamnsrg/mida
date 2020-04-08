@@ -54,6 +54,7 @@ func buildCommands() *cobra.Command {
 		// Output settings
 		resultsOutputPath string // Results from task path
 		groupID           string
+		postCrawlQueue    string // Load path into AMQP after crawl (for postprocessing)
 
 		outputPath string // Task file path
 		overwrite  bool
@@ -145,6 +146,8 @@ func buildCommands() *cobra.Command {
 
 	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("taskfile"),
 		"Path to write the newly-created JSON task file")
+	cmdBuild.Flags().StringVarP(&postCrawlQueue, "post-crawl-queue", "", "",
+		"AMQP queue to load remote results path after results storage complete")
 	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
 	cmdBuild.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
@@ -231,6 +234,8 @@ to crawl, using default parameters where not specified`,
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
+	cmdGo.Flags().StringVarP(&postCrawlQueue, "post-crawl-queue", "", "",
+		"AMQP queue to load remote results path after results storage complete")
 
 	cmdGo.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
 		"Group ID used for identifying experiments")

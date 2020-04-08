@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/queue"
 	"github.com/teamnsrg/mida/storage"
 	t "github.com/teamnsrg/mida/types"
 	"github.com/teamnsrg/mida/util"
@@ -44,6 +45,13 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 						err := StoreOverSSH(&r, connInfo, outputPathURL)
 						if err != nil {
 							log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
+						} else if r.SanitizedTask.PostCrawlQueue != "" {
+							dirName, err := util.DirNameFromURL(r.SanitizedTask.Url)
+							if err != nil {
+								log.Log.Fatal(err)
+							}
+							toEnqueue := "ssh://" + path.Join(outputPathURL.Host, outputPathURL.Path, dirName, r.SanitizedTask.RandomIdentifier)
+							err = queue.AMQPLoadStringInQueue(toEnqueue, r.SanitizedTask.PostCrawlQueue)
 						}
 					}
 				}
@@ -64,6 +72,7 @@ func Backend(finalResultChan <-chan t.FinalMIDAResult, monitoringChan chan<- t.T
 					log.Log.WithField("URL", r.SanitizedTask.Url).Error(err)
 				}
 			}
+
 		} else if r.SanitizedTask.CurrentAttempt >= r.SanitizedTask.MaxAttempts {
 			// We are abandoning trying this task. Too bad.
 			log.Log.WithField("URL", r.SanitizedTask.Url).Error("Task failed after ", r.SanitizedTask.MaxAttempts, " attempts.")
