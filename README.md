@@ -22,17 +22,3 @@ $ mida go www.illinois.edu
 ```
 
 You can find the results of your crawl in the `results/` directory.
-
-## Docker
-
-The Dockerfile is intended for running the measurement tool along with a packet capture. It 
-downloads a single site. To run it:
-
-```bash
-$ docker run --rm -v $HOME/data:/data mida site.com
-```
-
----
-
-You can view more MIDA documentation at [mida.sprai.org](https://mida.sprai.org). You can also
-keep up with development progress via [our Trello board](https://trello.com/b/KSpQS5jk/mida).

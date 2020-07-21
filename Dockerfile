@@ -1,14 +1,19 @@
-FROM ubuntu
+FROM golang:1.14
 
-RUN apt-get update && apt-get -y upgrade && apt-get -y install \
-  python3 ca-certificates chromium-browser tcpdump
+RUN curl -LO https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN apt-get update && apt-get install -y ./google-chrome-stable_current_amd64.deb
+RUN rm google-chrome-stable_current_amd64.deb 
 
-COPY setup.py /root
+WORKDIR /app
 
-RUN python3 /root/setup.py 
+# Get MIDA dependencies
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
 
-COPY scripts/pcap-script.sh /root
+# Copy MIDA source code
+COPY . .
 
-RUN chmod +x /root/pcap-script.sh
+RUN go build -o mida .
 
-ENTRYPOINT ["/root/pcap-script.sh"]
+CMD ["/app/mida", "client", "-c3","-s2","-l3"]

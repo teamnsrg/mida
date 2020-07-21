@@ -1,11 +1,12 @@
 package storage
 
 import (
+	"errors"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/sftp"
+	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
-	t "github.com/teamnsrg/mida/types"
-	"github.com/teamnsrg/mida/util"
+	"github.com/teamnsrg/mida/sanitize"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
@@ -13,16 +14,79 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
-// Stores a result directory (via SSH/SFTP) to a remote host, given
-// an already active SSH connection. Ensure that you lock the relevant SSH connection
-// Before calling this.
-func StoreResultsSSH(r *t.FinalMIDAResult, activeConn *t.SSHConn, remotePath string) error {
+type SftpParams struct {
+	User           string
+	PrivateKeyFile string
+	Host           string
+	Port           int
+	Path           string
+}
+
+func Sftp(r *b.FinalResult) error {
+	sftpSettings := r.Summary.TaskWrapper.SanitizedTask.OPS.SftpOut
+	params := SftpParams{
+		User:           *sftpSettings.UserName,
+		PrivateKeyFile: *sftpSettings.PrivateKeyFile,
+		Host:           *sftpSettings.Host,
+		Port:           *sftpSettings.Port,
+		Path:           *sftpSettings.Path,
+	}
+
+	// Begin remote storage
+	// Check if connection info exists already for host
+	var activeConn *SftpConn
+	connInfo.Lock()
+	if _, ok := connInfo.SSHConnInfo[fullSSHUri(params)]; !ok {
+		newConn, err := createRemoteConnection(params)
+		connInfo.Unlock()
+		backoff := 1
+		for err != nil {
+			log.Log.WithField("URL", r.Summary.TaskWrapper.SanitizedTask.URL).WithField("Backoff", backoff).Error(err)
+			time.Sleep(time.Duration(backoff) * time.Second)
+			connInfo.Lock()
+			newConn, err = createRemoteConnection(params)
+			connInfo.Unlock()
+			backoff *= b.DefaultSSHBackoffMultiplier
+		}
+
+		connInfo.SSHConnInfo[fullSSHUri(params)] = newConn
+		activeConn = newConn
+		log.Log.WithField("host", fullSSHUri(params)).Info("Created new SSH connection")
+	} else {
+		activeConn = connInfo.SSHConnInfo[fullSSHUri(params)]
+		connInfo.Unlock()
+	}
+
+	if activeConn == nil {
+		log.Log.WithField("URL", r.Summary.TaskWrapper.SanitizedTask.URL).Error("Failed to correctly set activeConn")
+		return errors.New("failed to correctly set activeConn")
+	}
+
+	// Now that our new connection is in place, proceed with storage
+	activeConn.Lock()
+	backOff := 1
+	err := StoreResultsSSH(r, activeConn, params.Path)
+	for err != nil {
+		log.Log.WithField("URL", r.Summary.TaskWrapper.SanitizedTask.URL).WithField("BackOff", backOff).Error(err)
+		time.Sleep(time.Duration(backOff) * time.Second)
+		err = StoreResultsSSH(r, activeConn, params.Path)
+		backOff *= b.DefaultSSHBackoffMultiplier
+	}
+	activeConn.Unlock()
+	return nil
+}
+
+func StoreResultsSSH(r *b.FinalResult, activeConn *SftpConn, remotePath string) error {
 	// We store all the results to the local file system first in a temporary directory
-	tempPath := path.Join(TempDir, r.SanitizedTask.RandomIdentifier+"-results")
-	err := StoreResultsLocalFS(r, tempPath)
+	// Ideally, we reuse what has already been stored locally, but we store it ourselves if required
+	tw := r.Summary.TaskWrapper
+	tempPath := path.Join(b.DefaultTempDir, tw.UUID.String()[:8]+"-sftpresults")
+	err := Local(r, tw.SanitizedTask.OPS.SftpOut.DS, tempPath)
 	if err != nil {
 		return err
 	}
@@ -34,12 +98,12 @@ func StoreResultsSSH(r *t.FinalMIDAResult, activeConn *t.SSHConn, remotePath str
 	defer sftpClient.Close()
 
 	// Walk the temporary results directory and write everything to our new remote file location
-	dirName, err := util.DirNameFromURL(r.SanitizedTask.Url)
+	dirName, err := DirNameFromURL(tw.SanitizedTask.URL)
 	if err != nil {
 		log.Log.Fatal(err)
 	}
-	err = CopyDirRemote(sftpClient, tempPath, path.Join(remotePath,
-		dirName, r.SanitizedTask.RandomIdentifier))
+	err = copyDirRemote(sftpClient, tempPath, path.Join(remotePath,
+		dirName, tw.UUID.String()[:8]))
 	if err != nil {
 		err = os.RemoveAll(tempPath)
 		if err != nil {
@@ -56,47 +120,7 @@ func StoreResultsSSH(r *t.FinalMIDAResult, activeConn *t.SSHConn, remotePath str
 	return nil
 }
 
-func CreateRemoteConnection(host string) (*t.SSHConn, error) {
-	// First, get our private key
-	var c t.SSHConn
-
-	h, err := homedir.Dir()
-	if err != nil {
-		return &c, err
-	}
-	privateKeyBytes, err := ioutil.ReadFile(h + "/.ssh/id_rsa") // TODO
-	if err != nil {
-		return &c, err
-	}
-
-	privateKey, err := ssh.ParsePrivateKey(privateKeyBytes)
-	if err != nil {
-		return &c, err
-	}
-
-	// Get current username for use in ssh
-	u, err := user.Current()
-	if err != nil {
-		return &c, err
-	}
-
-	config := &ssh.ClientConfig{
-		User: u.Username, // TODO
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(privateKey),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	c.Client, err = ssh.Dial("tcp", host+":22", config)
-	if err != nil {
-		return &c, err
-	}
-
-	return &c, nil
-}
-
-func CopyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname string) error {
+func copyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname string) error {
 	err := sftpConn.MkdirAll(remoteDirname)
 	if err != nil {
 		return err
@@ -139,4 +163,57 @@ func CopyDirRemote(sftpConn *sftp.Client, localDirname string, remoteDirname str
 	})
 
 	return err
+}
+
+func createRemoteConnection(params SftpParams) (*SftpConn, error) {
+	// First, get our private key
+	var c SftpConn
+
+	privateKeyFile := sanitize.ExpandPath(params.PrivateKeyFile)
+	if params.PrivateKeyFile == "" {
+		h, err := homedir.Dir()
+		if err != nil {
+			return nil, errors.New("no SSH private key file provided and could not determine default")
+		}
+		privateKeyFile = sanitize.ExpandPath(h + "/.ssh/id_rsa")
+	}
+
+	privateKeyBytes, err := ioutil.ReadFile(privateKeyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, err := ssh.ParsePrivateKey(privateKeyBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get username for use in ssh
+	username := params.User
+	if username == "" {
+		u, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		username = u.Username
+	}
+
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(privateKey),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+
+	c.Client, err = ssh.Dial("tcp", params.Host+":"+strconv.Itoa(params.Port), config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
+func fullSSHUri(params SftpParams) string {
+	return params.User + "@" + params.Host + ":" + strconv.Itoa(params.Port)
 }

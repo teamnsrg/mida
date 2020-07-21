@@ -3,91 +3,106 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/monitor"
+	"github.com/teamnsrg/mida/sanitize"
 	"github.com/teamnsrg/mida/storage"
-	t "github.com/teamnsrg/mida/types"
 	"os"
+	"os/exec"
+	"runtime"
 	"sync"
 )
 
-type ConnInfo struct {
-	sync.Mutex
-	SSHConnInfo map[string]*t.SSHConn
-	DBConnInfo  map[string]*t.DBConn
-}
-
+// InitPipeline is the main MIDA pipeline, used whenever MIDA uses a browser to visit websites.
+// It consists of five main stages: RawTask stage1, RawTask Sanitize, Site Visit, stage4, and Results Storage.
 func InitPipeline(cmd *cobra.Command, args []string) {
-
-	// Create channels for the pipeline
-	monitoringChan := make(chan t.TaskStats)
-	finalResultChan := make(chan t.FinalMIDAResult)
-	rawResultChan := make(chan t.RawMIDAResult)
-	sanitizedTaskChan := make(chan t.SanitizedMIDATask)
-	rawTaskChan := make(chan t.MIDATask)
-
-	// Important to size this channel correctly to avoid deadlock when retries are very common
-	retryChan := make(chan t.SanitizedMIDATask, viper.GetInt("crawlers")+viper.GetInt("storers")+2)
+	rawTaskChan := make(chan *b.RawTask)           // channel connecting stages 1 and 2
+	sanitizedTaskChan := make(chan *b.TaskWrapper) // channel connecting stages 2 and 3
+	rawResultChan := make(chan *b.RawResult)       // channel connecting stages 3 and 4
+	finalResultChan := make(chan *b.FinalResult)   // channel connection stages 4 and 5
+	monitorChan := make(chan *b.TaskSummary)
 
 	var crawlerWG sync.WaitGroup  // Tracks active crawler workers
 	var storageWG sync.WaitGroup  // Tracks active storage workers
 	var pipelineWG sync.WaitGroup // Tracks tasks currently in pipeline
 
-	// Initialize structure storing SSH and database connections
-	var connInfo ConnInfo
-	connInfo.SSHConnInfo = make(map[string]*t.SSHConn)
-	connInfo.DBConnInfo = make(map[string]*t.DBConn)
+	// Start our virtual display, if needed
+	xvfb, err := cmd.Flags().GetBool("xvfb")
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
+	xvfbCommand := exec.Command("Xvfb", ":99", "-screen", "0", "1920x1080x16")
+	if xvfb {
+		if runtime.GOOS != "linux" {
+			log.Log.Error("virtual display (Xvfb) is only available on linux")
+			return
+		}
+
+		err := xvfbCommand.Start()
+		if err != nil {
+			log.Log.Error(err)
+			return
+		}
+
+		err = os.Setenv("DISPLAY", ":99")
+	}
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
-		go monitor.RunPrometheusClient(monitoringChan, viper.GetInt("promport"))
+		go monitor.RunPrometheusClient(monitorChan, viper.GetInt("prom-port"))
 	}
 
 	// Start goroutine(s) that handles crawl results storage
-	storageWG.Add(viper.GetInt("storers"))
+	numStorers := viper.GetInt("storers")
+	storageWG.Add(numStorers)
 	for i := 0; i < viper.GetInt("storers"); i++ {
-		go Backend(finalResultChan, monitoringChan, retryChan, &storageWG, &pipelineWG, &connInfo)
+		go stage5(finalResultChan, monitorChan, &storageWG, &pipelineWG)
 	}
 
 	// Start goroutine that handles crawl results sanitization
-	go PostprocessResult(rawResultChan, finalResultChan)
+	go stage4(rawResultChan, finalResultChan)
 
-	// Start crawler(s) which take sanitized tasks as arguments
-	crawlerWG.Add(viper.GetInt("crawlers"))
-	for i := 0; i < viper.GetInt("crawlers"); i++ {
-		go CrawlerInstance(sanitizedTaskChan, rawResultChan, retryChan, &crawlerWG)
+	// Start site visitors(s) which take sanitized tasks as arguments
+	numCrawlers := viper.GetInt("crawlers")
+	crawlerWG.Add(numCrawlers)
+	for i := 0; i < numCrawlers; i++ {
+		go stage3(sanitizedTaskChan, rawResultChan, &crawlerWG)
 	}
 
 	// Start goroutine which sanitizes input tasks
-	go SanitizeTasks(rawTaskChan, sanitizedTaskChan, &pipelineWG)
+	go stage2(rawTaskChan, sanitizedTaskChan, &pipelineWG)
 
-	go TaskIntake(rawTaskChan, cmd, args)
+	// Start the goroutine responsible for getting our tasks
+	go stage1(rawTaskChan, cmd, args)
 
-	// Once all crawlers have completed, we can close the Raw Result Channel
+	// Wait for all of our crawlers to finish, and then allow them to exit
 	crawlerWG.Wait()
 	close(rawResultChan)
 
-	// We are done when all storage has completed
+	// Wait for all of our storers to exit. We do not need to close the channel
+	// going to storers -- the channel close will ripple through the pipeline
 	storageWG.Wait()
 
-	// Nicely close any connections open
-	connInfo.Lock()
-	for k, v := range connInfo.SSHConnInfo {
-		v.Lock()
-		err := v.Client.Close()
+	// Close connections to databases or storage servers
+	err = storage.CleanupConnections()
+	if err != nil {
+		log.Log.Error(err)
+	}
+
+	// Cleanup any remaining temporary files before we exit
+	err = os.RemoveAll(sanitize.ExpandPath(b.DefaultTempDir))
+	if err != nil {
+		log.Log.Error(err)
+	}
+
+	// Shut down our xvfb server, if running
+	if xvfb {
+		err = xvfbCommand.Process.Kill()
 		if err != nil {
 			log.Log.Error(err)
 		}
-		log.Log.Info("Closed SSH connection to: ", k)
-		v.Unlock()
-	}
-
-	connInfo.Unlock()
-
-	// Cleanup remaining artifacts
-	err := os.RemoveAll(storage.TempDir)
-	if err != nil {
-		log.Log.Warn(err)
 	}
 
 	return

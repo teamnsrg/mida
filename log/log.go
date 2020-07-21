@@ -7,24 +7,24 @@ import (
 	"os"
 )
 
+// The global log used throughout MIDA (not to be confused with individual logs for each crawl)
 var Log = logrus.New()
 
-func InitLogger() {
-	//fileFormatter := new(prefixed.TextFormatter)
+func InitGlobalLogger(logfile string) {
 	fileFormatter := new(logrus.TextFormatter)
 	fileFormatter.FullTimestamp = true
 	fileFormatter.DisableColors = true
 
 	rotateFileHook, err := rotatefilehook.NewRotateFileHook(rotatefilehook.RotateFileConfig{
-		Filename:   "mida.log",
+		Filename:   logfile,
 		MaxSize:    50, //megabytes
 		MaxBackups: 3,
-		MaxAge:     30, //days
+		MaxAge:     180, //days
 		Level:      logrus.InfoLevel,
 		Formatter:  fileFormatter,
 	})
 	if err != nil {
-		Log.Fatal(err)
+		Log.Fatal("Logging initialization error: ", err)
 	}
 
 	consoleFormatter := new(logrus.TextFormatter)

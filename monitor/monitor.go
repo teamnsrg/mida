@@ -3,15 +3,14 @@ package monitor
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/teamnsrg/mida/log"
-	t "github.com/teamnsrg/mida/types"
+	b "github.com/teamnsrg/mida/base"
 	"net/http"
 	"strconv"
 )
 
 // RunPrometheusClient is responsible for running a client which will
 // be scraped by a Prometheus server
-func RunPrometheusClient(monitoringChan <-chan t.TaskStats, port int) {
+func RunPrometheusClient(monitoringChan <-chan *b.TaskSummary, port int) {
 
 	browserDurationHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -40,15 +39,15 @@ func RunPrometheusClient(monitoringChan <-chan t.TaskStats, port int) {
 	http.Handle("/metrics", promhttp.Handler())
 
 	go func() {
-		for taskStats := range monitoringChan {
-			// Update all of our Prometheus metrics using the TaskStats object
-			browserDurationHistogram.Observe(taskStats.Timing.BrowserClose.Sub(taskStats.Timing.BrowserOpen).Seconds())
-			postprocessDurationHistogram.Observe(taskStats.Timing.EndPostprocess.Sub(taskStats.Timing.BeginPostprocess).Seconds())
-			storageDurationHistogram.Observe(taskStats.Timing.EndStorage.Sub(taskStats.Timing.BeginStorage).Seconds())
+		for taskSum := range monitoringChan {
+			// Update all of our Prometheus metrics using the TaskSummary object
+			browserDurationHistogram.Observe(taskSum.TaskTiming.BrowserClose.Sub(taskSum.TaskTiming.BrowserOpen).Seconds())
+			postprocessDurationHistogram.Observe(taskSum.TaskTiming.EndPostprocess.Sub(taskSum.TaskTiming.BeginPostprocess).Seconds())
+			storageDurationHistogram.Observe(taskSum.TaskTiming.EndStorage.Sub(taskSum.TaskTiming.BeginStorage).Seconds())
 		}
 	}()
 
-	log.Log.Error(http.ListenAndServe(":"+strconv.Itoa(port), nil))
+	http.ListenAndServe(":"+strconv.Itoa(port), nil)
 
 	return
 }

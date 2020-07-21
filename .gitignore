@@ -9,3 +9,5 @@ Extensions/
 .idea
 vendor/
 website/site
+.midatmp/
+examples/urls.lst

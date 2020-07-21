@@ -3,25 +3,169 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/amqp"
+	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
-	"github.com/teamnsrg/mida/queue"
-	"github.com/teamnsrg/mida/storage"
 )
 
-func buildCommands() *cobra.Command {
+// getRootCommand returns the root cobra command which will be executed based on arguments passed to the program
+func getRootCommand() *cobra.Command {
+	var err error
+	var cmdRoot = &cobra.Command{Use: "mida"}
 
-	// Variables storing options for the build command
 	var (
-		// Root Command Flags
 		numCrawlers int
 		numStorers  int
 		monitor     bool
 		promPort    int
 		logLevel    int
+		virtualDisplay bool
+	)
 
-		urlFile     string
-		maxAttempts int
-		priority    int
+	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("crawlers"),
+		"Number of parallel browser instances to use for crawling")
+	cmdRoot.PersistentFlags().IntVarP(&numStorers, "storers", "s", viper.GetInt("storers"),
+		"Number of parallel goroutines working to store task results")
+	cmdRoot.PersistentFlags().BoolVarP(&monitor, "monitor", "m", false,
+		"Enable monitoring via Prometheus by hosting a HTTP server")
+	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "z", viper.GetInt("prom-port"),
+		"Port used for hosting metrics for a Prometheus server")
+	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log-level"),
+		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
+	cmdRoot.PersistentFlags().BoolVarP(&virtualDisplay, "xvfb", "", false,
+		"Use Xvfb virtual display (for non-headless, monitor-less crawls on Linux)")
+
+	err = viper.BindPFlags(cmdRoot.PersistentFlags())
+	if err != nil {
+		log.Log.Fatal("viper failed to bind pflags")
+	}
+
+	cmdRoot.AddCommand(getBuildCommand())
+	cmdRoot.AddCommand(getClientCommand())
+	cmdRoot.AddCommand(getFileCommand())
+	cmdRoot.AddCommand(getLoadCommand())
+	cmdRoot.AddCommand(getGoCommand())
+
+	return cmdRoot
+}
+
+// getFileCommand returns the command for the "mida file" version of the program
+func getFileCommand() *cobra.Command {
+	var cmdFile = &cobra.Command{
+		Use:   "file",
+		Short: "Read and execute tasks from file",
+		Long: `MIDA reads and executes tasks from a pre-created task
+file, exiting when all tasks in the file are completed.`,
+		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			log.Log.Debug("MIDA Starts (Mode: file)")
+
+			InitPipeline(cmd, args)
+		},
+	}
+
+	var (
+		taskFile string
+		shuffle  bool
+	)
+
+	cmdFile.Flags().StringVarP(&taskFile, "task-file", "f", viper.GetString("task-file"),
+		"RawTask file to process")
+	cmdFile.Flags().BoolVarP(&shuffle, "shuffle", "", b.DefaultShuffle,
+		"Randomize processing order for tasks")
+	err := viper.BindPFlag("task-file", cmdFile.Flags().Lookup("task-file"))
+	if err != nil {
+		log.Log.Fatal(err)
+	}
+
+	// Enable some autocomplete features of Cobra
+	_ = cmdFile.MarkFlagFilename("task-file")
+
+	return cmdFile
+}
+
+func getLoadCommand() *cobra.Command {
+	var cmdLoad = &cobra.Command{
+		Use:   "load",
+		Short: "Load tasks from file into queue",
+		Long:  `Read tasks from a JSON-formatted file, parse them, and load them into the specified queue instance`,
+		Args:  cobra.ExactArgs(1), // the filename containing tasks to read
+		Run: func(cmd *cobra.Command, args []string) {
+			ll, err := cmd.Flags().GetInt("log-level")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			err = log.ConfigureLogging(ll)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			log.Log.Debug("MIDA Starts (Mode: load)")
+
+			tasks, err := b.ReadTasksFromFile(args[0])
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			var params = amqp.ConnParams{
+				User: viper.GetString("amqpuser"),
+				Pass: viper.GetString("amqppass"),
+				Uri:  viper.GetString("amqpserver"),
+			}
+
+			queue, err := cmd.Flags().GetString("queue")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			priority, err := cmd.Flags().GetUint8("priority")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			shuffle, err := cmd.Flags().GetBool("shuffle")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			numTasksLoaded, err := amqp.LoadTasks(tasks, params, queue,
+				priority, shuffle)
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			log.Log.Infof("Loaded %d tasks into queue \"%s\" with priority %d",
+				numTasksLoaded, queue, priority)
+		},
+	}
+
+	var (
+		shuffle  bool
+		queue    string
+		priority uint8
+	)
+
+	cmdLoad.Flags().StringVarP(&queue, "queue", "", amqp.DefaultTaskQueue,
+		"AMQP queue into which we will load tasks")
+	cmdLoad.Flags().BoolVarP(&shuffle, "shuffle", "", b.DefaultShuffle,
+		"Randomize loading order for tasks")
+	cmdLoad.Flags().Uint8VarP(&priority, "priority", "", amqp.DefaultPriority,
+		"Priority of tasks we are loaded (AMQP: x-max-priority setting)")
+
+	return cmdLoad
+}
+
+func getBuildCommand() *cobra.Command {
+	// Variables storing options for the build command
+	var (
+		urlFile  string
+		priority int
 
 		// Browser settings
 		browser            string
@@ -38,32 +182,16 @@ func buildCommands() *cobra.Command {
 
 		// Data Gathering settings
 		resourceMetadata bool
-		scriptMetadata   bool
-		jsTrace          bool
-		saveRawTrace     bool
 		allResources     bool
-		allScripts       bool
-		resourceTree     bool
-		webSocket        bool
-		eventSource      bool
-		networkTrace     bool
-		openWPMChecks    bool
-		browserCoverage  bool
-		screenshot       bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
-		groupID           string
-		postCrawlQueue    string // Load path into AMQP after crawl (for postprocessing)
 
 		outputPath string // Task file path
 		overwrite  bool
 
 		// How many times a task should be repeated
 		repeat int
-
-		// For load: Shuffle tasks before loading
-		shuffle bool
 	)
 
 	var cmdBuild = &cobra.Command{
@@ -80,18 +208,35 @@ func buildCommands() *cobra.Command {
 			if err != nil {
 				log.Log.Fatal(err)
 			}
-			_, err = BuildCompressedTaskSet(cmd, args)
+			log.Log.Debug("MIDA Starts (Mode: build)")
+
+			cts, err := BuildCompressedTaskSet(cmd, args)
+			if err != nil {
+				log.Log.Error(err)
+				return
+			}
+			outfile, err := cmd.Flags().GetString("outfile")
+			if err != nil {
+				log.Log.Error(err)
+				return
+			}
+
+			overwrite, err := cmd.Flags().GetBool("overwrite")
+			if err != nil {
+				log.Log.Error(err)
+				return
+			}
+
+			err = b.WriteCompressedTaskSetToFile(cts, outfile, overwrite)
 			if err != nil {
 				log.Log.Error(err)
 			}
 		},
 	}
 
-	cmdBuild.Flags().StringVarP(&urlFile, "urlfile", "f",
+	cmdBuild.Flags().StringVarP(&urlFile, "url-file", "f",
 		"", "File containing URL to visit (1 per line)")
-	cmdBuild.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTimeout,
-		"Maximum attempts for a task before it fails")
-	cmdBuild.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
+	cmdBuild.Flags().IntVarP(&priority, "priority", "", b.DefaultTaskPriority,
 		"Task priority (when loaded into RabbitMQ")
 
 	cmdBuild.Flags().StringVarP(&browser, "browser", "b",
@@ -107,64 +252,69 @@ func buildCommands() *cobra.Command {
 	cmdBuild.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
 
-	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "y", "CompleteOnTimeoutOnly",
+	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
-	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
+	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", b.DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
-	cmdBuild.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
+	cmdBuild.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", b.DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
 
-	cmdBuild.Flags().BoolVarP(&allResources, "all-resources", "", DefaultAllResources,
+	cmdBuild.Flags().BoolVarP(&allResources, "all-resources", "", b.DefaultAllResources,
 		"Gather and store all resources downloaded by browser")
-	cmdBuild.Flags().BoolVarP(&allScripts, "all-scripts", "", DefaultAllScripts,
-		"Gather and store source code for all scripts parsed by the browser")
-	cmdBuild.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
-		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
-	cmdBuild.Flags().BoolVarP(&saveRawTrace, "save-raw-trace", "", DefaultSaveRawTrace,
-		"Save the raw JavaScript trace (as output by the browser)")
-	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
+	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
-	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", DefaultResourceMetadata,
-		"Gather and store metadata about all scripts parsed by browser")
-	cmdBuild.Flags().BoolVarP(&resourceTree, "resource-tree", "", DefaultResourceTree,
-		"Construct and store a best-effort dependency tree for resources encountered during crawl")
-	cmdBuild.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
-		"Gather and store data and metadata on websocket messages")
-	cmdBuild.Flags().BoolVarP(&eventSource, "event-source", "", DefaultEventSourceTraffic,
-		"Gather and store event source (Server Sent Events) messages")
-	cmdBuild.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
-		"Gather a raw trace of all networking system calls made by the browser")
-	cmdBuild.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
-		"Run OpenWPM fingerprinting checks on JavaScript trace")
-	cmdBuild.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", DefaultBrowserCoverage,
-		"Gather browser coverage data (requires browser instrumented for coverage)")
-	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", DefaultScreenShot,
-		"Collect a PNG screenshot of the web page after the load event fires")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("taskfile"),
+	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task-file"),
 		"Path to write the newly-created JSON task file")
-	cmdBuild.Flags().StringVarP(&postCrawlQueue, "post-crawl-queue", "", "",
-		"AMQP queue to load remote results path after results storage complete")
 	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
-	cmdBuild.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
-		"Group ID used for identifying experiments")
 
 	cmdBuild.Flags().IntVarP(&repeat, "repeat", "", 1,
 		"How many times to repeat a given task")
 
-	_ = cmdBuild.MarkFlagRequired("urlfile")
-	_ = cmdBuild.MarkFlagFilename("urlfile")
+	_ = cmdBuild.MarkFlagRequired("url-file")
+	_ = cmdBuild.MarkFlagFilename("url-file")
+
+	return cmdBuild
+}
+
+func getGoCommand() *cobra.Command {
+	var (
+		// Browser settings
+		browser            string
+		userDataDir        string
+		addBrowserFlags    []string
+		removeBrowserFlags []string
+		setBrowserFlags    []string
+		extensions         []string
+
+		// Completion settings
+		completionCondition string
+		timeout             int
+		timeAfterLoad       int
+
+		// Data Gathering settings
+		resourceMetadata bool
+		allResources     bool
+
+		// Output settings
+		resultsOutputPath string // Results from task path
+
+		outputPath string // Task file path
+		overwrite  bool
+
+		// How many times a task should be repeated
+		repeat int
+	)
 
 	var cmdGo = &cobra.Command{
 		Use:   "go",
-		Short: "Start a crawl here and now, using flags to set params",
-		Long: `MIDA flags and URL(s) from the input command and immediately begins
-to crawl, using default parameters where not specified`,
-		Args: cobra.MinimumNArgs(1),
+		Short: "Crawl from the command line",
+		Long:  `Start a crawl right here and now, normally specifying urls on the command line`,
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			ll, err := cmd.Flags().GetInt("log-level")
 			if err != nil {
@@ -174,14 +324,11 @@ to crawl, using default parameters where not specified`,
 			if err != nil {
 				log.Log.Fatal(err)
 			}
+			log.Log.Debug("MIDA Starts (Mode: go)")
+
 			InitPipeline(cmd, args)
 		},
 	}
-
-	cmdGo.Flags().StringVarP(&urlFile, "urlfile", "f",
-		"", "File containing URL to visit (1 per line)")
-	cmdGo.Flags().IntVarP(&maxAttempts, "attempts", "a", DefaultTaskAttempts,
-		"Maximum attempts for a task before it fails")
 
 	cmdGo.Flags().StringVarP(&browser, "browser", "b",
 		"", "Path to browser binary to use for this task")
@@ -196,120 +343,39 @@ to crawl, using default parameters where not specified`,
 	cmdGo.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
 
-	cmdGo.Flags().StringVarP(&completionCondition, "completion", "y", "CompleteOnTimeoutOnly",
+	cmdGo.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
-	cmdGo.Flags().IntVarP(&timeout, "timeout", "t", DefaultTimeout,
+	cmdGo.Flags().IntVarP(&timeout, "timeout", "t", b.DefaultTimeout,
 		"Timeout (in seconds) after which the browser will close and the task will complete")
-	cmdGo.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", DefaultTimeAfterLoad,
+	cmdGo.Flags().IntVarP(&timeAfterLoad, "time-after-load", "", b.DefaultTimeAfterLoad,
 		"Time after load event to remain on page (overridden by timeout if reached first)")
 
-	cmdGo.Flags().BoolVarP(&allResources, "all-resources", "", DefaultAllResources,
+	cmdGo.Flags().BoolVarP(&allResources, "all-resources", "", b.DefaultAllResources,
 		"Gather and store all resources downloaded by browser")
-	cmdGo.Flags().BoolVarP(&allScripts, "all-scripts", "", DefaultAllScripts,
-		"Gather and store source code for all scripts parsed by the browser")
-	cmdGo.Flags().BoolVarP(&jsTrace, "js-trace", "", DefaultJSTrace,
-		"Gather and store a trace of JavaScript API calls (requires instrumented browser)")
-	cmdGo.Flags().BoolVarP(&saveRawTrace, "save-raw-trace", "", DefaultSaveRawTrace,
-		"Save the raw JavaScript trace (as output by the browser)")
-	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", DefaultResourceMetadata,
+	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
-	cmdGo.Flags().BoolVarP(&resourceMetadata, "script-metadata", "", DefaultResourceMetadata,
-		"Gather and store metadata about all scripts parsed by browser")
-	cmdGo.Flags().BoolVarP(&resourceTree, "resource-tree", "", DefaultResourceTree,
-		"Construct and store a best-effort dependency tree for resources encountered during crawl")
-	cmdGo.Flags().BoolVarP(&webSocket, "websocket", "", DefaultWebsocketTraffic,
-		"Gather and store data and metadata on websocket messages")
-	cmdGo.Flags().BoolVarP(&eventSource, "event-source", "", DefaultEventSourceTraffic,
-		"Gather and store event source (Server Sent Events) messages")
-	cmdGo.Flags().BoolVarP(&networkTrace, "network-strace", "", DefaultNetworkStrace,
-		"Gather a raw trace of all networking system calls made by the browser")
-	cmdGo.Flags().BoolVarP(&openWPMChecks, "openwpm-checks", "", DefaultOpenWPMChecks,
-		"Run OpenWPM fingerprinting checks on JavaScript trace")
-	cmdGo.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", DefaultBrowserCoverage,
-		"Gather browser coverage data (requires browser instrumented for coverage)")
-	cmdGo.Flags().IntVarP(&priority, "priority", "", DefaultTaskPriority,
-		"Task priority (when loaded into RabbitMQ")
-	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", DefaultScreenShot,
-		"Collect a PNG screenshot of the web page after the load event fires")
 
-	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", storage.DefaultOutputPath,
+	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
-	cmdGo.Flags().StringVarP(&postCrawlQueue, "post-crawl-queue", "", "",
-		"AMQP queue to load remote results path after results storage complete")
 
-	cmdGo.Flags().StringVarP(&groupID, "group", "n", DefaultGroupID,
-		"Group ID used for identifying experiments")
+	cmdGo.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task-file"),
+		"Path to write the newly-created JSON task file")
+	cmdGo.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
+		"Allow overwriting of an existing task file")
+
 	cmdGo.Flags().IntVarP(&repeat, "repeat", "", 1,
 		"How many times to repeat a given task")
 
-	var cmdFile = &cobra.Command{
-		Use:   "file",
-		Short: "Read and execute tasks from file",
-		Long: `MIDA reads and executes tasks from a pre-created task
-file, exiting when all tasks in the file are completed.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			ll, err := cmd.Flags().GetInt("log-level")
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			err = log.ConfigureLogging(ll)
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			InitPipeline(cmd, args)
-		},
-	}
+	return cmdGo
+}
 
-	var taskfile string
-
-	cmdFile.Flags().StringVarP(&taskfile, "taskfile", "f", viper.GetString("taskfile"),
-		"Task file to process")
-	cmdFile.Flags().BoolVarP(&shuffle, "shuffle", "", DefaultShuffle,
-		"Randomize processing order for tasks")
-	err := viper.BindPFlag("taskfile", cmdFile.Flags().Lookup("taskfile"))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	_ = cmdFile.MarkFlagFilename("taskfile")
-
-	var cmdLoad = &cobra.Command{
-		Use:   "load",
-		Short: "Load/Enqueue tasks into an AMQP instance",
-		Long:  `Read tasks from a file and enqueue these tasks using AMQP`,
-		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			ll, err := cmd.Flags().GetInt("log-level")
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			err = log.ConfigureLogging(ll)
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			tasks, err := ReadTasksFromFile(args[0])
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-
-			numTasksLoaded, err := queue.AMQPLoadTasks(tasks, true)
-			if err != nil {
-				log.Log.Fatal(err)
-			}
-			log.Log.Infof("Loaded %d tasks into queue.", numTasksLoaded)
-		},
-	}
-
-	cmdLoad.Flags().BoolVarP(&shuffle, "shuffle", "",
-		DefaultShuffle, "Shuffle tasks before loading into queue (Default: True)")
-
+func getClientCommand() *cobra.Command {
 	var cmdClient = &cobra.Command{
 		Use:   "client",
 		Short: "Act as AMQP Client for tasks",
 		Long: `MIDA acts as a client to a AMQP server.
 An address and credentials must be provided. MIDA will remain running until
-it receives explicit instructions to close, or the connection to the queue is
-lost.`,
+it receives explicit instructions to close, or the connection to AMQP server is lost.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			ll, err := cmd.Flags().GetInt("log-level")
 			if err != nil {
@@ -319,34 +385,52 @@ lost.`,
 			if err != nil {
 				log.Log.Fatal(err)
 			}
+			log.Log.Debug("MIDA Starts (Mode: client)")
+
+			user, err := cmd.Flags().GetString("user")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+
+			if user != "" {
+				viper.Set("amqp-user", user)
+			}
+
+			pass, err := cmd.Flags().GetString("pass")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			if pass != "" {
+				viper.Set("amqp-pass", pass)
+			}
+
+			uri, err := cmd.Flags().GetString("uri")
+			if err != nil {
+				log.Log.Fatal(err)
+			}
+			if uri != "" {
+				viper.Set("amqp-uri", uri)
+			}
 
 			InitPipeline(cmd, args)
 		},
 	}
 
-	var cmdRoot = &cobra.Command{Use: "mida"}
+	var (
+		queue string
+		user  string
+		pass  string
+		uri   string
+	)
 
-	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("crawlers"),
-		"Number of parallel browser instances to use for crawling")
-	cmdRoot.PersistentFlags().IntVarP(&numStorers, "storers", "s", viper.GetInt("storers"),
-		"Number of parallel goroutines working to store task results")
-	cmdRoot.PersistentFlags().BoolVarP(&monitor, "monitor", "m", false,
-		"Enable monitoring via Prometheus by hosting a HTTP server")
-	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "p", viper.GetInt("prom-port"),
-		"Port used for hosting metrics for a Prometheus server")
-	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log-level"),
-		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
+	cmdClient.Flags().StringVarP(&queue, "queue", "", "",
+		"AMQP queue into which we will load tasks")
+	cmdClient.Flags().StringVarP(&user, "user", "", "",
+		"AMQP User")
+	cmdClient.Flags().StringVarP(&pass, "pass", "", "",
+		"AMQP Password")
+	cmdClient.Flags().StringVarP(&uri, "uri", "", "",
+		"AMQP URI")
 
-	err = viper.BindPFlags(cmdRoot.PersistentFlags())
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	cmdRoot.AddCommand(cmdLoad)
-	cmdRoot.AddCommand(cmdClient)
-	cmdRoot.AddCommand(cmdFile)
-	cmdRoot.AddCommand(cmdBuild)
-	cmdRoot.AddCommand(cmdGo)
-
-	return cmdRoot
+	return cmdClient
 }

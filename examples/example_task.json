@@ -1,0 +1,29 @@
+{
+  "url": [
+    "alibaba.com",
+    "google.com"
+  ],
+  "browser_settings": {
+    "browser_binary": "",
+    "user_data_directory": "",
+    "add_browser_flags": [],
+    "remove_browser_flags": [],
+    "set_browser_flags": [],
+    "extensions": []
+  },
+  "completion_settings": {
+    "completion_condition": "TimeoutOnly",
+    "timeout": 10
+  },
+  "data_settings": {
+    "all_resources": false,
+    "resource_metadata": true
+  },
+  "output_settings": {
+    "local_output_settings": {
+      "enable": true,
+      "path": "/home/pmurley/go/src/github.com/pmurley/mida/results"
+    }
+  },
+  "repeat": 1
+}
