@@ -16,4 +16,7 @@ COPY . .
 
 RUN go build -o mida .
 
+# Prometheus monitoring
+EXPOSE 8001
+
 CMD ["/app/mida", "client", "-c3","-s2","-l3"]
