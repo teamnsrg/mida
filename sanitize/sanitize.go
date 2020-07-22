@@ -3,8 +3,8 @@ package sanitize
 import (
 	"errors"
 	"github.com/google/uuid"
-	b "github.com/teamnsrg/mida/base"
 	"github.com/sirupsen/logrus"
+	b "github.com/teamnsrg/mida/base"
 	"net/url"
 	"os"
 	"os/user"
@@ -226,10 +226,14 @@ func getBrowserFlags(rt *b.RawTask, log *logrus.Logger) ([]string, error) {
 	} else {
 		// Add flags, checking to see that they have not been removed
 		for _, flag := range append(b.DefaultChromiumBrowserFlags, abf...) {
+			found := false
 			for _, excluded := range rbf {
-				if flag != excluded {
-					result = append(result, flag)
+				if flag == excluded {
+					found = true
 				}
+			}
+			if !found {
+				result = append(result, flag)
 			}
 		}
 	}

@@ -14,7 +14,7 @@ import (
 func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 	switch cmd.Name() {
 	case "file":
-		rawTasks, err := fetch.FromFile(viper.GetString("task-file"), viper.GetBool("shuffle"))
+		rawTasks, err := fetch.FromFile(viper.GetString("task_file"), viper.GetBool("shuffle"))
 		if err != nil {
 			log.Log.Error(err)
 			close(rtc)
@@ -41,12 +41,12 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 
 	case "client":
 		var params = amqp.ConnParams{
-			User: viper.GetString("amqp-user"),
-			Pass: viper.GetString("amqp-pass"),
-			Uri:  viper.GetString("amqp-uri"),
+			User: viper.GetString("amqp_user"),
+			Pass: viper.GetString("amqp_pass"),
+			Uri:  viper.GetString("amqp_uri"),
 		}
 
-		taskAMQPConn, taskDeliveryChan, err := amqp.NewAMQPTasksConsumer(params, viper.GetString("amqp-task-queue"))
+		taskAMQPConn, taskDeliveryChan, err := amqp.NewAMQPTasksConsumer(params, viper.GetString("amqp_task_queue"))
 		if err != nil {
 			log.Log.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 		}
 		defer broadcastAMQPConn.Shutdown()
 
-		log.Log.Infof("Successfully connected to AMQP Queue: \"%s\"", viper.GetString("amqp-task-queue"))
+		log.Log.Infof("Successfully connected to AMQP Queue: \"%s\"", viper.GetString("amqp_task_queue"))
 
 		// Remain as a client to the AMQP server until a broadcast is received which
 		// causes us to exit

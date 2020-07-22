@@ -51,7 +51,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 
 	// Start goroutine that runs the Prometheus monitoring HTTP server
 	if viper.GetBool("monitor") {
-		go monitor.RunPrometheusClient(monitorChan, viper.GetInt("prom-port"))
+		go monitor.RunPrometheusClient(monitorChan, viper.GetInt("prom_port"))
 	}
 
 	// Start goroutine(s) that handles crawl results storage

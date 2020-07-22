@@ -28,9 +28,9 @@ func getRootCommand() *cobra.Command {
 		"Number of parallel goroutines working to store task results")
 	cmdRoot.PersistentFlags().BoolVarP(&monitor, "monitor", "m", false,
 		"Enable monitoring via Prometheus by hosting a HTTP server")
-	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "z", viper.GetInt("prom-port"),
+	cmdRoot.PersistentFlags().IntVarP(&promPort, "prom-port", "z", viper.GetInt("prom_port"),
 		"Port used for hosting metrics for a Prometheus server")
-	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log-level"),
+	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log_level"),
 		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
 	cmdRoot.PersistentFlags().BoolVarP(&virtualDisplay, "xvfb", "", false,
 		"Use Xvfb virtual display (for non-headless, monitor-less crawls on Linux)")
@@ -76,11 +76,11 @@ file, exiting when all tasks in the file are completed.`,
 		shuffle  bool
 	)
 
-	cmdFile.Flags().StringVarP(&taskFile, "task-file", "f", viper.GetString("task-file"),
+	cmdFile.Flags().StringVarP(&taskFile, "task-file", "f", viper.GetString("task_file"),
 		"RawTask file to process")
 	cmdFile.Flags().BoolVarP(&shuffle, "shuffle", "", b.DefaultShuffle,
 		"Randomize processing order for tasks")
-	err := viper.BindPFlag("task-file", cmdFile.Flags().Lookup("task-file"))
+	err := viper.BindPFlag("task_file", cmdFile.Flags().Lookup("task-file"))
 	if err != nil {
 		log.Log.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func getBuildCommand() *cobra.Command {
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task-file"),
+	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
 	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
@@ -358,7 +358,7 @@ func getGoCommand() *cobra.Command {
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdGo.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task-file"),
+	cmdGo.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
 	cmdGo.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
@@ -393,7 +393,7 @@ it receives explicit instructions to close, or the connection to AMQP server is 
 			}
 
 			if user != "" {
-				viper.Set("amqp-user", user)
+				viper.Set("amqp_user", user)
 			}
 
 			pass, err := cmd.Flags().GetString("pass")
@@ -401,7 +401,7 @@ it receives explicit instructions to close, or the connection to AMQP server is 
 				log.Log.Fatal(err)
 			}
 			if pass != "" {
-				viper.Set("amqp-pass", pass)
+				viper.Set("amqp_pass", pass)
 			}
 
 			uri, err := cmd.Flags().GetString("uri")
@@ -409,7 +409,7 @@ it receives explicit instructions to close, or the connection to AMQP server is 
 				log.Log.Fatal(err)
 			}
 			if uri != "" {
-				viper.Set("amqp-uri", uri)
+				viper.Set("amqp_uri", uri)
 			}
 
 			InitPipeline(cmd, args)

@@ -19,13 +19,13 @@ func setDefaults() {
 	// MIDA-Wide Configuration Defaults
 	viper.SetDefault("crawlers", 1)
 	viper.SetDefault("storers", 1)
-	viper.SetDefault("prom-port", 8001)
+	viper.SetDefault("prom_port", 8001)
 	viper.SetDefault("monitor", false)
-	viper.SetDefault("log-level", 2)
-	viper.SetDefault("task-file", "examples/example_task.json")
+	viper.SetDefault("log_level", 2)
+	viper.SetDefault("task_file", "examples/example_task.json")
 
-	viper.SetDefault("amqp-user", "")
-	viper.SetDefault("amqp-pass", "")
-	viper.SetDefault("amqp-uri", "amqp://localhost:5672")
-	viper.SetDefault("amqp-task-queue", "mida-tasks")
+	viper.SetDefault("amqp_user", "")
+	viper.SetDefault("amqp_pass", "")
+	viper.SetDefault("amqp_uri", "amqp://localhost:5672")
+	viper.SetDefault("amqp_task_queue", "mida-tasks")
 }
