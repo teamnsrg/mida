@@ -24,7 +24,7 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 	tw.UUID = uuid.New()
 
 	// Create our temporary directory for this specific site visit
-	tw.TempDir = path.Join(ExpandPath(b.DefaultTempDir), tw.UUID.String()[:8])
+	tw.TempDir = path.Join(ExpandPath(b.DefaultTempDir), tw.UUID.String())
 	err = os.MkdirAll(tw.TempDir, 0755)
 	if err != nil {
 		return b.TaskWrapper{}, errors.New("failed to create temporary directory for task: " + err.Error())

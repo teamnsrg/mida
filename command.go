@@ -14,11 +14,11 @@ func getRootCommand() *cobra.Command {
 	var cmdRoot = &cobra.Command{Use: "mida"}
 
 	var (
-		numCrawlers int
-		numStorers  int
-		monitor     bool
-		promPort    int
-		logLevel    int
+		numCrawlers    int
+		numStorers     int
+		monitor        bool
+		promPort       int
+		logLevel       int
 		virtualDisplay bool
 	)
 
@@ -114,9 +114,9 @@ func getLoadCommand() *cobra.Command {
 			}
 
 			var params = amqp.ConnParams{
-				User: viper.GetString("amqpuser"),
-				Pass: viper.GetString("amqppass"),
-				Uri:  viper.GetString("amqpserver"),
+				User: viper.GetString("amqp_user"),
+				Pass: viper.GetString("amqp_pass"),
+				Uri:  viper.GetString("amqp_uri"),
 			}
 
 			queue, err := cmd.Flags().GetString("queue")

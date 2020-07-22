@@ -85,7 +85,7 @@ func StoreResultsSSH(r *b.FinalResult, activeConn *SftpConn, remotePath string) 
 	// We store all the results to the local file system first in a temporary directory
 	// Ideally, we reuse what has already been stored locally, but we store it ourselves if required
 	tw := r.Summary.TaskWrapper
-	tempPath := path.Join(b.DefaultTempDir, tw.UUID.String()[:8]+"-sftpresults")
+	tempPath := path.Join(b.DefaultTempDir, tw.UUID.String()+"-sftpresults")
 	err := Local(r, tw.SanitizedTask.OPS.SftpOut.DS, tempPath)
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func StoreResultsSSH(r *b.FinalResult, activeConn *SftpConn, remotePath string) 
 		log.Log.Fatal(err)
 	}
 	err = copyDirRemote(sftpClient, tempPath, path.Join(remotePath,
-		dirName, tw.UUID.String()[:8]))
+		dirName, tw.UUID.String()))
 	if err != nil {
 		err = os.RemoveAll(tempPath)
 		if err != nil {

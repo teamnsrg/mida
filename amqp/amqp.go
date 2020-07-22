@@ -3,8 +3,8 @@ package amqp
 import (
 	"encoding/json"
 	"fmt"
-	b "github.com/teamnsrg/mida/base"
 	"github.com/streadway/amqp"
+	b "github.com/teamnsrg/mida/base"
 	"math/rand"
 	"os"
 	"strings"
@@ -27,6 +27,7 @@ type Consumer struct {
 // LoadTasks handles loading MIDA tasks in to AMQP (probably RabbitMQ) queue.
 func LoadTasks(tasks b.TaskSet, params ConnParams, queue string, priority uint8, shuffle bool) (int, error) {
 	amqpUri := fullUriFromParams(params)
+	fmt.Println(amqpUri)
 
 	connection, err := amqp.Dial(amqpUri)
 	if err != nil {
