@@ -2,9 +2,9 @@ package amqp
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/streadway/amqp"
 	b "github.com/teamnsrg/mida/base"
+	"github.com/teamnsrg/mida/log"
 	"math/rand"
 	"os"
 	"strings"
@@ -27,7 +27,7 @@ type Consumer struct {
 // LoadTasks handles loading MIDA tasks in to AMQP (probably RabbitMQ) queue.
 func LoadTasks(tasks b.TaskSet, params ConnParams, queue string, priority uint8, shuffle bool) (int, error) {
 	amqpUri := fullUriFromParams(params)
-	fmt.Println(amqpUri)
+	log.Log.Debugf("Connecting to AMQP instance at %s", params.Uri)
 
 	connection, err := amqp.Dial(amqpUri)
 	if err != nil {
@@ -87,7 +87,7 @@ func NewAMQPTasksConsumer(params ConnParams, queue string) (*Consumer, <-chan am
 
 	var err error
 	amqpUri := fullUriFromParams(params)
-	fmt.Println(amqpUri)
+	log.Log.Debugf("Connecting to AMQP instance at %s", params.Uri)
 
 	c.conn, err = amqp.Dial(amqpUri)
 	if err != nil {

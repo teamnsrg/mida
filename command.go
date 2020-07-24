@@ -230,6 +230,8 @@ func getBuildCommand() *cobra.Command {
 			err = b.WriteCompressedTaskSetToFile(cts, outfile, overwrite)
 			if err != nil {
 				log.Log.Error(err)
+			} else {
+				log.Log.Infof("Wrote %d tasks to %s", len(*cts.URL), outfile)
 			}
 		},
 	}
