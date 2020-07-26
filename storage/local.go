@@ -42,12 +42,23 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 	if *dataSettings.AllResources {
 		err = os.Rename(path.Join(tw.TempDir, b.DefaultResourceSubdir), path.Join(outPath, b.DefaultResourceSubdir))
 		if err != nil {
-			return errors.New("failed to copy resources directory into results directory: " + err.Error())
+			tw.Log.Error("failed to copy resources directory into results directory: " + err.Error())
+			log.Log.Error("failed to copy resources directory into results directory: " + err.Error())
+		}
+	}
+
+	if *dataSettings.Screenshot {
+		err = os.Rename(path.Join(tw.TempDir, b.DefaultScreenshotFileName), path.Join(outPath, b.DefaultScreenshotFileName))
+		if err != nil {
+			tw.Log.Warn("screenshot was not gathered -- load event probably never fired")
 		}
 	}
 
 	// Store our log
-	tw.LogFile.Close()
+	err = tw.LogFile.Close()
+	if err != nil {
+		log.Log.Error(err)
+	}
 	err = os.Rename(tw.LogFile.Name(), path.Join(outPath, b.DefaultTaskLogFile))
 	if err != nil {
 		log.Log.Error("failed to store log file")

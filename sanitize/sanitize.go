@@ -320,6 +320,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.AllResources = *rawDataSettings.AllResources
 	}
 
+	*result.Screenshot = b.DefaultScreenshot
+	if parentSettings != nil && parentSettings.Screenshot != nil {
+		*result.Screenshot = *parentSettings.Screenshot
+	}
+	if rawDataSettings != nil && rawDataSettings.Screenshot != nil {
+		*result.Screenshot = *rawDataSettings.Screenshot
+	}
+
 	return *result, nil
 }
 

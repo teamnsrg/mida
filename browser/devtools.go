@@ -9,8 +9,10 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/sirupsen/logrus"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -18,6 +20,30 @@ import (
 	"time"
 )
 
+// EventChannels are a wrapper around all of the channels where we will deliver
+// messages from the various events fires by DevTools
+type EventChannels struct {
+	loadEventFiredChan                     chan *page.EventLoadEventFired
+	domContentEventFiredChan               chan *page.EventDomContentEventFired
+	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
+	responseReceivedChan                   chan *network.EventResponseReceived
+	loadingFinishedChan                    chan *network.EventLoadingFinished
+	dataReceivedChan                       chan *network.EventDataReceived
+	webSocketCreatedChan                   chan *network.EventWebSocketCreated
+	webSocketFrameSentChan                 chan *network.EventWebSocketFrameSent
+	webSocketFrameReceivedChan             chan *network.EventWebSocketFrameReceived
+	webSocketFrameErrorChan                chan *network.EventWebSocketFrameError
+	webSocketClosedChan                    chan *network.EventWebSocketClosed
+	webSocketWillSendHandshakeRequestChan  chan *network.EventWebSocketWillSendHandshakeRequest
+	webSocketHandshakeResponseReceivedChan chan *network.EventWebSocketHandshakeResponseReceived
+	EventSourceMessageReceivedChan         chan *network.EventEventSourceMessageReceived
+	requestPausedChan                      chan *fetch.EventRequestPaused
+	scriptParsedChan                       chan *debugger.EventScriptParsed
+}
+
+// VisitPageDevtoolsProtocol is a high level function that takes a pre-sanitized TaskWrapper and processes
+// it by opening a DevTools Protocol-compatible browser. It produces a RawResult object, and writes relevant
+// results files to disk as specified by the Task in the TaskWrapper.
 func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	var err error
 
@@ -85,6 +111,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	timeoutChan := time.After(time.Duration(*tw.SanitizedTask.CS.Timeout) * time.Second) // Absolute longest we can go
 	loadEventChan := make(chan bool)                                                     // Used to signal the firing of load events
 	var eventHandlerWG sync.WaitGroup                                                    // Used to make sure all the event handlers exit
+	var postLoadWG sync.WaitGroup                                                        // Used to sync actions after load event
 
 	// Spawn our browser
 	allocContext, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
@@ -219,6 +246,10 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		// The load event fired. What we do next depends on how the crawl completes
 		switch *tw.SanitizedTask.CS.CompletionCondition {
 		case b.TimeAfterLoad:
+			// We are waiting for some time after the load event, so we can initiate post load actions
+			postLoadWG.Add(1)
+			go postLoadActions(tw, browserContext, &postLoadWG)
+
 			select {
 			case <-browserContext.Done():
 				// Browser crashed, closed manually, or we otherwise lost connection to it prematurely
@@ -234,7 +265,11 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			// We got out load event so we are just done, fall through to browser close and cleanup
 			tw.Log.Debug("got load event so we are concluding site visit")
 		case b.TimeoutOnly:
-			// We need to just continue waiting for the timeout (or unexpected browser close)
+			// We need to just continue waiting for the timeout (or unexpected browser close).
+			// We can begin any post load event actions we need to try
+			postLoadWG.Add(1)
+			go postLoadActions(tw, browserContext, &postLoadWG)
+
 			select {
 			case <-browserContext.Done():
 				// Browser crashed, closed manually, or we otherwise lost connection to it prematurely
@@ -258,13 +293,15 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		tw.Log.Errorf("failed to close browser gracefully, so we had to force it (%s)", err.Error())
 		allocCancel()
 	}
-
 	tw.Log.Debug("browser is now closed")
 
 	// Store time at which we closed the browser
 	rawResult.Lock()
 	rawResult.TaskSummary.TaskTiming.BrowserClose = time.Now()
 	rawResult.Unlock()
+
+	// Wait for post load actions to finish
+	postLoadWG.Wait()
 
 	// Wait for all event handlers to finish
 	eventHandlerWG.Wait()
@@ -273,23 +310,57 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	return &rawResult, nil
 }
 
-type EventChannels struct {
-	loadEventFiredChan                     chan *page.EventLoadEventFired
-	domContentEventFiredChan               chan *page.EventDomContentEventFired
-	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
-	responseReceivedChan                   chan *network.EventResponseReceived
-	loadingFinishedChan                    chan *network.EventLoadingFinished
-	dataReceivedChan                       chan *network.EventDataReceived
-	webSocketCreatedChan                   chan *network.EventWebSocketCreated
-	webSocketFrameSentChan                 chan *network.EventWebSocketFrameSent
-	webSocketFrameReceivedChan             chan *network.EventWebSocketFrameReceived
-	webSocketFrameErrorChan                chan *network.EventWebSocketFrameError
-	webSocketClosedChan                    chan *network.EventWebSocketClosed
-	webSocketWillSendHandshakeRequestChan  chan *network.EventWebSocketWillSendHandshakeRequest
-	webSocketHandshakeResponseReceivedChan chan *network.EventWebSocketHandshakeResponseReceived
-	EventSourceMessageReceivedChan         chan *network.EventEventSourceMessageReceived
-	requestPausedChan                      chan *fetch.EventRequestPaused
-	scriptParsedChan                       chan *debugger.EventScriptParsed
+// postLoadActions is triggered when a load event fires for a site. It is responsible for
+// performing actions which will not take place until after that load event,
+// such as interacting with the page and gathering screenshots. postLoadActions must be
+// responsive to the cancellation of the context it is passed, as the main goroutine will
+// wait for it to return before continuing. Because sites (especially complex ones) sometimes
+// fail to fire load events for opaque reasons, this should be considered a "best-effort" function,
+// and when something fails, it will generally just log a relevant message and press on.
+func postLoadActions(tw *b.TaskWrapper, cxt context.Context, wg *sync.WaitGroup) {
+
+	// This is a WaitGroup used for individual post load actions, and should not be
+	// confused with the WaitGroup passed to this function.
+	var individualActionsWG sync.WaitGroup
+
+	// Capture screenshot
+	if *tw.SanitizedTask.DS.Screenshot {
+		individualActionsWG.Add(1)
+		go captureScreenshot(cxt, path.Join(tw.TempDir, b.DefaultScreenshotFileName), tw.Log, &individualActionsWG)
+	}
+
+	individualActionsWG.Wait()
+	log.Log.Debug("post load actions completed")
+	wg.Done()
+	return
+}
+
+// captureScreenshot uses an existing browser context to capture a screenshot, logging any error to both
+// the global MIDA log and the task-specific log
+func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.Logger, wg *sync.WaitGroup) {
+	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		log.Log.Info("attempting screenshot")
+		data, err := page.CaptureScreenshot().Do(cxt)
+		if err != nil {
+			log.Log.Error(err)
+			return err
+		}
+
+		err = ioutil.WriteFile(outputPath, data, 0644)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
+	if err != nil {
+		log.Log.Warn(err)
+		taskLog.Warn(err)
+	} else {
+		taskLog.Info("captured screenshot")
+	}
+
+	wg.Done()
 }
 
 func openEventChannels() EventChannels {

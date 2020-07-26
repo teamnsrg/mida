@@ -1,5 +1,6 @@
 {
   "url": [
+    "foxnews.com",
     "alibaba.com",
     "google.com"
   ],
@@ -13,16 +14,17 @@
   },
   "completion_settings": {
     "completion_condition": "TimeoutOnly",
-    "timeout": 10
+    "timeout": 15
   },
   "data_settings": {
     "all_resources": false,
-    "resource_metadata": true
+    "resource_metadata": true,
+    "screenshot": true
   },
   "output_settings": {
     "local_output_settings": {
       "enable": true,
-      "path": "/home/pmurley/go/src/github.com/pmurley/mida/results"
+      "path": "/home/pmurley/go/src/github.com/teamnsrg/mida/results"
     }
   },
   "repeat": 1

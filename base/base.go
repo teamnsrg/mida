@@ -46,6 +46,7 @@ type CompletionSettings struct {
 type DataSettings struct {
 	AllResources     *bool `json:"all_resources"`     // Save all resource files
 	ResourceMetadata *bool `json:"resource_metadata"` // Save extensive metadata about each resource
+	Screenshot       *bool `json:"screenshot"`        // Save a screenshot from the web page
 }
 
 // Settings describing output of results to the local filesystem
@@ -239,6 +240,7 @@ func AllocateNewDataSettings() *DataSettings {
 	var ds = new(DataSettings)
 	ds.AllResources = new(bool)
 	ds.ResourceMetadata = new(bool)
+	ds.Screenshot = new(bool)
 
 	return ds
 }

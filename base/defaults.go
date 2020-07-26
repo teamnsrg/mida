@@ -5,6 +5,7 @@ const (
 	DefaultTempDir              = ".midatmp"
 	DefaultLocalOutputPath      = "results"
 	DefaultResourceSubdir       = "resources"
+	DefaultScreenshotFileName   = "screenshot.png"
 	DefaultCrawlMetadataFile    = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
@@ -34,6 +35,7 @@ const (
 	// Defaults for data gathering settings
 	DefaultAllResources     = true
 	DefaultResourceMetadata = true
+	DefaultScreenshot       = true
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 

@@ -7,6 +7,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
 	b "github.com/teamnsrg/mida/base"
+	"github.com/teamnsrg/mida/log"
 	"io/ioutil"
 	"path"
 	"sync"
@@ -16,6 +17,7 @@ import (
 // PageLoadEventFired is the event handler for the Page.LoadEventFired event
 func PageLoadEventFired(eventChan chan *page.EventLoadEventFired, loadEventChan chan<- bool, rawResult *b.RawResult, wg *sync.WaitGroup, ctxt context.Context) {
 	done := false
+
 	for {
 		select {
 		case _, ok := <-eventChan:
@@ -28,6 +30,8 @@ func PageLoadEventFired(eventChan chan *page.EventLoadEventFired, loadEventChan 
 			rawResult.TaskSummary.TaskTiming.LoadEvent = time.Now()
 			rawResult.Unlock()
 
+			log.Log.WithField("URL", rawResult.TaskSummary.TaskWrapper.SanitizedTask.URL).Debug("load event fired")
+			rawResult.TaskSummary.TaskWrapper.Log.Debug("load event fired")
 			loadEventChan <- true // Signal that a load event has fired
 
 		case <-ctxt.Done(): // Context canceled, browser closed

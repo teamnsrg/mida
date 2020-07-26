@@ -174,6 +174,7 @@ func getBuildCommand() *cobra.Command {
 		// Data Gathering settings
 		resourceMetadata bool
 		allResources     bool
+		screenshot       bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -256,6 +257,8 @@ func getBuildCommand() *cobra.Command {
 		"Gather and store all resources downloaded by browser")
 	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
+	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
+		"Collect a screenshot after (if) the load event fires for the page")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -292,6 +295,7 @@ func getGoCommand() *cobra.Command {
 		// Data Gathering settings
 		resourceMetadata bool
 		allResources     bool
+		screenshot       bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -334,7 +338,7 @@ func getGoCommand() *cobra.Command {
 	cmdGo.Flags().StringSliceP("set-browser-flags", "", setBrowserFlags,
 		"Overrides default browser flags (comma-separated, no '--')")
 	cmdGo.Flags().StringSliceP("extensions", "e", extensions,
-		"Full paths to browser extensions to use (comma-separated, no'--')")
+		"Full paths to browser extensions to use (comma-separated, no '--')")
 
 	cmdGo.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
@@ -347,6 +351,8 @@ func getGoCommand() *cobra.Command {
 		"Gather and store all resources downloaded by browser")
 	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
+	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
+		"Collect a screenshot after (if) the load event fires for the page")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

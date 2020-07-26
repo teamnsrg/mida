@@ -100,6 +100,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.Screenshot, err = cmd.Flags().GetBool("screenshot")
+	if err != nil {
+		return nil, err
+	}
 
 	// Output settings, either local or remote
 	resultsOutputPath, err := cmd.Flags().GetString("results-output-path")
