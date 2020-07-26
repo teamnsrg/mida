@@ -14,7 +14,7 @@ import (
 func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 	switch cmd.Name() {
 	case "file":
-		rawTasks, err := fetch.FromFile(viper.GetString("task_file"), viper.GetBool("shuffle"))
+		rawTasks, err := fetch.FromFile(args[0], viper.GetBool("shuffle"))
 		if err != nil {
 			log.Log.Error(err)
 			close(rtc)

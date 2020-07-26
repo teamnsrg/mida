@@ -56,6 +56,7 @@ func getFileCommand() *cobra.Command {
 		Short: "Read and execute tasks from file",
 		Long: `MIDA reads and executes tasks from a pre-created task
 file, exiting when all tasks in the file are completed.`,
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			ll, err := cmd.Flags().GetInt("log-level")
 			if err != nil {
@@ -72,21 +73,11 @@ file, exiting when all tasks in the file are completed.`,
 	}
 
 	var (
-		taskFile string
-		shuffle  bool
+		shuffle bool
 	)
 
-	cmdFile.Flags().StringVarP(&taskFile, "task-file", "f", viper.GetString("task_file"),
-		"RawTask file to process")
 	cmdFile.Flags().BoolVarP(&shuffle, "shuffle", "", b.DefaultShuffle,
 		"Randomize processing order for tasks")
-	err := viper.BindPFlag("task_file", cmdFile.Flags().Lookup("task-file"))
-	if err != nil {
-		log.Log.Fatal(err)
-	}
-
-	// Enable some autocomplete features of Cobra
-	_ = cmdFile.MarkFlagFilename("task-file")
 
 	return cmdFile
 }
