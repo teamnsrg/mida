@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
@@ -17,6 +18,7 @@ import (
 // PageLoadEventFired is the event handler for the Page.LoadEventFired event
 func PageLoadEventFired(eventChan chan *page.EventLoadEventFired, loadEventChan chan<- bool, rawResult *b.RawResult, wg *sync.WaitGroup, ctxt context.Context) {
 	done := false
+	sentLoadEvent := false
 
 	for {
 		select {
@@ -32,7 +34,42 @@ func PageLoadEventFired(eventChan chan *page.EventLoadEventFired, loadEventChan 
 
 			log.Log.WithField("URL", rawResult.TaskSummary.TaskWrapper.SanitizedTask.URL).Debug("load event fired")
 			rawResult.TaskSummary.TaskWrapper.Log.Debug("load event fired")
-			loadEventChan <- true // Signal that a load event has fired
+
+			// Ensure we only send one load event per page visit. Subsequent load events will be ignored
+			if !sentLoadEvent {
+				loadEventChan <- true // Signal that a load event has fired
+				sentLoadEvent = true
+			}
+
+		case <-ctxt.Done(): // Context canceled, browser closed
+			done = true
+			break
+		}
+
+		if done {
+			break
+		}
+	}
+
+	wg.Done()
+}
+
+func PageFrameNavigated(eventChan chan *page.EventFrameNavigated, devtoolsState *DTState, wg *sync.WaitGroup, ctxt context.Context) {
+	done := false
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok { // Channel closed
+				done = true
+				break
+			}
+
+			// Keep track of the frame at the top level, so we can block navigations when needed
+			if ev.Frame.ParentID == "" {
+				devtoolsState.Lock()
+				devtoolsState.mainFrameLoaderId = ev.Frame.ID.String()
+				devtoolsState.Unlock()
+			}
 
 		case <-ctxt.Done(): // Context canceled, browser closed
 			done = true
@@ -65,6 +102,7 @@ func NetworkRequestWillBeSent(eventChan chan *network.EventRequestWillBeSent, ra
 			rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()] = append(
 				rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()], *ev)
 			rawResult.Unlock()
+
 		case <-ctxt.Done(): // Context canceled, browser closed
 			done = true
 			break
@@ -160,6 +198,62 @@ func NetworkLoadingFinished(eventChan chan *network.EventLoadingFinished, rawRes
 	if *rawResult.TaskSummary.TaskWrapper.SanitizedTask.DS.AllResources {
 		log.Debugf("successfully downloaded %d out of %d resources",
 			resourceDownloadSuccessCounter, resourceDownloadAttemptCounter)
+	}
+
+	wg.Done()
+}
+
+// FetchRequestPaused is the event handler for network requests which have been paused
+func FetchRequestPaused(eventChan chan *fetch.EventRequestPaused, rawResult *b.RawResult, devtoolsState *DTState, wg *sync.WaitGroup, ctxt context.Context) {
+	done := false
+	tw := rawResult.TaskSummary.TaskWrapper
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok { // Channel closed
+				done = true
+				break
+			}
+
+			err := chromedp.Run(ctxt, chromedp.ActionFunc(func(cxt context.Context) error {
+				devtoolsState.Lock()
+				mainFrame := devtoolsState.mainFrameLoaderId
+				devtoolsState.Unlock()
+
+				var err error
+				if ev.ResourceType == network.ResourceTypeDocument {
+					var frameId string
+					rawResult.Lock()
+					if _, ok := rawResult.DevTools.Network.RequestWillBeSent[ev.NetworkID.String()]; ok {
+						rArr := rawResult.DevTools.Network.RequestWillBeSent[ev.NetworkID.String()]
+						frameId = rArr[len(rArr)-1].FrameID.String()
+					}
+					rawResult.Unlock()
+
+					if frameId == mainFrame {
+						err = fetch.FailRequest(ev.RequestID, network.ErrorReasonAborted).Do(cxt)
+						log.Log.Info("denying navigation to " + ev.Request.URL)
+					} else {
+						err = fetch.ContinueRequest(ev.RequestID).Do(cxt)
+					}
+				} else {
+					err = fetch.ContinueRequest(ev.RequestID).Do(cxt)
+				}
+
+				return err
+			}))
+			if err != nil {
+				tw.Log.Error("failed to continue a paused request: " + err.Error())
+			}
+
+		case <-ctxt.Done(): // Context canceled, browser closed
+			done = true
+			break
+		}
+
+		if done {
+			break
+		}
 	}
 
 	wg.Done()

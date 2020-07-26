@@ -1,8 +1,6 @@
 {
   "url": [
-    "foxnews.com",
-    "alibaba.com",
-    "google.com"
+    "cnn.com"
   ],
   "browser_settings": {
     "browser_binary": "",
@@ -14,7 +12,7 @@
   },
   "completion_settings": {
     "completion_condition": "TimeoutOnly",
-    "timeout": 15
+    "timeout": 60
   },
   "data_settings": {
     "all_resources": false,

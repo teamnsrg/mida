@@ -25,6 +25,7 @@ import (
 type EventChannels struct {
 	loadEventFiredChan                     chan *page.EventLoadEventFired
 	domContentEventFiredChan               chan *page.EventDomContentEventFired
+	frameNavigatedChan                     chan *page.EventFrameNavigated
 	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
 	responseReceivedChan                   chan *network.EventResponseReceived
 	loadingFinishedChan                    chan *network.EventLoadingFinished
@@ -39,6 +40,11 @@ type EventChannels struct {
 	EventSourceMessageReceivedChan         chan *network.EventEventSourceMessageReceived
 	requestPausedChan                      chan *fetch.EventRequestPaused
 	scriptParsedChan                       chan *debugger.EventScriptParsed
+}
+
+type DTState struct {
+	mainFrameLoaderId string
+	sync.Mutex
 }
 
 // VisitPageDevtoolsProtocol is a high level function that takes a pre-sanitized TaskWrapper and processes
@@ -66,6 +72,9 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	// Open all the event channels we will use to receive events from DevTools
 	ec := openEventChannels()
+
+	// DevTools-specific state we need to use across various goroutines
+	var devToolsState DTState
 
 	// Make sure user data directory exists already. If not, create it.
 	// If we can't create it, we consider it a bad enough error that we
@@ -118,11 +127,13 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	browserContext, _ := chromedp.NewContext(allocContext)
 
 	// Get our event listener goroutines up and running
-	eventHandlerWG.Add(4) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
+	eventHandlerWG.Add(6) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
 	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
+	go PageFrameNavigated(ec.frameNavigatedChan, &devToolsState, &eventHandlerWG, browserContext)
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
+	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(browserContext, chromedp.ActionFunc(func(cxt context.Context) error {
@@ -172,14 +183,17 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		switch ev.(type) {
 		case *page.EventLoadEventFired:
 			ec.loadEventFiredChan <- ev.(*page.EventLoadEventFired)
+		case *page.EventFrameNavigated:
+			ec.frameNavigatedChan <- ev.(*page.EventFrameNavigated)
 		case *network.EventRequestWillBeSent:
 			ec.requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
 		case *network.EventResponseReceived:
 			ec.responseReceivedChan <- ev.(*network.EventResponseReceived)
 		case *network.EventLoadingFinished:
 			ec.loadingFinishedChan <- ev.(*network.EventLoadingFinished)
+		case *fetch.EventRequestPaused:
+			ec.requestPausedChan <- ev.(*fetch.EventRequestPaused)
 		}
-
 	})
 
 	// Initiate navigation to the applicable page
@@ -323,6 +337,15 @@ func postLoadActions(tw *b.TaskWrapper, cxt context.Context, wg *sync.WaitGroup)
 	// confused with the WaitGroup passed to this function.
 	var individualActionsWG sync.WaitGroup
 
+	// Enable request interception to block navigation
+	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		err := fetch.Enable().Do(cxt)
+		return err
+	}))
+	if err != nil {
+		log.Log.Error(err)
+	}
+
 	// Capture screenshot
 	if *tw.SanitizedTask.DS.Screenshot {
 		individualActionsWG.Add(1)
@@ -339,7 +362,6 @@ func postLoadActions(tw *b.TaskWrapper, cxt context.Context, wg *sync.WaitGroup)
 // the global MIDA log and the task-specific log
 func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.Logger, wg *sync.WaitGroup) {
 	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-		log.Log.Info("attempting screenshot")
 		data, err := page.CaptureScreenshot().Do(cxt)
 		if err != nil {
 			log.Log.Error(err)
@@ -354,8 +376,8 @@ func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.L
 		return nil
 	}))
 	if err != nil {
-		log.Log.Warn(err)
-		taskLog.Warn(err)
+		log.Log.Warn("error capturing screenshot: " + err.Error())
+		taskLog.Warn("error capturing screenshot: " + err.Error())
 	} else {
 		taskLog.Info("captured screenshot")
 	}
@@ -367,6 +389,7 @@ func openEventChannels() EventChannels {
 	ec := EventChannels{
 		loadEventFiredChan:                     make(chan *page.EventLoadEventFired, b.DefaultEventChannelBufferSize),
 		domContentEventFiredChan:               make(chan *page.EventDomContentEventFired, b.DefaultEventChannelBufferSize),
+		frameNavigatedChan:                     make(chan *page.EventFrameNavigated, b.DefaultEventChannelBufferSize),
 		requestWillBeSentChan:                  make(chan *network.EventRequestWillBeSent, b.DefaultEventChannelBufferSize),
 		responseReceivedChan:                   make(chan *network.EventResponseReceived, b.DefaultEventChannelBufferSize),
 		loadingFinishedChan:                    make(chan *network.EventLoadingFinished, b.DefaultEventChannelBufferSize),
