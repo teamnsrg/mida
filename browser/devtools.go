@@ -9,10 +9,8 @@ import (
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/sirupsen/logrus"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -128,12 +126,12 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	// Get our event listener goroutines up and running
 	eventHandlerWG.Add(6) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
-	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
+	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 	go PageFrameNavigated(ec.frameNavigatedChan, &devToolsState, &eventHandlerWG, browserContext)
+	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
+	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
-	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
-	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(browserContext, chromedp.ActionFunc(func(cxt context.Context) error {
@@ -324,67 +322,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	return &rawResult, nil
 }
 
-// postLoadActions is triggered when a load event fires for a site. It is responsible for
-// performing actions which will not take place until after that load event,
-// such as interacting with the page and gathering screenshots. postLoadActions must be
-// responsive to the cancellation of the context it is passed, as the main goroutine will
-// wait for it to return before continuing. Because sites (especially complex ones) sometimes
-// fail to fire load events for opaque reasons, this should be considered a "best-effort" function,
-// and when something fails, it will generally just log a relevant message and press on.
-func postLoadActions(tw *b.TaskWrapper, cxt context.Context, wg *sync.WaitGroup) {
-
-	// This is a WaitGroup used for individual post load actions, and should not be
-	// confused with the WaitGroup passed to this function.
-	var individualActionsWG sync.WaitGroup
-
-	// Enable request interception to block navigation
-	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-		err := fetch.Enable().Do(cxt)
-		return err
-	}))
-	if err != nil {
-		log.Log.Error(err)
-	}
-
-	// Capture screenshot
-	if *tw.SanitizedTask.DS.Screenshot {
-		individualActionsWG.Add(1)
-		go captureScreenshot(cxt, path.Join(tw.TempDir, b.DefaultScreenshotFileName), tw.Log, &individualActionsWG)
-	}
-
-	individualActionsWG.Wait()
-	log.Log.Debug("post load actions completed")
-	wg.Done()
-	return
-}
-
-// captureScreenshot uses an existing browser context to capture a screenshot, logging any error to both
-// the global MIDA log and the task-specific log
-func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.Logger, wg *sync.WaitGroup) {
-	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-		data, err := page.CaptureScreenshot().Do(cxt)
-		if err != nil {
-			log.Log.Error(err)
-			return err
-		}
-
-		err = ioutil.WriteFile(outputPath, data, 0644)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}))
-	if err != nil {
-		log.Log.Warn("error capturing screenshot: " + err.Error())
-		taskLog.Warn("error capturing screenshot: " + err.Error())
-	} else {
-		taskLog.Info("captured screenshot")
-	}
-
-	wg.Done()
-}
-
+// openEventChannels allocates all of the channels through which DevTools events are delivered to their event listeners
 func openEventChannels() EventChannels {
 	ec := EventChannels{
 		loadEventFiredChan:                     make(chan *page.EventLoadEventFired, b.DefaultEventChannelBufferSize),

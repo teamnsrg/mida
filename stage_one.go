@@ -7,6 +7,9 @@ import (
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/fetch"
 	"github.com/teamnsrg/mida/log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 // stage1 is the top level function of stage 1 of the MIDA pipeline and is responsible
@@ -46,6 +49,10 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 			Uri:  viper.GetString("amqp_uri"),
 		}
 
+		// Register a signal handler so we can gracefully exit on SIGTERM
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 		taskAMQPConn, taskDeliveryChan, err := amqp.NewAMQPTasksConsumer(params, viper.GetString("amqp_task_queue"))
 		if err != nil {
 			log.Log.Fatal(err)
@@ -70,6 +77,9 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 				if string(broadcastMsg.Body) == "quit" {
 					breakFlag = true
 				}
+			case <-sigChan:
+				log.Log.Warn("Received SIGTERM, will not start any more tasks")
+				breakFlag = true
 			default:
 			}
 			select {
@@ -78,6 +88,9 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 				if string(broadcastMsg.Body) == "quit" {
 					breakFlag = true
 				}
+			case <-sigChan:
+				log.Log.Warn("Received SIGTERM, will not start any more tasks")
+				breakFlag = true
 			case amqpMsg := <-taskDeliveryChan:
 				rawTask, err := amqp.DecodeAMQPMessageToRawTask(amqpMsg)
 				if err != nil {
