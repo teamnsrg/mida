@@ -1,6 +1,7 @@
 package amqp
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"github.com/streadway/amqp"
 	b "github.com/teamnsrg/mida/base"
@@ -29,7 +30,21 @@ func LoadTasks(tasks b.TaskSet, params ConnParams, queue string, priority uint8,
 	amqpUri := fullUriFromParams(params)
 	log.Log.Debugf("Connecting to AMQP instance at %s", params.Uri)
 
-	connection, err := amqp.Dial(amqpUri)
+	var connection *amqp.Connection
+	var err error
+
+
+
+	if strings.HasPrefix(amqpUri,"amqps") {
+		connection, err = amqp.DialTLS(amqpUri,
+			&tls.Config{
+				InsecureSkipVerify:          true,
+				},
+			)
+	} else if strings.HasPrefix(amqpUri, "amqp") {
+		connection, err = amqp.Dial(amqpUri)
+
+	}
 	if err != nil {
 		return 0, err
 	}
