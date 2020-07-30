@@ -7,7 +7,6 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
@@ -135,14 +134,9 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(browserContext, chromedp.ActionFunc(func(cxt context.Context) error {
-		err = runtime.Disable().Do(cxt)
-		if err != nil {
-			log.Log.Error(err)
-			return err
-		}
-
 		err = page.Enable().Do(cxt)
 		if err != nil {
+			log.Log.Error(err)
 			return err
 		}
 
