@@ -20,7 +20,7 @@ func InitGlobalLogger(logfile string) {
 		MaxSize:    50, //megabytes
 		MaxBackups: 3,
 		MaxAge:     180, //days
-		Level:      logrus.InfoLevel,
+		Level:      logrus.DebugLevel,
 		Formatter:  fileFormatter,
 	})
 	if err != nil {

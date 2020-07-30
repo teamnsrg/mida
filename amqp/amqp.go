@@ -3,6 +3,7 @@ package amqp
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"github.com/streadway/amqp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
@@ -33,17 +34,16 @@ func LoadTasks(tasks b.TaskSet, params ConnParams, queue string, priority uint8,
 	var connection *amqp.Connection
 	var err error
 
-
-
-	if strings.HasPrefix(amqpUri,"amqps") {
+	if strings.HasPrefix(amqpUri, "amqps") {
 		connection, err = amqp.DialTLS(amqpUri,
 			&tls.Config{
-				InsecureSkipVerify:          true,
-				},
-			)
+				InsecureSkipVerify: true,
+			},
+		)
 	} else if strings.HasPrefix(amqpUri, "amqp") {
 		connection, err = amqp.Dial(amqpUri)
-
+	} else {
+		err = errors.New("invalid amqp URL: [ " + amqpUri + " ]")
 	}
 	if err != nil {
 		return 0, err
@@ -104,7 +104,17 @@ func NewAMQPTasksConsumer(params ConnParams, queue string) (*Consumer, <-chan am
 	amqpUri := fullUriFromParams(params)
 	log.Log.Debugf("Connecting to AMQP instance at %s", params.Uri)
 
-	c.conn, err = amqp.Dial(amqpUri)
+	if strings.HasPrefix(amqpUri, "amqps") {
+		c.conn, err = amqp.DialTLS(amqpUri,
+			&tls.Config{
+				InsecureSkipVerify: true,
+			},
+		)
+	} else if strings.HasPrefix(amqpUri, "amqp") {
+		c.conn, err = amqp.Dial(amqpUri)
+	} else {
+		err = errors.New("invalid amqp URL: [ " + amqpUri + " ]")
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -163,7 +173,17 @@ func NewAMQPBroadcastConsumer(params ConnParams, queue string) (*Consumer, <-cha
 	var err error
 	amqpUri := fullUriFromParams(params)
 
-	c.conn, err = amqp.Dial(amqpUri)
+	if strings.HasPrefix(amqpUri, "amqps") {
+		c.conn, err = amqp.DialTLS(amqpUri,
+			&tls.Config{
+				InsecureSkipVerify: true,
+			},
+		)
+	} else if strings.HasPrefix(amqpUri, "amqp") {
+		c.conn, err = amqp.Dial(amqpUri)
+	} else {
+		err = errors.New("invalid amqp URL: [ " + amqpUri + " ]")
+	}
 	if err != nil {
 		return nil, nil, err
 	}
