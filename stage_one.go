@@ -89,6 +89,8 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 				}
 			case <-sigChan:
 				log.Log.Warn("Received SIGTERM, will not start any more tasks")
+				log.Log.Warn("Press Ctrl+C again to kill MIDA immediately")
+				signal.Reset() // If ctrl+C is pressed again, we just die
 				breakFlag = true
 			default:
 			}
@@ -100,6 +102,8 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 				}
 			case <-sigChan:
 				log.Log.Warn("Received SIGTERM, will not start any more tasks")
+				log.Log.Warn("Press Ctrl+C again to kill MIDA immediately")
+				signal.Reset() // If ctrl+C is pressed again, we just die
 				breakFlag = true
 			case amqpMsg := <-taskDeliveryChan:
 				rawTask, err := amqp.DecodeAMQPMessageToRawTask(amqpMsg)
