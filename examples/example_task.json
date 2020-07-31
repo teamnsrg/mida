@@ -12,7 +12,7 @@
   },
   "completion_settings": {
     "completion_condition": "TimeoutOnly",
-    "timeout": 60
+    "timeout": 10
   },
   "data_settings": {
     "all_resources": false,
