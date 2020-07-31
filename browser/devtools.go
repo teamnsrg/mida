@@ -132,6 +132,11 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
 
+	// The browser will open now, when we run our first chromedp ActionFunc
+	rawResult.Lock()
+	rawResult.TaskSummary.TaskTiming.BrowserOpen = time.Now()
+	rawResult.Unlock()
+
 	// Ensure the correct domains are enabled/disabled
 	err = chromedp.Run(browserContext, chromedp.ActionFunc(func(cxt context.Context) error {
 		err = page.Enable().Do(cxt)

@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	b "github.com/teamnsrg/mida/base"
+	"time"
 )
 
 func DevTools(rr *b.RawResult) (b.FinalResult, error) {
@@ -9,6 +10,8 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		Summary:            rr.TaskSummary,
 		DTResourceMetadata: make(map[string]b.DTResource),
 	}
+
+	finalResult.Summary.TaskTiming.BeginPostprocess = time.Now()
 
 	// For brevity
 	st := rr.TaskSummary.TaskWrapper.SanitizedTask
@@ -34,6 +37,8 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			}
 		}
 	}
+
+	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 
 	return finalResult, nil
 }
