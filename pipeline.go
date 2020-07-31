@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
+	"syscall"
 )
 
 // InitPipeline is the main MIDA pipeline, used whenever MIDA uses a browser to visit websites.
@@ -38,6 +39,11 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 		if runtime.GOOS != "linux" {
 			log.Log.Error("virtual display (Xvfb) is only available on linux")
 			return
+		}
+
+		// Required so we can catch SIGTERM/SIGINT gracefully without closing Xvfb immediately
+		xvfbCommand.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid:                    true,
 		}
 
 		err := xvfbCommand.Start()

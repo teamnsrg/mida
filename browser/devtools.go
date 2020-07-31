@@ -1,7 +1,6 @@
 package browser
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
@@ -98,8 +97,6 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		}
 	}
 
-	buf := new(bytes.Buffer)
-
 	// Build our opts slice
 	var opts []chromedp.ExecAllocatorOption
 	for _, flagString := range tw.SanitizedTask.BrowserFlags {
@@ -114,10 +111,6 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	opts = append(opts, chromedp.UserDataDir(tw.SanitizedTask.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(tw.SanitizedTask.BrowserBinaryPath))
-
-	// TODO: Debugging -- remove me
-	opts = append(opts, chromedp.Flag("enable-logging", true))
-	opts = append(opts, chromedp.CombinedOutput(buf))
 
 	// Build channels we need for coordinating the site visit across goroutines
 	navChan := make(chan error)                                                          // A channel to signal the completion of navigation, successfully or not
@@ -161,7 +154,6 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	}))
 	if err != nil {
 		// If we can't enable the domains on the browser, something is seriously wrong, so we return an error. No results.
-		log.Log.Info(buf) // TODO
 		tw.Log.Error("failed to enable DevTools domains: ", err)
 		log.Log.Error("failed to enable DevTools domains:", err)
 
@@ -220,7 +212,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		// Our connection to the web server took longer than out navigation timeout (currently 30 seconds)
 		err = errors.New("timeout on connection to webserver")
 	case <-timeoutChan:
-		err = errors.New("total site visit time exceeded before we connected to webserver")
+		err = errors.New("total site visit time exceeded before we connected to server")
 	case <-browserContext.Done():
 		// The browser somehow closed before we finished navigation
 		err = errors.New("browser closed during connection to site")
@@ -228,8 +220,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	if err != nil {
 		// Save our error message for storage
 		errorCode := err.Error()
-		tw.Log.Errorf(errorCode)
-		log.Log.Errorf(errorCode)
+		tw.Log.Errorf("failed to navigate to site: " + errorCode)
+		log.Log.Errorf("failed to navigate to site: " + errorCode)
 
 		// We have failed to navigate to the site. Shut things down.
 		closeContext, _ := context.WithTimeout(browserContext, 5*time.Second)

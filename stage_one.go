@@ -10,11 +10,17 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 // stage1 is the top level function of stage 1 of the MIDA pipeline and is responsible
 // for getting the raw tasks (from any source) and placing them into the raw task channel.
 func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
+
+	// Rate limit the beginning of tasks. This prevents all parallel browsers from opening at the
+	// same time, straining system resources.
+	rateLimiter := time.Tick(time.Duration(viper.GetInt("rate_limit_milliseconds")) * time.Millisecond)
+
 	switch cmd.Name() {
 	case "file":
 		rawTasks, err := fetch.FromFile(args[0], viper.GetBool("shuffle"))
@@ -24,7 +30,9 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 			return
 		}
 		for rt := range rawTasks {
-			rtc <- rt
+			rtCopy := rt
+			rtc <- rtCopy
+			<-rateLimiter
 		}
 
 	case "go":
@@ -39,7 +47,9 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 
 		rawTasks := b.ExpandCompressedTaskSet(*cts)
 		for _, rt := range rawTasks {
-			rtc <- &rt
+			rtCopy := rt
+			rtc <- &rtCopy
+			<-rateLimiter
 		}
 
 	case "client":
@@ -50,7 +60,7 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 		}
 
 		// Register a signal handler so we can gracefully exit on SIGTERM
-		sigChan := make(chan os.Signal, 1)
+		sigChan := make(chan os.Signal, 5)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 		taskAMQPConn, taskDeliveryChan, err := amqp.NewAMQPTasksConsumer(params, viper.GetString("amqp_task_queue"))
@@ -97,6 +107,7 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 					log.Log.Error(err)
 				}
 				rtc <- &rawTask
+				<-rateLimiter
 			}
 			if breakFlag {
 				break
