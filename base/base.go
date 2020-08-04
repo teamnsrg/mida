@@ -125,9 +125,8 @@ type TaskWrapper struct {
 	TempDir string // Temporary directory where results are stored. Can be the same as the UserDataDir in some cases.
 
 	// Dynamic fields
-	Log         *logrus.Logger
-	LogFile     *os.File
-	FailureCode string // Holds the failure code for the task, or "" if the task has not failed
+	Log     *logrus.Logger
+	LogFile *os.File
 }
 
 // Timing data for the processing of a particular task
@@ -141,26 +140,27 @@ type TaskTiming struct {
 	BeginPostprocess      time.Time `json:"begin_postprocess"`
 	EndPostprocess        time.Time `json:"end_postprocess"`
 	BeginStorage          time.Time `json:"begin_storage"`
-	EndStorage            time.Time `json:"end_storage"`
+	EndStorage            time.Time `json:"-"`
 }
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
-	Success     bool         `json:"success"`      // True if the task did not fail
-	TaskWrapper *TaskWrapper `json:"task_wrapper"` // Wrapper containing the full task
-	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
+	Success       bool   `json:"success"`        // True if the task did not fail
+	FailureReason string `json:"failure_reason"` // Holds the failure code for the task, or "" if the task has not failed
 
-	NumResources int `json:"num_resources,omitempty"` // Number of resources the browser loaded
+	TaskWrapper *TaskWrapper `json:"-"`            // Wrapper containing the full task
+	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
+	CrawlerInfo CrawlerInfo  `json:"crawler_info"` // Information about the infrastructure used to visit the site
+
+	NumResources int `json:"num_resources"` // Number of resources the browser loaded
 }
 
 // Information about the infrastructure used to perform the crawl
 type CrawlerInfo struct {
-	HostName    string `json:"host_name"`    // Host name of the machine used to crawl
-	MidaVersion string `json:"mida_version"` // Version of MIDA used for this crawl
-
 	Browser        string `json:"browser"`         // Name of the browser itself
 	BrowserVersion string `json:"browser_version"` // Version of the browser we are using
 	UserAgent      string `json:"user_agent"`      // User agent we are using
+	JSVersion      string `json:"js_version"`      // JS version
 }
 
 type DevtoolsNetworkRawData struct {
@@ -175,7 +175,6 @@ type DevToolsRawData struct {
 
 // The results MIDA gathers before they are post-processed
 type RawResult struct {
-	CrawlerInfo CrawlerInfo     // Information about the infrastructure used to visit the site
 	TaskSummary TaskSummary     // Summary information about the task, not necessarily complete in RawResult
 	DevTools    DevToolsRawData // Struct Containing Raw Data gathered from a DevTools site visit
 	sync.Mutex

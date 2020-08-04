@@ -7,7 +7,7 @@ const (
 	DefaultResourceSubdir       = "resources"
 	DefaultScreenshotFileName   = "screenshot.png"
 	DefaultCookieFileName       = "cookies.json"
-	DefaultCrawlMetadataFile    = "metadata.json"
+	DefaultMetadataFile         = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
 	DefaultTaskLogFile          = "task.log"
