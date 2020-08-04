@@ -6,6 +6,7 @@ const (
 	DefaultLocalOutputPath      = "results"
 	DefaultResourceSubdir       = "resources"
 	DefaultScreenshotFileName   = "screenshot.png"
+	DefaultCookieFileName       = "cookies.json"
 	DefaultCrawlMetadataFile    = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
@@ -34,6 +35,7 @@ const (
 
 	// Defaults for data gathering settings
 	DefaultAllResources     = true
+	DefaultCookies          = true
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
 

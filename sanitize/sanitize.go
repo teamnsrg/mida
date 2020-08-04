@@ -328,6 +328,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.Screenshot = *rawDataSettings.Screenshot
 	}
 
+	*result.Cookies = b.DefaultCookies
+	if parentSettings != nil && parentSettings.Cookies != nil {
+		*result.Cookies = *parentSettings.Cookies
+	}
+	if rawDataSettings != nil && rawDataSettings.Cookies != nil {
+		*result.Cookies = *rawDataSettings.Cookies
+	}
+
 	return *result, nil
 }
 

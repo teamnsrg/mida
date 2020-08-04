@@ -45,8 +45,10 @@ type CompletionSettings struct {
 // Settings describing which data MIDA will capture from the crawl
 type DataSettings struct {
 	AllResources     *bool `json:"all_resources"`     // Save all resource files
+	Cookies          *bool `json:"cookies"`           // Save cookies set by page
 	ResourceMetadata *bool `json:"resource_metadata"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot"`        // Save a screenshot from the web page
+
 }
 
 // Settings describing output of results to the local filesystem
@@ -162,12 +164,13 @@ type CrawlerInfo struct {
 }
 
 type DevtoolsNetworkRawData struct {
-	RequestWillBeSent map[string][]network.EventRequestWillBeSent
-	ResponseReceived  map[string]network.EventResponseReceived
+	RequestWillBeSent map[string][]*network.EventRequestWillBeSent
+	ResponseReceived  map[string]*network.EventResponseReceived
 }
 
 type DevToolsRawData struct {
 	Network DevtoolsNetworkRawData
+	Cookies []*network.Cookie
 }
 
 // The results MIDA gathers before they are post-processed
@@ -179,12 +182,13 @@ type RawResult struct {
 }
 
 type DTResource struct {
-	Requests []network.EventRequestWillBeSent `json:"requests"`  // All requests sent for this particular request
-	Response network.EventResponseReceived    `json:"responses"` // All responses received for this particular request
+	Requests []*network.EventRequestWillBeSent `json:"requests"`  // All requests sent for this particular request
+	Response *network.EventResponseReceived    `json:"responses"` // All responses received for this particular request
 }
 
 type FinalResult struct {
 	Summary            TaskSummary           `json:"stats"`             // Statistics on timing and resource usage for the crawl
+	DTCookies          []*network.Cookie     `json:"cookies"`           // Cookies collected from DevTools protocol
 	DTResourceMetadata map[string]DTResource `json:"resource_metadata"` // Metadata on each resource loaded
 }
 
@@ -239,6 +243,7 @@ func AllocateNewCompletionSettings() *CompletionSettings {
 func AllocateNewDataSettings() *DataSettings {
 	var ds = new(DataSettings)
 	ds.AllResources = new(bool)
+	ds.Cookies = new(bool)
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 

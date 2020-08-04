@@ -54,6 +54,18 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.Cookies {
+		data, err := json.Marshal(finalResult.DTCookies)
+		if err != nil {
+			return errors.New("failed to marshal cookies for local storage")
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultCookieFileName), data, 0644)
+		if err != nil {
+			return errors.New("failed to write cookie json to file")
+		}
+	}
+
 	// Store our log
 	err = tw.LogFile.Close()
 	if err != nil {

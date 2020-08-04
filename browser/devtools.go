@@ -61,8 +61,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		},
 		DevTools: b.DevToolsRawData{
 			Network: b.DevtoolsNetworkRawData{
-				RequestWillBeSent: make(map[string][]network.EventRequestWillBeSent),
-				ResponseReceived:  make(map[string]network.EventResponseReceived),
+				RequestWillBeSent: make(map[string][]*network.EventRequestWillBeSent),
+				ResponseReceived:  make(map[string]*network.EventResponseReceived),
 			},
 		},
 	}
@@ -259,7 +259,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		case b.TimeAfterLoad:
 			// We are waiting for some time after the load event, so we can initiate post load actions
 			postLoadWG.Add(1)
-			go postLoadActions(tw, browserContext, &postLoadWG)
+			go postLoadActions(browserContext, tw, &rawResult, &postLoadWG)
 
 			select {
 			case <-browserContext.Done():
@@ -279,7 +279,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			// We need to just continue waiting for the timeout (or unexpected browser close).
 			// We can begin any post load event actions we need to try
 			postLoadWG.Add(1)
-			go postLoadActions(tw, browserContext, &postLoadWG)
+			go postLoadActions(browserContext, tw, &rawResult, &postLoadWG)
 
 			select {
 			case <-browserContext.Done():
