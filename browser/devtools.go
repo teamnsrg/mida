@@ -3,6 +3,7 @@ package browser
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/browser"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
@@ -52,7 +53,6 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	// Fully allocate our raw result object -- should be locked whenever it is read or written
 	rawResult := b.RawResult{
-		CrawlerInfo: b.CrawlerInfo{},
 		TaskSummary: b.TaskSummary{
 			Success:      false,
 			TaskWrapper:  tw,
@@ -61,8 +61,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		},
 		DevTools: b.DevToolsRawData{
 			Network: b.DevtoolsNetworkRawData{
-				RequestWillBeSent: make(map[string][]network.EventRequestWillBeSent),
-				ResponseReceived:  make(map[string]network.EventResponseReceived),
+				RequestWillBeSent: make(map[string][]*network.EventRequestWillBeSent),
+				ResponseReceived:  make(map[string]*network.EventResponseReceived),
 			},
 		},
 	}
@@ -137,7 +137,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	rawResult.TaskSummary.TaskTiming.BrowserOpen = time.Now()
 	rawResult.Unlock()
 
-	// Ensure the correct domains are enabled/disabled
+	// Ensure the correct domains are enabled/disabled, and get metadata from browser
 	err = chromedp.Run(browserContext, chromedp.ActionFunc(func(cxt context.Context) error {
 		err = page.Enable().Do(cxt)
 		if err != nil {
@@ -155,12 +155,24 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			return err
 		}
 
+		_, product, revision, userAgent, jsVersion, err := browser.GetVersion().Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		rawResult.Lock()
+		rawResult.TaskSummary.CrawlerInfo.Browser = product
+		rawResult.TaskSummary.CrawlerInfo.BrowserVersion = revision
+		rawResult.TaskSummary.CrawlerInfo.UserAgent = userAgent
+		rawResult.TaskSummary.CrawlerInfo.JSVersion = jsVersion
+		rawResult.Unlock()
+
 		return nil
 	}))
 	if err != nil {
 		// If we can't enable the domains on the browser, something is seriously wrong, so we return an error. No results.
 		tw.Log.Error("failed to enable DevTools domains: ", err)
-		log.Log.Error("failed to enable DevTools domains:", err)
+		log.Log.Error("failed to enable DevTools domains: ", err)
 
 		closeContext, _ := context.WithTimeout(browserContext, 5*time.Second)
 		err = chromedp.Cancel(closeContext)
@@ -240,7 +252,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		eventHandlerWG.Wait()
 
 		rawResult.Lock()
-		rawResult.TaskSummary.TaskWrapper.FailureCode = errorCode
+		rawResult.TaskSummary.FailureReason = errorCode
 		rawResult.TaskSummary.Success = false
 		rawResult.TaskSummary.TaskTiming.BrowserClose = time.Now()
 		rawResult.Unlock()
@@ -259,7 +271,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		case b.TimeAfterLoad:
 			// We are waiting for some time after the load event, so we can initiate post load actions
 			postLoadWG.Add(1)
-			go postLoadActions(tw, browserContext, &postLoadWG)
+			go postLoadActions(browserContext, tw, &rawResult, &postLoadWG)
 
 			select {
 			case <-browserContext.Done():
@@ -279,7 +291,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			// We need to just continue waiting for the timeout (or unexpected browser close).
 			// We can begin any post load event actions we need to try
 			postLoadWG.Add(1)
-			go postLoadActions(tw, browserContext, &postLoadWG)
+			go postLoadActions(browserContext, tw, &rawResult, &postLoadWG)
 
 			select {
 			case <-browserContext.Done():
@@ -309,6 +321,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	// Store time at which we closed the browser
 	rawResult.Lock()
 	rawResult.TaskSummary.TaskTiming.BrowserClose = time.Now()
+	rawResult.TaskSummary.Success = true
 	rawResult.Unlock()
 
 	// Wait for post load actions to finish

@@ -38,6 +38,12 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		}
 	}
 
+	if *st.DS.Cookies {
+		finalResult.DTCookies = rr.DevTools.Cookies
+	}
+
+	finalResult.Summary.NumResources = len(rr.DevTools.Network.RequestWillBeSent)
+
 	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 
 	return finalResult, nil

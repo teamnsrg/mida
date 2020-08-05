@@ -45,8 +45,10 @@ type CompletionSettings struct {
 // Settings describing which data MIDA will capture from the crawl
 type DataSettings struct {
 	AllResources     *bool `json:"all_resources"`     // Save all resource files
+	Cookies          *bool `json:"cookies"`           // Save cookies set by page
 	ResourceMetadata *bool `json:"resource_metadata"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot"`        // Save a screenshot from the web page
+
 }
 
 // Settings describing output of results to the local filesystem
@@ -123,9 +125,8 @@ type TaskWrapper struct {
 	TempDir string // Temporary directory where results are stored. Can be the same as the UserDataDir in some cases.
 
 	// Dynamic fields
-	Log         *logrus.Logger
-	LogFile     *os.File
-	FailureCode string // Holds the failure code for the task, or "" if the task has not failed
+	Log     *logrus.Logger
+	LogFile *os.File
 }
 
 // Timing data for the processing of a particular task
@@ -139,52 +140,54 @@ type TaskTiming struct {
 	BeginPostprocess      time.Time `json:"begin_postprocess"`
 	EndPostprocess        time.Time `json:"end_postprocess"`
 	BeginStorage          time.Time `json:"begin_storage"`
-	EndStorage            time.Time `json:"end_storage"`
+	EndStorage            time.Time `json:"-"`
 }
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
-	Success     bool         `json:"success"`      // True if the task did not fail
-	TaskWrapper *TaskWrapper `json:"task_wrapper"` // Wrapper containing the full task
-	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
+	Success       bool   `json:"success"`        // True if the task did not fail
+	FailureReason string `json:"failure_reason"` // Holds the failure code for the task, or "" if the task has not failed
 
-	NumResources int `json:"num_resources,omitempty"` // Number of resources the browser loaded
+	TaskWrapper *TaskWrapper `json:"-"`            // Wrapper containing the full task
+	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
+	CrawlerInfo CrawlerInfo  `json:"crawler_info"` // Information about the infrastructure used to visit the site
+
+	NumResources int `json:"num_resources"` // Number of resources the browser loaded
 }
 
 // Information about the infrastructure used to perform the crawl
 type CrawlerInfo struct {
-	HostName    string `json:"host_name"`    // Host name of the machine used to crawl
-	MidaVersion string `json:"mida_version"` // Version of MIDA used for this crawl
-
 	Browser        string `json:"browser"`         // Name of the browser itself
 	BrowserVersion string `json:"browser_version"` // Version of the browser we are using
 	UserAgent      string `json:"user_agent"`      // User agent we are using
+	JSVersion      string `json:"js_version"`      // JS version
 }
 
 type DevtoolsNetworkRawData struct {
-	RequestWillBeSent map[string][]network.EventRequestWillBeSent
-	ResponseReceived  map[string]network.EventResponseReceived
+	RequestWillBeSent map[string][]*network.EventRequestWillBeSent
+	ResponseReceived  map[string]*network.EventResponseReceived
 }
 
 type DevToolsRawData struct {
 	Network DevtoolsNetworkRawData
+	Cookies []*network.Cookie
 }
 
 // The results MIDA gathers before they are post-processed
 type RawResult struct {
-	CrawlerInfo CrawlerInfo     // Information about the infrastructure used to visit the site
 	TaskSummary TaskSummary     // Summary information about the task, not necessarily complete in RawResult
 	DevTools    DevToolsRawData // Struct Containing Raw Data gathered from a DevTools site visit
 	sync.Mutex
 }
 
 type DTResource struct {
-	Requests []network.EventRequestWillBeSent `json:"requests"`  // All requests sent for this particular request
-	Response network.EventResponseReceived    `json:"responses"` // All responses received for this particular request
+	Requests []*network.EventRequestWillBeSent `json:"requests"`  // All requests sent for this particular request
+	Response *network.EventResponseReceived    `json:"responses"` // All responses received for this particular request
 }
 
 type FinalResult struct {
 	Summary            TaskSummary           `json:"stats"`             // Statistics on timing and resource usage for the crawl
+	DTCookies          []*network.Cookie     `json:"cookies"`           // Cookies collected from DevTools protocol
 	DTResourceMetadata map[string]DTResource `json:"resource_metadata"` // Metadata on each resource loaded
 }
 
@@ -239,6 +242,7 @@ func AllocateNewCompletionSettings() *CompletionSettings {
 func AllocateNewDataSettings() *DataSettings {
 	var ds = new(DataSettings)
 	ds.AllResources = new(bool)
+	ds.Cookies = new(bool)
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 

@@ -27,6 +27,16 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		return errors.New("task local output directory exists")
 	}
 
+	// Store metadata for every crawl
+	data, err := json.Marshal(finalResult.Summary)
+	if err != nil {
+		return errors.New("failed to marshal metadata for local storage: " + err.Error())
+	}
+	err = ioutil.WriteFile(path.Join(outPath, b.DefaultMetadataFile), data, 0644)
+	if err != nil {
+		return errors.New("failed to write metadata file: " + err.Error())
+	}
+
 	if *dataSettings.ResourceMetadata {
 		data, err := json.Marshal(finalResult.DTResourceMetadata)
 		if err != nil {
@@ -51,6 +61,18 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		err = os.Rename(path.Join(tw.TempDir, b.DefaultScreenshotFileName), path.Join(outPath, b.DefaultScreenshotFileName))
 		if err != nil {
 			tw.Log.Warn("screenshot was not gathered -- load event probably never fired")
+		}
+	}
+
+	if *dataSettings.Cookies {
+		data, err := json.Marshal(finalResult.DTCookies)
+		if err != nil {
+			return errors.New("failed to marshal cookies for local storage")
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultCookieFileName), data, 0644)
+		if err != nil {
+			return errors.New("failed to write cookie json to file")
 		}
 	}
 

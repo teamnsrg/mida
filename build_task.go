@@ -96,6 +96,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return ts, err
 	}
+	*ts.Data.Cookies, err = cmd.Flags().GetBool("cookies")
+	if err != nil {
+		return nil, err
+	}
 	*ts.Data.ResourceMetadata, err = cmd.Flags().GetBool("resource-metadata")
 	if err != nil {
 		return nil, err

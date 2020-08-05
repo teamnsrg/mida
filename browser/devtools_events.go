@@ -97,10 +97,10 @@ func NetworkRequestWillBeSent(eventChan chan *network.EventRequestWillBeSent, ra
 
 			rawResult.Lock()
 			if _, ok := rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()]; !ok {
-				rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()] = make([]network.EventRequestWillBeSent, 0)
+				rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()] = make([]*network.EventRequestWillBeSent, 0)
 			}
 			rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()] = append(
-				rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()], *ev)
+				rawResult.DevTools.Network.RequestWillBeSent[ev.RequestID.String()], ev)
 			rawResult.Unlock()
 
 		case <-ctxt.Done(): // Context canceled, browser closed
@@ -128,7 +128,7 @@ func NetworkResponseReceived(eventChan chan *network.EventResponseReceived, rawR
 			}
 
 			rawResult.Lock()
-			rawResult.DevTools.Network.ResponseReceived[ev.RequestID.String()] = *ev
+			rawResult.DevTools.Network.ResponseReceived[ev.RequestID.String()] = ev
 			rawResult.Unlock()
 		case <-ctxt.Done(): // Context canceled, browser closed
 			done = true
