@@ -174,6 +174,7 @@ func getBuildCommand() *cobra.Command {
 		// Data Gathering settings
 		allResources     bool
 		cookies          bool
+		dom              bool
 		resourceMetadata bool
 		screenshot       bool
 
@@ -258,6 +259,8 @@ func getBuildCommand() *cobra.Command {
 		"Gather and store all resources downloaded by browser")
 	cmdBuild.Flags().BoolVarP(&cookies, "cookies", "", b.DefaultCookies,
 		"Gather cookies set by page (after load event)")
+	cmdBuild.Flags().BoolVarP(&dom, "dom", "", b.DefaultDOM,
+		"Gather a JSON representation of the DOM (after load event)")
 	cmdBuild.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
@@ -298,6 +301,7 @@ func getGoCommand() *cobra.Command {
 		// Data Gathering settings
 		allResources     bool
 		cookies          bool
+		dom              bool
 		resourceMetadata bool
 		screenshot       bool
 
@@ -355,6 +359,8 @@ func getGoCommand() *cobra.Command {
 		"Gather and store all resources downloaded by browser")
 	cmdGo.Flags().BoolVarP(&cookies, "cookies", "", b.DefaultCookies,
 		"Gather and store cookies set by page (after load event fires)")
+	cmdGo.Flags().BoolVarP(&dom, "dom", "", b.DefaultDOM,
+		"Gather and store a JSON representation of the DOM (after load event fires)")
 	cmdGo.Flags().BoolVarP(&resourceMetadata, "resource-metadata", "", b.DefaultResourceMetadata,
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,

@@ -336,6 +336,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.Cookies = *rawDataSettings.Cookies
 	}
 
+	*result.DOM = b.DefaultDOM
+	if parentSettings != nil && parentSettings.DOM != nil {
+		*result.DOM = *parentSettings.DOM
+	}
+	if rawDataSettings != nil && rawDataSettings.DOM != nil {
+		*result.DOM = *rawDataSettings.DOM
+	}
+
 	return *result, nil
 }
 

@@ -5,6 +5,7 @@ package base
 import (
 	"encoding/json"
 	"errors"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -46,6 +47,7 @@ type CompletionSettings struct {
 type DataSettings struct {
 	AllResources     *bool `json:"all_resources"`     // Save all resource files
 	Cookies          *bool `json:"cookies"`           // Save cookies set by page
+	DOM              *bool `json:"dom"`               // Collect JSON representation of the DOM
 	ResourceMetadata *bool `json:"resource_metadata"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot"`        // Save a screenshot from the web page
 
@@ -171,6 +173,7 @@ type DevtoolsNetworkRawData struct {
 type DevToolsRawData struct {
 	Network DevtoolsNetworkRawData
 	Cookies []*network.Cookie
+	DOM     *cdp.Node
 }
 
 // The results MIDA gathers before they are post-processed
@@ -186,8 +189,9 @@ type DTResource struct {
 }
 
 type FinalResult struct {
-	Summary            TaskSummary           `json:"stats"`             // Statistics on timing and resource usage for the crawl
-	DTCookies          []*network.Cookie     `json:"cookies"`           // Cookies collected from DevTools protocol
+	Summary            TaskSummary           `json:"stats"`   // Statistics on timing and resource usage for the crawl
+	DTCookies          []*network.Cookie     `json:"cookies"` // Cookies collected from DevTools protocol
+	DTDOM              *cdp.Node             `json:"dom"`
 	DTResourceMetadata map[string]DTResource `json:"resource_metadata"` // Metadata on each resource loaded
 }
 
@@ -243,6 +247,7 @@ func AllocateNewDataSettings() *DataSettings {
 	var ds = new(DataSettings)
 	ds.AllResources = new(bool)
 	ds.Cookies = new(bool)
+	ds.DOM = new(bool)
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 

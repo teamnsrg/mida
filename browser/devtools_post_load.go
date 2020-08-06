@@ -2,6 +2,8 @@ package browser
 
 import (
 	"context"
+	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -46,6 +48,12 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	if *tw.SanitizedTask.DS.Cookies {
 		individualActionsWG.Add(1)
 		go getCookies(cxt, tw.Log, rawResult, &individualActionsWG)
+	}
+
+	// Capture the DOM
+	if *tw.SanitizedTask.DS.DOM {
+		individualActionsWG.Add(1)
+		go getDOM(cxt, tw.Log, rawResult, &individualActionsWG)
 	}
 
 	individualActionsWG.Wait()
@@ -97,6 +105,29 @@ func getCookies(cxt context.Context, taskLog *logrus.Logger, rawResult *b.RawRes
 	} else {
 		rawResult.Lock()
 		rawResult.DevTools.Cookies = cookies
+		rawResult.Unlock()
+	}
+
+	wg.Done()
+}
+
+// getDOM grabs the current state of the DOM from the browser
+func getDOM(cxt context.Context, taskLog *logrus.Logger, rawResult *b.RawResult, wg *sync.WaitGroup) {
+	var domData *cdp.Node
+	var err error
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		domData, err = dom.GetDocument().WithDepth(-1).WithPierce(true).Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
+	if err != nil {
+		taskLog.Warn("failed to get DOM: " + err.Error())
+	} else {
+		rawResult.Lock()
+		rawResult.DevTools.DOM = domData
 		rawResult.Unlock()
 	}
 

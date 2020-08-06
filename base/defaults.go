@@ -7,6 +7,7 @@ const (
 	DefaultResourceSubdir       = "resources"
 	DefaultScreenshotFileName   = "screenshot.png"
 	DefaultCookieFileName       = "cookies.json"
+	DefaultDomFileName          = "dom.json"
 	DefaultMetadataFile         = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
@@ -36,6 +37,7 @@ const (
 	// Defaults for data gathering settings
 	DefaultAllResources     = true
 	DefaultCookies          = true
+	DefaultDOM              = false
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
 

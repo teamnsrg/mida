@@ -30,7 +30,7 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 	// Store metadata for every crawl
 	data, err := json.Marshal(finalResult.Summary)
 	if err != nil {
-		return errors.New("failed to marshal metadata for local storage: " + err.Error())
+		return errors.New("failed to marshal metadata for storage: " + err.Error())
 	}
 	err = ioutil.WriteFile(path.Join(outPath, b.DefaultMetadataFile), data, 0644)
 	if err != nil {
@@ -40,7 +40,7 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 	if *dataSettings.ResourceMetadata {
 		data, err := json.Marshal(finalResult.DTResourceMetadata)
 		if err != nil {
-			return errors.New("failed to marshal resource data for local storage: " + err.Error())
+			return errors.New("failed to marshal resource data for storage: " + err.Error())
 		}
 
 		err = ioutil.WriteFile(path.Join(outPath, b.DefaultResourceMetadataFile), data, 0644)
@@ -67,12 +67,24 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 	if *dataSettings.Cookies {
 		data, err := json.Marshal(finalResult.DTCookies)
 		if err != nil {
-			return errors.New("failed to marshal cookies for local storage")
+			return errors.New("failed to marshal cookies for storage")
 		}
 
 		err = ioutil.WriteFile(path.Join(outPath, b.DefaultCookieFileName), data, 0644)
 		if err != nil {
 			return errors.New("failed to write cookie json to file")
+		}
+	}
+
+	if *dataSettings.DOM {
+		data, err := json.Marshal(finalResult.DTDOM)
+		if err != nil {
+			return errors.New("failed to marshal dom for storage")
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultDomFileName), data, 0644)
+		if err != nil {
+			return errors.New("failed to write DOM json to file")
 		}
 	}
 
