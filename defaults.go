@@ -23,7 +23,7 @@ func setDefaults() {
 	viper.SetDefault("monitor", false)
 	viper.SetDefault("log_level", 2)
 	viper.SetDefault("task_file", "examples/example_task.json")
-	viper.SetDefault("rate_limit_milliseconds", 2000)
+	viper.SetDefault("rate_limit", 200)
 
 	viper.SetDefault("amqp_user", "")
 	viper.SetDefault("amqp_pass", "")

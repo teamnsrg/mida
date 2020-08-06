@@ -53,7 +53,6 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 			if err != nil {
 				return nil, err
 			}
-			defer resp.Body.Close()
 
 			parts := strings.Split(fName, "/")
 			shortFName := parts[len(parts)-1]
@@ -64,6 +63,11 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 			}
 
 			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			err = resp.Body.Close()
 			if err != nil {
 				return nil, err
 			}
@@ -81,7 +85,6 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		if err != nil {
 			return nil, err
 		}
-		defer urlFile.Close()
 
 		scanner := bufio.NewScanner(urlFile)
 		for scanner.Scan() && maxUrls != 0 {
@@ -91,6 +94,11 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 			}
 			*ts.URL = append(*ts.URL, u)
 			maxUrls -= 1
+		}
+
+		err = urlFile.Close()
+		if err != nil {
+			return nil, err
 		}
 
 		if download {

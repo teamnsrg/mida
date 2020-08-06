@@ -19,7 +19,7 @@ func stage1(rtc chan<- *b.RawTask, cmd *cobra.Command, args []string) {
 
 	// Rate limit the beginning of tasks. This prevents all parallel browsers from opening at the
 	// same time, straining system resources.
-	rateLimiter := time.Tick(time.Duration(viper.GetInt("rate_limit_milliseconds")) * time.Millisecond)
+	rateLimiter := time.Tick(time.Duration(viper.GetInt("rate_limit")) * time.Millisecond)
 
 	switch cmd.Name() {
 	case "file":

@@ -20,6 +20,7 @@ func getRootCommand() *cobra.Command {
 		promPort       int
 		logLevel       int
 		virtualDisplay bool
+		rateLimit      int
 	)
 
 	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("crawlers"),
@@ -34,10 +35,17 @@ func getRootCommand() *cobra.Command {
 		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
 	cmdRoot.PersistentFlags().BoolVarP(&virtualDisplay, "xvfb", "", false,
 		"Use Xvfb virtual display (for non-headless, monitor-less crawls on Linux)")
+	cmdRoot.PersistentFlags().IntVarP(&rateLimit, "rate-limit", "r", viper.GetInt("rate_limit"),
+		"Rate limit for tasks (in milliseconds). Helpful for controlling initial busts of CPU/Memory usage")
 
 	err = viper.BindPFlags(cmdRoot.PersistentFlags())
 	if err != nil {
 		log.Log.Fatal("viper failed to bind pflags")
+	}
+
+	err = viper.BindPFlag("rate_limit", cmdRoot.Flag("rate-limit"))
+	if err != nil {
+		log.Log.Fatal(err)
 	}
 
 	cmdRoot.AddCommand(getBuildCommand())
@@ -269,10 +277,10 @@ func getBuildCommand() *cobra.Command {
 	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
 		"Collect a screenshot after (if) the load event fires for the page")
 
-	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
+	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task_file"),
+	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "w", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
 	cmdBuild.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
@@ -376,10 +384,10 @@ func getGoCommand() *cobra.Command {
 	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
 		"Collect a screenshot after (if) the load event fires for the page")
 
-	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "r", b.DefaultLocalOutputPath,
+	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
 
-	cmdGo.Flags().StringVarP(&outputPath, "outfile", "o", viper.GetString("task_file"),
+	cmdGo.Flags().StringVarP(&outputPath, "outfile", "w", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
 	cmdGo.Flags().BoolVarP(&overwrite, "overwrite", "x", false,
 		"Allow overwriting of an existing task file")
