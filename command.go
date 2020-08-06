@@ -157,6 +157,7 @@ func getBuildCommand() *cobra.Command {
 	var (
 		urlFile  string
 		priority int
+		maxUrls  int
 
 		// Browser settings
 		browser            string
@@ -232,6 +233,8 @@ func getBuildCommand() *cobra.Command {
 
 	cmdBuild.Flags().StringVarP(&urlFile, "url-file", "f",
 		"", "File containing URL to visit (1 per line)")
+	cmdBuild.Flags().IntVarP(&maxUrls, "max-urls", "n",
+		-1, "Maximum URLs to use (top n from file, defaults to unlimited)")
 	cmdBuild.Flags().IntVarP(&priority, "priority", "", b.DefaultTaskPriority,
 		"Task priority (when loaded into RabbitMQ")
 
@@ -285,6 +288,9 @@ func getBuildCommand() *cobra.Command {
 
 func getGoCommand() *cobra.Command {
 	var (
+		urlFile string
+		maxUrls int
+
 		// Browser settings
 		browser            string
 		userDataDir        string
@@ -319,7 +325,6 @@ func getGoCommand() *cobra.Command {
 		Use:   "go",
 		Short: "Crawl from the command line",
 		Long:  `Start a crawl right here and now, normally specifying urls on the command line`,
-		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			ll, err := cmd.Flags().GetInt("log-level")
 			if err != nil {
@@ -334,6 +339,11 @@ func getGoCommand() *cobra.Command {
 			InitPipeline(cmd, args)
 		},
 	}
+
+	cmdGo.Flags().StringVarP(&urlFile, "url-file", "f",
+		"", "File containing URL to visit (1 per line)")
+	cmdGo.Flags().IntVarP(&maxUrls, "max-urls", "n",
+		-1, "Maximum URLs to use (top n from file, defaults to unlimited)")
 
 	cmdGo.Flags().StringVarP(&browser, "browser", "b",
 		"", "Path to browser binary to use for this task")

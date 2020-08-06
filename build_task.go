@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/sanitize"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -16,7 +18,20 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	ts := b.AllocateNewCompressedTaskSet()
 	var err error
 
-	if cmd.Name() == "go" {
+	fName, err := cmd.Flags().GetString("url-file")
+	if err != nil {
+		return nil, err
+	}
+	maxUrls, err := cmd.Flags().GetInt("max-urls")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(args) > 0 && fName != "" {
+		return nil, errors.New("cannot use both arguments and file for URLs")
+	}
+
+	if len(args) > 0 {
 		// Get URLs from arguments
 		for _, arg := range args {
 			pieces := strings.Split(arg, ",")
@@ -28,29 +43,64 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 				*ts.URL = append(*ts.URL, u)
 			}
 		}
-	} else if cmd.Name() == "build" {
+	} else if fName != "" {
 		// Get URL from URL file
-		fName, err := cmd.Flags().GetString("url-file")
-		if err != nil {
-			return nil, err
+		var fileName string
+		download := false
+		if strings.HasPrefix(fName, "http://") || strings.HasPrefix(fName, "https://") {
+			download = true
+			resp, err := http.Get(fName)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+
+			parts := strings.Split(fName, "/")
+			shortFName := parts[len(parts)-1]
+			fileName = shortFName
+			out, err := os.Create(fileName)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			err = out.Close()
+			if err != nil {
+				return nil, err
+			}
+
+		} else {
+			fileName = fName
 		}
 
-		urlFile, err := os.Open(fName)
+		urlFile, err := os.Open(fileName)
 		if err != nil {
 			return nil, err
 		}
 		defer urlFile.Close()
 
 		scanner := bufio.NewScanner(urlFile)
-		for scanner.Scan() {
+		for scanner.Scan() && maxUrls != 0 {
 			u, err := sanitize.ValidateURL(scanner.Text())
 			if err != nil {
 				return nil, err
 			}
 			*ts.URL = append(*ts.URL, u)
+			maxUrls -= 1
+		}
+
+		if download {
+			err = os.Remove(fileName)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
-		return nil, errors.New("unknown command passed to BuildCompressedTaskSet()")
+		return nil, errors.New("no urls specified (use arguments or URL file option)")
 	}
 
 	*ts.Browser.BrowserBinary, err = cmd.Flags().GetString("browser")
