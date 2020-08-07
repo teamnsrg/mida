@@ -133,7 +133,6 @@ type TaskWrapper struct {
 
 // Timing data for the processing of a particular task
 type TaskTiming struct {
-	BeginCrawl            time.Time `json:"begin_crawl"`
 	BrowserOpen           time.Time `json:"browser_open"`
 	ConnectionEstablished time.Time `json:"connection_established"`
 	LoadEvent             time.Time `json:"load_event"`
