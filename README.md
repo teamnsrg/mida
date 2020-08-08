@@ -49,4 +49,4 @@ Beware, this takes a lot of space!
 
 `--screenshot`: Capture a screenshot after/if the load event for each website fires.
 
-`--dom`: Capture a JSON representation of the DOM for each website visited
+`--dom`: Capture a JSON representation of the DOM for each website visited.

@@ -24,6 +24,7 @@ type EventChannels struct {
 	loadEventFiredChan                     chan *page.EventLoadEventFired
 	domContentEventFiredChan               chan *page.EventDomContentEventFired
 	frameNavigatedChan                     chan *page.EventFrameNavigated
+	javascriptDialogOpeningChan            chan *page.EventJavascriptDialogOpening
 	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
 	responseReceivedChan                   chan *network.EventResponseReceived
 	loadingFinishedChan                    chan *network.EventLoadingFinished
@@ -124,10 +125,11 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	browserContext, _ := chromedp.NewContext(allocContext)
 
 	// Get our event listener goroutines up and running
-	eventHandlerWG.Add(6) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
+	eventHandlerWG.Add(7) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
 	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 	go PageFrameNavigated(ec.frameNavigatedChan, &devToolsState, &eventHandlerWG, browserContext)
 	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
+	go PageJavaScriptDialogOpening(ec.javascriptDialogOpeningChan, &eventHandlerWG, browserContext, tw.Log)
 	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
@@ -194,6 +196,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			ec.loadEventFiredChan <- ev.(*page.EventLoadEventFired)
 		case *page.EventFrameNavigated:
 			ec.frameNavigatedChan <- ev.(*page.EventFrameNavigated)
+		case *page.EventJavascriptDialogOpening:
+			ec.javascriptDialogOpeningChan <- ev.(*page.EventJavascriptDialogOpening)
 		case *network.EventRequestWillBeSent:
 			ec.requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
 		case *network.EventResponseReceived:
@@ -340,6 +344,7 @@ func openEventChannels() EventChannels {
 		loadEventFiredChan:                     make(chan *page.EventLoadEventFired, b.DefaultEventChannelBufferSize),
 		domContentEventFiredChan:               make(chan *page.EventDomContentEventFired, b.DefaultEventChannelBufferSize),
 		frameNavigatedChan:                     make(chan *page.EventFrameNavigated, b.DefaultEventChannelBufferSize),
+		javascriptDialogOpeningChan:            make(chan *page.EventJavascriptDialogOpening, b.DefaultEventChannelBufferSize),
 		requestWillBeSentChan:                  make(chan *network.EventRequestWillBeSent, b.DefaultEventChannelBufferSize),
 		responseReceivedChan:                   make(chan *network.EventResponseReceived, b.DefaultEventChannelBufferSize),
 		loadingFinishedChan:                    make(chan *network.EventLoadingFinished, b.DefaultEventChannelBufferSize),

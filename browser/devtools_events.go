@@ -2,6 +2,7 @@ package browser
 
 import (
 	"context"
+	"errors"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -69,6 +70,41 @@ func PageFrameNavigated(eventChan chan *page.EventFrameNavigated, devtoolsState 
 				devtoolsState.Lock()
 				devtoolsState.mainFrameLoaderId = ev.Frame.ID.String()
 				devtoolsState.Unlock()
+			}
+
+		case <-ctxt.Done(): // Context canceled, browser closed
+			done = true
+			break
+		}
+
+		if done {
+			break
+		}
+	}
+
+	wg.Done()
+}
+
+// PageJavaScriptDialogOpening handles JavaScript dialog events, for now simply dismissing them so data collection can continue
+func PageJavaScriptDialogOpening(eventChan chan *page.EventJavascriptDialogOpening, wg *sync.WaitGroup, ctxt context.Context, log *logrus.Logger) {
+	done := false
+	for {
+		select {
+		case _, ok := <-eventChan:
+			if !ok { // Channel closed
+				done = true
+				break
+			}
+
+			err := chromedp.Run(ctxt, chromedp.ActionFunc(func(cxt context.Context) error {
+				err := page.HandleJavaScriptDialog(false).Do(cxt)
+				if err != nil {
+					return errors.New("failed to dismiss javascript dialog" + err.Error())
+				}
+				return nil
+			}))
+			if err != nil {
+				log.Error(err)
 			}
 
 		case <-ctxt.Done(): // Context canceled, browser closed
