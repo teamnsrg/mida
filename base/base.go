@@ -15,14 +15,23 @@ import (
 	"time"
 )
 
+// Settings describing how MIDA will interact with a page
+type InteractionSettings struct {
+	LockNavigation        *bool `json:"lock_navigation"`
+	BasicInteraction      *bool `json:"basic_interaction"`
+	Gremlins              *bool `json:"gremlins"`
+	TriggerEventListeners *bool `json:"event_listeners"`
+}
+
 // Settings describing the way in which a browser will be opened
 type BrowserSettings struct {
-	BrowserBinary      *string   `json:"browser_binary"`       // The binary for the browser (e.g., "/path/to/chrome.exe")
-	UserDataDirectory  *string   `json:"user_data_directory"`  // Path to user data directory to use
-	AddBrowserFlags    *[]string `json:"add_browser_flags"`    // Flags to be added to default browser flags
-	RemoveBrowserFlags *[]string `json:"remove_browser_flags"` // Flags to be removed from default browser flags
-	SetBrowserFlags    *[]string `json:"set_browser_flags"`    // Flags to use to override default browser flags
-	Extensions         *[]string `json:"extensions"`           // Paths to browser extensions to be used for the crawl
+	BrowserBinary       *string              `json:"browser_binary,omitempty"`       // The binary for the browser (e.g., "/path/to/chrome.exe")
+	UserDataDirectory   *string              `json:"user_data_directory,omitempty"`  // Path to user data directory to use
+	AddBrowserFlags     *[]string            `json:"add_browser_flags,omitempty"`    // Flags to be added to default browser flags
+	RemoveBrowserFlags  *[]string            `json:"remove_browser_flags,omitempty"` // Flags to be removed from default browser flags
+	SetBrowserFlags     *[]string            `json:"set_browser_flags,omitempty"`    // Flags to use to override default browser flags
+	Extensions          *[]string            `json:"extensions,omitempty"`           // Paths to browser extensions to be used for the crawl
+	InteractionSettings *InteractionSettings `json:"interaction_settings"`           // Settings describing how the browser will interact with the page
 }
 
 // Conditions under which a crawl will complete successfully
@@ -45,36 +54,36 @@ type CompletionSettings struct {
 
 // Settings describing which data MIDA will capture from the crawl
 type DataSettings struct {
-	AllResources     *bool `json:"all_resources"`     // Save all resource files
-	Cookies          *bool `json:"cookies"`           // Save cookies set by page
-	DOM              *bool `json:"dom"`               // Collect JSON representation of the DOM
-	ResourceMetadata *bool `json:"resource_metadata"` // Save extensive metadata about each resource
-	Screenshot       *bool `json:"screenshot"`        // Save a screenshot from the web page
+	AllResources     *bool `json:"all_resources,omitempty"`     // Save all resource files
+	Cookies          *bool `json:"cookies,omitempty"`           // Save cookies set by page
+	DOM              *bool `json:"dom,omitempty"`               // Collect JSON representation of the DOM
+	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
+	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 
 }
 
 // Settings describing output of results to the local filesystem
 type LocalOutputSettings struct {
-	Enable *bool         `json:"enable"`                  // Whether this storage method is enabled
-	Path   *string       `json:"path"`                    // Path over the overarching results directory to be written
+	Enable *bool         `json:"enable,omitmepty"`        // Whether this storage method is enabled
+	Path   *string       `json:"path,omitempty"`          // Path over the overarching results directory to be written
 	DS     *DataSettings `json:"data_settings,omitempty"` // Data settings for output to local filesystem
 }
 
 // Settings describing results output via SSH/SFTP
 type SftpOutputSettings struct {
-	Enable         *bool         `json:"enable"`                  // Whether this storage method is enabled
-	Host           *string       `json:"host,omitempty"`          // IP address or domain name of host to store to
-	Port           *int          `json:"port,omitempty"`          // Port to initiate SSH/SFTP connection
-	Path           *string       `json:"path,omitempty"`          // Path of the overarching results directory to be written
-	UserName       *string       `json:"user_name"`               // User name we should use for accessing the host
-	PrivateKeyFile *string       `json:"private_key_file"`        // Path to the private key file we should use for accessing the host
-	DS             *DataSettings `json:"data_settings,omitempty"` // Data settings for output via SSH/SFTP
+	Enable         *bool         `json:"enable,omitempty"`           // Whether this storage method is enabled
+	Host           *string       `json:"host,omitempty"`             // IP address or domain name of host to store to
+	Port           *int          `json:"port,omitempty"`             // Port to initiate SSH/SFTP connection
+	Path           *string       `json:"path,omitempty"`             // Path of the overarching results directory to be written
+	UserName       *string       `json:"user_name,omitempty"`        // User name we should use for accessing the host
+	PrivateKeyFile *string       `json:"private_key_file,omitempty"` // Path to the private key file we should use for accessing the host
+	DS             *DataSettings `json:"data_settings,omitempty"`    // Data settings for output via SSH/SFTP
 }
 
 // An aggregation of the output settings for a task or task-set
 type OutputSettings struct {
-	LocalOut *LocalOutputSettings `json:"local_output_settings"` // Output settings for the local filesystem
-	SftpOut  *SftpOutputSettings  `json:"sftp_output_settings"`  // Output settings for the remote filesystem
+	LocalOut *LocalOutputSettings `json:"local_output_settings,omitempty"` // Output settings for the local filesystem
+	SftpOut  *SftpOutputSettings  `json:"sftp_output_settings,omitempty"`  // Output settings for the remote filesystem
 }
 
 // A raw MIDA task. This is the struct that is read from/written to file when tasks are stored as JSON.
@@ -97,9 +106,10 @@ type SanitizedTask struct {
 	BrowserFlags      []string // List of flags we will use when opening the browser (does not include --remote-debugging-port or similar)
 	UserDataDirectory string   // Full path to the user data directory for the task
 
-	CS  CompletionSettings // Task completion settings for the task
-	DS  DataSettings       // Data Gathering Settings for the task
-	OPS OutputSettings     // Output settings for the task
+	CS  CompletionSettings  // Task completion settings for the task
+	DS  DataSettings        // Data Gathering Settings for the task
+	IS  InteractionSettings // Settings on how the browser will interact with the page
+	OPS OutputSettings      // Output settings for the task
 }
 
 // A slice of MIDA tasks, ready to be enqueued
@@ -136,7 +146,6 @@ type TaskTiming struct {
 	BrowserOpen           time.Time `json:"browser_open"`
 	ConnectionEstablished time.Time `json:"connection_established"`
 	LoadEvent             time.Time `json:"load_event"`
-	DOMContentEvent       time.Time `json:"dom_content_event"`
 	BrowserClose          time.Time `json:"browser_close"`
 	BeginPostprocess      time.Time `json:"begin_postprocess"`
 	EndPostprocess        time.Time `json:"end_postprocess"`
@@ -146,8 +155,8 @@ type TaskTiming struct {
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
-	Success       bool   `json:"success"`        // True if the task did not fail
-	FailureReason string `json:"failure_reason"` // Holds the failure code for the task, or "" if the task has not failed
+	Success       bool   `json:"success"`                  // True if the task did not fail
+	FailureReason string `json:"failure_reason,omitempty"` // Holds the failure code for the task
 
 	TaskWrapper *TaskWrapper `json:"-"`            // Wrapper containing the full task
 	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
@@ -218,6 +227,23 @@ func AllocateNewTask() *RawTask {
 	return task
 }
 
+// AllocateNewInteractionSettings allocates a new InteractionSettings struct specifying if/how the
+// browser will interact with pages it visits as part of the task
+func AllocateNewInteractionSettings() *InteractionSettings {
+	var is = new(InteractionSettings)
+	is.LockNavigation = new(bool)
+	is.BasicInteraction = new(bool)
+	is.TriggerEventListeners = new(bool)
+	is.Gremlins = new(bool)
+
+	*is.LockNavigation = DefaultNavLockAfterLoad
+	*is.BasicInteraction = DefaultBasicInteraction
+	*is.Gremlins = DefaultGremlins
+	*is.TriggerEventListeners = DefaultTriggerEventListeners
+
+	return is
+}
+
 // AllocateNewBrowserSettings allocates a new BrowserSettings struct, initializing everything to zero values
 func AllocateNewBrowserSettings() *BrowserSettings {
 	var bs = new(BrowserSettings)
@@ -227,6 +253,7 @@ func AllocateNewBrowserSettings() *BrowserSettings {
 	bs.SetBrowserFlags = new([]string)
 	bs.Extensions = new([]string)
 	bs.UserDataDirectory = new(string)
+	bs.InteractionSettings = AllocateNewInteractionSettings()
 
 	return bs
 }

@@ -175,6 +175,10 @@ func getBuildCommand() *cobra.Command {
 		setBrowserFlags    []string
 		extensions         []string
 
+		// Interaction settings
+		lockNavAfterLoad bool
+		basicInteraction bool
+
 		// Completion settings
 		completionCondition string
 		timeout             int
@@ -259,6 +263,11 @@ func getBuildCommand() *cobra.Command {
 	cmdBuild.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
 
+	cmdBuild.Flags().BoolVarP(&lockNavAfterLoad, "nav-lock", "", b.DefaultNavLockAfterLoad,
+		"Whether to lock (prevent) navigation after load event fires")
+	cmdBuild.Flags().BoolVarP(&basicInteraction, "basic-interaction", "", b.DefaultBasicInteraction,
+		"Do some basic scrolling and mouse movement after load event fires (no clicks)")
+
 	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
 	cmdBuild.Flags().IntVarP(&timeout, "timeout", "t", b.DefaultTimeout,
@@ -306,6 +315,10 @@ func getGoCommand() *cobra.Command {
 		removeBrowserFlags []string
 		setBrowserFlags    []string
 		extensions         []string
+
+		// Interaction Settings
+		lockNavAfterLoad bool
+		basicInteraction bool
 
 		// Completion settings
 		completionCondition string
@@ -365,6 +378,11 @@ func getGoCommand() *cobra.Command {
 		"Overrides default browser flags (comma-separated, no '--')")
 	cmdGo.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no '--')")
+
+	cmdGo.Flags().BoolVarP(&lockNavAfterLoad, "nav-lock", "", b.DefaultNavLockAfterLoad,
+		"Whether to lock (prevent) navigation after load event fires")
+	cmdGo.Flags().BoolVarP(&basicInteraction, "basic-interaction", "", b.DefaultBasicInteraction,
+		"Do some basic scrolling and mouse movement after load event fires (no clicks)")
 
 	cmdGo.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")

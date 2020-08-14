@@ -34,6 +34,12 @@ const (
 	DefaultTimeout             = 10 // Default time (in seconds) to remain on a page before exiting browser
 	DefaultCompletionCondition = TimeoutOnly
 
+	// Default Interaction Settings
+	DefaultNavLockAfterLoad      = true
+	DefaultBasicInteraction      = false
+	DefaultGremlins              = false
+	DefaultTriggerEventListeners = false
+
 	// Defaults for data gathering settings
 	DefaultAllResources     = true
 	DefaultCookies          = true

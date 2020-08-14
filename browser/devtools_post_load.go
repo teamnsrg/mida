@@ -12,8 +12,11 @@ import (
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"io/ioutil"
+	"math/rand"
 	"path"
+	"strconv"
 	"sync"
+	"time"
 )
 
 // postLoadActions is triggered when a load event fires for a site. It is responsible for
@@ -29,13 +32,15 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	// confused with the WaitGroup passed to this function.
 	var individualActionsWG sync.WaitGroup
 
-	// Enable request interception to block navigation
-	err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
-		err := fetch.Enable().Do(cxt)
-		return err
-	}))
-	if err != nil {
-		log.Log.Error(err)
+	// Enable request interception to block navigation (if specified)
+	if *tw.SanitizedTask.IS.LockNavigation {
+		err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+			err := fetch.Enable().Do(cxt)
+			return err
+		}))
+		if err != nil {
+			tw.Log.Warn("could not lock navigation so did not complete post-load actions: " + err.Error())
+		}
 	}
 
 	// Capture screenshot
@@ -56,8 +61,44 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 		go getDOM(cxt, tw.Log, rawResult, &individualActionsWG)
 	}
 
+	if *tw.SanitizedTask.IS.BasicInteraction {
+		individualActionsWG.Add(1)
+		go basicInteraction(cxt, tw.Log, &individualActionsWG)
+	}
+
 	individualActionsWG.Wait()
 	log.Log.Debug("post load actions completed")
+	wg.Done()
+	return
+}
+
+// basicInteraction runs a few simple interactions with the page. This is mostly useful for pages
+// that look for a bit of mouse movement or scrolling before they reveal their full content.
+func basicInteraction(cxt context.Context, taskLog *logrus.Logger, wg *sync.WaitGroup) {
+	var err error
+	if cxt.Err() != nil {
+		return
+	}
+
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		var bytes = new([]byte)
+		for i := 0; i < 10; i += 1 {
+			pixels := 70 - rand.Intn(100)
+			err = chromedp.EvaluateAsDevTools("window.scrollBy(0,"+strconv.Itoa(pixels)+");", bytes).Do(cxt)
+			if err != nil {
+				return err
+			}
+			err = cxtSleep(cxt, time.Duration(rand.Intn(1000))*time.Millisecond)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	if err != nil {
+		taskLog.Warn("basic interaction started but did not complete: " + err.Error())
+	}
+
 	wg.Done()
 	return
 }
@@ -132,4 +173,15 @@ func getDOM(cxt context.Context, taskLog *logrus.Logger, rawResult *b.RawResult,
 	}
 
 	wg.Done()
+}
+
+// cxtSleep is just a wrapper around a sleep function to make it responsive
+// to context cancellations
+func cxtSleep(cxt context.Context, t time.Duration) error {
+	select {
+	case <-cxt.Done():
+		return cxt.Err()
+	case <-time.After(t):
+		return nil
+	}
 }

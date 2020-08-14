@@ -43,7 +43,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 
 		// Required so we can catch SIGTERM/SIGINT gracefully without closing Xvfb immediately
 		xvfbCommand.SysProcAttr = &syscall.SysProcAttr{
-			Setpgid:                    true,
+			Setpgid: true,
 		}
 
 		err := xvfbCommand.Start()

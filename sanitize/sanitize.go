@@ -66,6 +66,11 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 		tw.Log.Debugf("set user data directory: %s", tw.SanitizedTask.UserDataDirectory)
 	}
 
+	tw.SanitizedTask.IS, err = InteractionSettings(rt)
+	if err != nil {
+		return b.TaskWrapper{}, err
+	}
+
 	tw.SanitizedTask.CS, err = CompletionSettings(rt.Completion)
 	if err != nil {
 		return b.TaskWrapper{}, err
@@ -82,6 +87,35 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 	}
 
 	return tw, nil
+}
+
+func InteractionSettings(rt *b.RawTask) (b.InteractionSettings, error) {
+	result := b.AllocateNewInteractionSettings()
+
+	if rt == nil || rt.Browser == nil || rt.Browser.InteractionSettings == nil {
+		return *result, nil
+	}
+
+	is := rt.Browser.InteractionSettings
+
+	if is.LockNavigation != nil {
+		*result.LockNavigation = *is.LockNavigation
+	}
+
+	if is.BasicInteraction != nil {
+		*result.BasicInteraction = *is.BasicInteraction
+	}
+
+	if is.Gremlins != nil {
+		*result.Gremlins = *is.Gremlins
+	}
+
+	if is.TriggerEventListeners != nil {
+		*result.TriggerEventListeners = *is.TriggerEventListeners
+	}
+
+	return *result, nil
+
 }
 
 // getBrowserBinaryPath uses input from the task to sanitize and set the full path to the browser

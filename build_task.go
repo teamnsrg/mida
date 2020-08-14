@@ -136,6 +136,15 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		return nil, err
 	}
 
+	*ts.Browser.InteractionSettings.LockNavigation, err = cmd.Flags().GetBool("nav-lock")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Browser.InteractionSettings.BasicInteraction, err = cmd.Flags().GetBool("basic-interaction")
+	if err != nil {
+		return nil, err
+	}
+
 	*ts.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
 	if err != nil {
 		return nil, err
