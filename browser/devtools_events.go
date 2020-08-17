@@ -6,6 +6,7 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
 	b "github.com/teamnsrg/mida/base"
@@ -268,7 +269,7 @@ func FetchRequestPaused(eventChan chan *fetch.EventRequestPaused, rawResult *b.R
 
 					if frameId == mainFrame {
 						err = fetch.FailRequest(ev.RequestID, network.ErrorReasonAborted).Do(cxt)
-						log.Log.Info("denying navigation to " + ev.Request.URL)
+						log.Log.Debug("denying navigation to " + ev.Request.URL)
 					} else {
 						err = fetch.ContinueRequest(ev.RequestID).Do(cxt)
 					}
@@ -283,6 +284,44 @@ func FetchRequestPaused(eventChan chan *fetch.EventRequestPaused, rawResult *b.R
 			}
 
 		case <-ctxt.Done(): // Context canceled, browser closed
+			done = true
+			break
+		}
+
+		if done {
+			break
+		}
+	}
+
+	wg.Done()
+}
+
+func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.WaitGroup, ctxt context.Context) {
+	done := false
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok { // Channel closed
+				done = true
+				break
+			}
+
+			// Prevent new tabs from opening up
+			if ev.TargetInfo.URL != "about:blank" && ev.TargetInfo.Type == "page" {
+				err := chromedp.Run(ctxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					log.Log.Debug("closing newly opened target " + ev.TargetInfo.URL)
+					success, err := target.CloseTarget(ev.TargetInfo.TargetID).Do(cxt)
+					if err != nil || !success {
+						return errors.New("failed to close new target")
+					}
+					return err
+				}))
+				if err != nil {
+					log.Log.Error(err)
+				}
+			}
+
+		case <-ctxt.Done(): // Context canceled
 			done = true
 			break
 		}

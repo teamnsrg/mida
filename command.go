@@ -176,8 +176,10 @@ func getBuildCommand() *cobra.Command {
 		extensions         []string
 
 		// Interaction settings
-		lockNavAfterLoad bool
-		basicInteraction bool
+		lockNavAfterLoad      bool
+		basicInteraction      bool
+		gremlins              bool
+		triggerEventListeners bool
 
 		// Completion settings
 		completionCondition string
@@ -267,6 +269,10 @@ func getBuildCommand() *cobra.Command {
 		"Whether to lock (prevent) navigation after load event fires")
 	cmdBuild.Flags().BoolVarP(&basicInteraction, "basic-interaction", "", b.DefaultBasicInteraction,
 		"Do some basic scrolling and mouse movement after load event fires (no clicks)")
+	cmdBuild.Flags().BoolVarP(&gremlins, "gremlins", "", b.DefaultGremlins,
+		"Use GremlinsJS to do LOTS of random page interactions")
+	cmdBuild.Flags().BoolVarP(&triggerEventListeners, "trigger-event-listeners", "", b.DefaultTriggerEventListeners,
+		"Enumerate and trigger as many event listeners on the page as possible")
 
 	cmdBuild.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")
@@ -317,8 +323,10 @@ func getGoCommand() *cobra.Command {
 		extensions         []string
 
 		// Interaction Settings
-		lockNavAfterLoad bool
-		basicInteraction bool
+		lockNavAfterLoad      bool
+		basicInteraction      bool
+		gremlins              bool
+		triggerEventListeners bool
 
 		// Completion settings
 		completionCondition string
@@ -383,6 +391,10 @@ func getGoCommand() *cobra.Command {
 		"Whether to lock (prevent) navigation after load event fires")
 	cmdGo.Flags().BoolVarP(&basicInteraction, "basic-interaction", "", b.DefaultBasicInteraction,
 		"Do some basic scrolling and mouse movement after load event fires (no clicks)")
+	cmdGo.Flags().BoolVarP(&gremlins, "gremlins", "", b.DefaultGremlins,
+		"Use GremlinsJS to do LOTS of random page interactions")
+	cmdGo.Flags().BoolVarP(&triggerEventListeners, "trigger-event-listeners", "", b.DefaultTriggerEventListeners,
+		"Enumerate and trigger as many event listeners on the page as possible")
 
 	cmdGo.Flags().StringVarP(&completionCondition, "completion", "y", string(b.DefaultCompletionCondition),
 		"Completion condition for tasks (CompleteOnTimeoutOnly, CompleteOnLoadEvent, CompleteOnTimeoutAfterLoad")

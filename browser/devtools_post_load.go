@@ -36,11 +36,20 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	if *tw.SanitizedTask.IS.LockNavigation {
 		err := chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 			err := fetch.Enable().Do(cxt)
+			if err != nil {
+				return err
+			}
+
+			bytes := new(*[]byte)
+			err = chromedp.Evaluate(`((window, open) => {window.open = (url) => {};})(window, window.open);`,
+				bytes).Do(cxt)
+
 			return err
 		}))
 		if err != nil {
 			tw.Log.Warn("could not lock navigation so did not complete post-load actions: " + err.Error())
 		}
+
 	}
 
 	// Capture screenshot
@@ -64,6 +73,9 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	if *tw.SanitizedTask.IS.BasicInteraction {
 		individualActionsWG.Add(1)
 		go basicInteraction(cxt, tw.Log, &individualActionsWG)
+	} else if *tw.SanitizedTask.IS.Gremlins {
+		go runGremlinsJS(cxt, tw.Log, &individualActionsWG)
+		individualActionsWG.Add(1)
 	}
 
 	individualActionsWG.Wait()
@@ -76,9 +88,6 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 // that look for a bit of mouse movement or scrolling before they reveal their full content.
 func basicInteraction(cxt context.Context, taskLog *logrus.Logger, wg *sync.WaitGroup) {
 	var err error
-	if cxt.Err() != nil {
-		return
-	}
 
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 		var bytes = new([]byte)
@@ -97,6 +106,30 @@ func basicInteraction(cxt context.Context, taskLog *logrus.Logger, wg *sync.Wait
 	}))
 	if err != nil {
 		taskLog.Warn("basic interaction started but did not complete: " + err.Error())
+	}
+
+	wg.Done()
+	return
+}
+
+// runGremlinsJS uses gremlins.js (https://github.com/marmelab/gremlins.js/) to interact with the page
+// a LOT in a short period of time. It does lots of clicking, scrolling, form filling, etc. This is
+// significantly more aggressive than the basic interaction.
+func runGremlinsJS(cxt context.Context, taskLog *logrus.Logger, wg *sync.WaitGroup) {
+	var err error
+	gremlinsApplet := `javascript: (function() { function callback() { gremlins.createHorde({ species: [gremlins.species.clicker(),gremlins.species.toucher(),gremlins.species.formFiller(),gremlins.species.scroller(),gremlins.species.typer()], mogwais: [gremlins.mogwais.alert(),gremlins.mogwais.fps(),gremlins.mogwais.gizmo()], strategies: [gremlins.strategies.distribution()] }).unleash(); } var s = document.createElement("script"); s.src = "https://unpkg.com/gremlins.js"; if (s.addEventListener) { s.addEventListener("load", callback, false); } else if (s.readyState) { s.onreadystatechange = callback; } document.body.appendChild(s); })()`
+
+	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
+		var bytes = new([]byte)
+		err = chromedp.EvaluateAsDevTools(gremlinsApplet, bytes).Do(cxt)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}))
+	if err != nil {
+		taskLog.Warn("gremlinsjs started but did not complete: " + err.Error())
 	}
 
 	wg.Done()

@@ -8,6 +8,7 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
@@ -24,6 +25,7 @@ type EventChannels struct {
 	loadEventFiredChan                     chan *page.EventLoadEventFired
 	domContentEventFiredChan               chan *page.EventDomContentEventFired
 	frameNavigatedChan                     chan *page.EventFrameNavigated
+	frameRequestedNavigationChan           chan *page.EventFrameRequestedNavigation
 	javascriptDialogOpeningChan            chan *page.EventJavascriptDialogOpening
 	requestWillBeSentChan                  chan *network.EventRequestWillBeSent
 	responseReceivedChan                   chan *network.EventResponseReceived
@@ -39,6 +41,7 @@ type EventChannels struct {
 	EventSourceMessageReceivedChan         chan *network.EventEventSourceMessageReceived
 	requestPausedChan                      chan *fetch.EventRequestPaused
 	scriptParsedChan                       chan *debugger.EventScriptParsed
+	targetCreatedChan                      chan *target.EventTargetCreated
 }
 
 type DTState struct {
@@ -125,7 +128,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	browserContext, _ := chromedp.NewContext(allocContext)
 
 	// Get our event listener goroutines up and running
-	eventHandlerWG.Add(7) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
+	eventHandlerWG.Add(8) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
 	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 	go PageFrameNavigated(ec.frameNavigatedChan, &devToolsState, &eventHandlerWG, browserContext)
 	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
@@ -133,6 +136,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
+	go TargetTargetCreated(ec.targetCreatedChan, &eventHandlerWG, browserContext)
 
 	// The browser will open now, when we run our first chromedp ActionFunc
 	rawResult.Lock()
@@ -196,6 +200,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			ec.loadEventFiredChan <- ev.(*page.EventLoadEventFired)
 		case *page.EventFrameNavigated:
 			ec.frameNavigatedChan <- ev.(*page.EventFrameNavigated)
+		case *page.EventFrameRequestedNavigation:
+			ec.frameRequestedNavigationChan <- ev.(*page.EventFrameRequestedNavigation)
 		case *page.EventJavascriptDialogOpening:
 			ec.javascriptDialogOpeningChan <- ev.(*page.EventJavascriptDialogOpening)
 		case *network.EventRequestWillBeSent:
@@ -206,6 +212,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			ec.loadingFinishedChan <- ev.(*network.EventLoadingFinished)
 		case *fetch.EventRequestPaused:
 			ec.requestPausedChan <- ev.(*fetch.EventRequestPaused)
+		case *target.EventTargetCreated:
+			ec.targetCreatedChan <- ev.(*target.EventTargetCreated)
 		}
 	})
 
@@ -344,6 +352,7 @@ func openEventChannels() EventChannels {
 		loadEventFiredChan:                     make(chan *page.EventLoadEventFired, b.DefaultEventChannelBufferSize),
 		domContentEventFiredChan:               make(chan *page.EventDomContentEventFired, b.DefaultEventChannelBufferSize),
 		frameNavigatedChan:                     make(chan *page.EventFrameNavigated, b.DefaultEventChannelBufferSize),
+		frameRequestedNavigationChan:           make(chan *page.EventFrameRequestedNavigation, b.DefaultEventChannelBufferSize),
 		javascriptDialogOpeningChan:            make(chan *page.EventJavascriptDialogOpening, b.DefaultEventChannelBufferSize),
 		requestWillBeSentChan:                  make(chan *network.EventRequestWillBeSent, b.DefaultEventChannelBufferSize),
 		responseReceivedChan:                   make(chan *network.EventResponseReceived, b.DefaultEventChannelBufferSize),
@@ -359,6 +368,7 @@ func openEventChannels() EventChannels {
 		EventSourceMessageReceivedChan:         make(chan *network.EventEventSourceMessageReceived, b.DefaultEventChannelBufferSize),
 		requestPausedChan:                      make(chan *fetch.EventRequestPaused, b.DefaultEventChannelBufferSize),
 		scriptParsedChan:                       make(chan *debugger.EventScriptParsed, b.DefaultEventChannelBufferSize),
+		targetCreatedChan:                      make(chan *target.EventTargetCreated, b.DefaultEventChannelBufferSize),
 	}
 
 	return ec

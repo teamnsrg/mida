@@ -144,6 +144,14 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Browser.InteractionSettings.Gremlins, err = cmd.Flags().GetBool("gremlins")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Browser.InteractionSettings.TriggerEventListeners, err = cmd.Flags().GetBool("trigger-event-listeners")
+	if err != nil {
+		return nil, err
+	}
 
 	*ts.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
 	if err != nil {

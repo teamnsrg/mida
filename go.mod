@@ -1,6 +1,6 @@
 module github.com/teamnsrg/mida
 
-go 1.14
+go 1.13
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20200709115526-d1f6fc58448b
@@ -13,7 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.6.0
 	github.com/snowzach/rotatefilehook v0.0.0-20180327172521-2f64f265f58c
 	github.com/spf13/cobra v1.0.0
-	github.com/spf13/viper v1.7.0
+	github.com/spf13/viper v1.7.1
 	github.com/streadway/amqp v1.0.0
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
