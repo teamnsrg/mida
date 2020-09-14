@@ -9,10 +9,11 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
-	"github.com/chromedp/chromedp"
+	"github.com/teamnsrg/chromedp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"sync"
@@ -122,6 +123,13 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	loadEventChan := make(chan bool)                                                     // Used to signal the firing of load events
 	var eventHandlerWG sync.WaitGroup                                                    // Used to make sure all the event handlers exit
 	var postLoadWG sync.WaitGroup                                                        // Used to sync actions after load event
+
+	// Set the directory to run the browser in to be our temporary directory
+	// Note: This is not necessarily the user data directory, which can be set
+	// individually. This is simply the directory from which the browser is launched.
+	opts = append(opts, chromedp.ModifyCmdFunc(func(cmd *exec.Cmd) {
+		cmd.Dir = tw.TempDir
+	}))
 
 	// Spawn our browser
 	allocContext, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)

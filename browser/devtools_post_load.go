@@ -7,8 +7,8 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
+	"github.com/teamnsrg/chromedp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"io/ioutil"
@@ -40,7 +40,7 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 				return err
 			}
 
-			bytes := new(*[]byte)
+			bytes := new([]byte)
 			err = chromedp.Evaluate(`((window, open) => {window.open = (url) => {};})(window, window.open);`,
 				bytes).Do(cxt)
 

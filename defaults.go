@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/spf13/viper"
+	"github.com/teamnsrg/mida/log"
+	"os"
 )
 
 // initViperConfig
@@ -12,6 +14,13 @@ func initViperConfig() {
 	// We will read environment variables with the "MIDA" prefix
 	viper.SetEnvPrefix("MIDA")
 	viper.AutomaticEnv()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Log.Fatal(err)
+	}
+
+	viper.Set("cwd", cwd)
 }
 
 // Hardcoded default configuration values

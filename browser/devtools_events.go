@@ -7,8 +7,8 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/target"
-	"github.com/chromedp/chromedp"
 	"github.com/sirupsen/logrus"
+	"github.com/teamnsrg/chromedp"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"io/ioutil"
@@ -312,7 +312,11 @@ func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.Wai
 					log.Log.Debug("closing newly opened target " + ev.TargetInfo.URL)
 					success, err := target.CloseTarget(ev.TargetInfo.TargetID).Do(cxt)
 					if err != nil || !success {
-						return errors.New("failed to close new target")
+						errString := "failed to close new target"
+						if err != nil {
+							errString += ": " + err.Error()
+						}
+						return errors.New(errString)
 					}
 					return err
 				}))

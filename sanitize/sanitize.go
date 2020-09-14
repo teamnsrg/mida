@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	b "github.com/teamnsrg/mida/base"
 	"net/url"
 	"os"
@@ -23,8 +24,7 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 	// Each task gets its own UUID
 	tw.UUID = uuid.New()
 
-	// Create our temporary directory for this specific site visit
-	tw.TempDir = path.Join(ExpandPath(b.DefaultTempDir), tw.UUID.String())
+	tw.TempDir = path.Join(viper.GetString("cwd"), ExpandPath(b.DefaultTempDir), tw.UUID.String())
 	err = os.MkdirAll(tw.TempDir, 0755)
 	if err != nil {
 		return b.TaskWrapper{}, errors.New("failed to create temporary directory for task: " + err.Error())
