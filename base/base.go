@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -55,11 +56,12 @@ type CompletionSettings struct {
 // Settings describing which data MIDA will capture from the crawl
 type DataSettings struct {
 	AllResources     *bool `json:"all_resources,omitempty"`     // Save all resource files
+	AllScripts       *bool `json:"all_scripts,omitempty"`       // Save all scripts parsed by browser
 	Cookies          *bool `json:"cookies,omitempty"`           // Save cookies set by page
 	DOM              *bool `json:"dom,omitempty"`               // Collect JSON representation of the DOM
 	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
-
+	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
 }
 
 // Settings describing output of results to the local filesystem
@@ -173,15 +175,18 @@ type CrawlerInfo struct {
 	JSVersion      string `json:"js_version"`      // JS version
 }
 
-type DevtoolsNetworkRawData struct {
+type DevToolsNetworkRawData struct {
 	RequestWillBeSent map[string][]*network.EventRequestWillBeSent
 	ResponseReceived  map[string]*network.EventResponseReceived
 }
 
+type DevToolsScriptRawData []*debugger.EventScriptParsed
+
 type DevToolsRawData struct {
-	Network DevtoolsNetworkRawData
+	Network DevToolsNetworkRawData
 	Cookies []*network.Cookie
 	DOM     *cdp.Node
+	Scripts DevToolsScriptRawData
 }
 
 // The results MIDA gathers before they are post-processed
@@ -197,10 +202,11 @@ type DTResource struct {
 }
 
 type FinalResult struct {
-	Summary            TaskSummary           `json:"stats"`   // Statistics on timing and resource usage for the crawl
-	DTCookies          []*network.Cookie     `json:"cookies"` // Cookies collected from DevTools protocol
-	DTDOM              *cdp.Node             `json:"dom"`
-	DTResourceMetadata map[string]DTResource `json:"resource_metadata"` // Metadata on each resource loaded
+	Summary            TaskSummary                            `json:"stats"`   // Statistics on timing and resource usage for the crawl
+	DTCookies          []*network.Cookie                      `json:"cookies"` // Cookies collected from DevTools protocol
+	DTDOM              *cdp.Node                              `json:"dom"`
+	DTResourceMetadata map[string]DTResource                  `json:"resource_metadata"` // Metadata on each resource loaded
+	DTScriptMetadata   map[string]*debugger.EventScriptParsed `json:"script_metadata"`   // Metadata on each script parsed
 }
 
 func AllocateNewCompressedTaskSet() *CompressedTaskSet {
@@ -272,10 +278,12 @@ func AllocateNewCompletionSettings() *CompletionSettings {
 func AllocateNewDataSettings() *DataSettings {
 	var ds = new(DataSettings)
 	ds.AllResources = new(bool)
+	ds.AllScripts = new(bool)
 	ds.Cookies = new(bool)
 	ds.DOM = new(bool)
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
+	ds.ScriptMetadata = new(bool)
 
 	return ds
 }

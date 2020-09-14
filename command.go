@@ -188,10 +188,12 @@ func getBuildCommand() *cobra.Command {
 
 		// Data Gathering settings
 		allResources     bool
+		allScripts       bool
 		cookies          bool
 		dom              bool
 		resourceMetadata bool
 		screenshot       bool
+		scriptMetadata   bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -283,6 +285,8 @@ func getBuildCommand() *cobra.Command {
 
 	cmdBuild.Flags().BoolVarP(&allResources, "all-resources", "", b.DefaultAllResources,
 		"Gather and store all resources downloaded by browser")
+	cmdBuild.Flags().BoolVarP(&allScripts, "all-scripts", "", b.DefaultAllScripts,
+		"Gather and store all scripts parsed by the browser")
 	cmdBuild.Flags().BoolVarP(&cookies, "cookies", "", b.DefaultCookies,
 		"Gather cookies set by page (after load event)")
 	cmdBuild.Flags().BoolVarP(&dom, "dom", "", b.DefaultDOM,
@@ -291,6 +295,8 @@ func getBuildCommand() *cobra.Command {
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdBuild.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
 		"Collect a screenshot after (if) the load event fires for the page")
+	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
+		"Gather and store metadata about the scripts parsed by the browser")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -335,10 +341,12 @@ func getGoCommand() *cobra.Command {
 
 		// Data Gathering settings
 		allResources     bool
+		allScripts       bool
 		cookies          bool
 		dom              bool
 		resourceMetadata bool
 		screenshot       bool
+		scriptMetadata   bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -405,6 +413,8 @@ func getGoCommand() *cobra.Command {
 
 	cmdGo.Flags().BoolVarP(&allResources, "all-resources", "", b.DefaultAllResources,
 		"Gather and store all resources downloaded by browser")
+	cmdGo.Flags().BoolVarP(&allScripts, "all-scripts", "", b.DefaultAllScripts,
+		"Gather and store all scripts parsed by the browser's JavaScript engine")
 	cmdGo.Flags().BoolVarP(&cookies, "cookies", "", b.DefaultCookies,
 		"Gather and store cookies set by page (after load event fires)")
 	cmdGo.Flags().BoolVarP(&dom, "dom", "", b.DefaultDOM,
@@ -413,6 +423,8 @@ func getGoCommand() *cobra.Command {
 		"Gather and store metadata about all resources downloaded by browser")
 	cmdGo.Flags().BoolVarP(&screenshot, "screenshot", "", b.DefaultScreenshot,
 		"Collect a screenshot after (if) the load event fires for the page")
+	cmdGo.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
+		"Gather and store metadata about the scripts parsed by the browser")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

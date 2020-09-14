@@ -49,11 +49,31 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.ScriptMetadata {
+		data, err := json.Marshal(finalResult.DTScriptMetadata)
+		if err != nil {
+			return errors.New("failed to marshal script metadata for storage: " + err.Error())
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultScriptMetadataFile), data, 0644)
+		if err != nil {
+			return errors.New("failed to write script metadata file: " + err.Error())
+		}
+	}
+
 	if *dataSettings.AllResources {
 		err = os.Rename(path.Join(tw.TempDir, b.DefaultResourceSubdir), path.Join(outPath, b.DefaultResourceSubdir))
 		if err != nil {
 			tw.Log.Error("failed to copy resources directory into results directory: " + err.Error())
 			log.Log.Error("failed to copy resources directory into results directory: " + err.Error())
+		}
+	}
+
+	if *dataSettings.AllScripts {
+		err = os.Rename(path.Join(tw.TempDir, b.DefaultScriptSubdir), path.Join(outPath, b.DefaultScriptSubdir))
+		if err != nil {
+			tw.Log.Error("failed to copy scripts directory into results directory: " + err.Error())
+			log.Log.Error("failed to copy scripts directory into results directory: " + err.Error())
 		}
 	}
 

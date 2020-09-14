@@ -3,6 +3,7 @@ package browser
 import (
 	"context"
 	"errors"
+	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
@@ -326,6 +327,65 @@ func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.Wai
 			}
 
 		case <-ctxt.Done(): // Context canceled
+			done = true
+			break
+		}
+
+		if done {
+			break
+		}
+	}
+
+	wg.Done()
+}
+
+// DebuggerScriptParsed is the event handler for network requests which have been paused
+func DebuggerScriptParsed(eventChan chan *debugger.EventScriptParsed, rawResult *b.RawResult, wg *sync.WaitGroup, ctxt context.Context) {
+	done := false
+	for {
+		select {
+		case ev, ok := <-eventChan:
+			if !ok { // Channel closed
+				done = true
+				break
+			}
+
+			rawResult.Lock()
+			scriptMetadata := *rawResult.TaskSummary.TaskWrapper.SanitizedTask.DS.ScriptMetadata
+			allScripts := *rawResult.TaskSummary.TaskWrapper.SanitizedTask.DS.AllScripts
+			scriptPath := path.Join(rawResult.TaskSummary.TaskWrapper.TempDir,
+				b.DefaultScriptSubdir, ev.ScriptID.String())
+
+			if scriptMetadata {
+				rawResult.DevTools.Scripts = append(rawResult.DevTools.Scripts, ev)
+			}
+			rawResult.Unlock()
+
+			if allScripts {
+				var scriptSrc string
+				var wasmBytecode []byte
+				var err error
+				err = chromedp.Run(ctxt, chromedp.ActionFunc(func(cxt context.Context) error {
+					scriptSrc, wasmBytecode, err = debugger.GetScriptSource(ev.ScriptID).Do(cxt)
+					return err
+				}))
+				if err == nil {
+					err = ioutil.WriteFile(scriptPath, []byte(scriptSrc), 0644)
+					if err != nil {
+						log.Log.Errorf("failed to write script (%s) to results directory", ev.ScriptID.String())
+					}
+					if len(wasmBytecode) > 0 {
+						err = ioutil.WriteFile(scriptPath+".wasm", wasmBytecode, 0644)
+						if err != nil {
+							log.Log.Errorf("failed to write wasm (ScriptId: %s) to results directory", ev.ScriptID.String())
+						}
+					}
+				} else {
+					log.Log.Debugf("failed to download script (ID: %s"+err.Error(), ev.ScriptID.String())
+				}
+			}
+
+		case <-ctxt.Done(): // Context canceled, browser closed
 			done = true
 			break
 		}

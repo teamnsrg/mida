@@ -1,6 +1,7 @@
 package postprocess
 
 import (
+	"github.com/chromedp/cdproto/debugger"
 	b "github.com/teamnsrg/mida/base"
 	"time"
 )
@@ -9,6 +10,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	finalResult := b.FinalResult{
 		Summary:            rr.TaskSummary,
 		DTResourceMetadata: make(map[string]b.DTResource),
+		DTScriptMetadata:   make(map[string]*debugger.EventScriptParsed),
 	}
 
 	finalResult.Summary.TaskTiming.BeginPostprocess = time.Now()
@@ -34,6 +36,16 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 					// TotalDataLength: tdl,
 				}
 
+			}
+		}
+	}
+
+	if *st.DS.ScriptMetadata {
+		for _, v := range rr.DevTools.Scripts {
+			if _, ok := finalResult.DTScriptMetadata[v.ScriptID.String()]; ok {
+				rr.TaskSummary.TaskWrapper.Log.Warnf("found duplicate scriptId: %s", v.ScriptID.String())
+			} else {
+				finalResult.DTScriptMetadata[v.ScriptID.String()] = v
 			}
 		}
 	}

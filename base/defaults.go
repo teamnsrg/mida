@@ -5,11 +5,13 @@ const (
 	DefaultTempDir              = ".midatmp"
 	DefaultLocalOutputPath      = "results"
 	DefaultResourceSubdir       = "resources"
+	DefaultScriptSubdir         = "scripts"
 	DefaultScreenshotFileName   = "screenshot.png"
 	DefaultCookieFileName       = "cookies.json"
 	DefaultDomFileName          = "dom.json"
 	DefaultMetadataFile         = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
+	DefaultScriptMetadataFile   = "script_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
 	DefaultTaskLogFile          = "task.log"
 
@@ -42,10 +44,12 @@ const (
 
 	// Defaults for data gathering settings
 	DefaultAllResources     = true
+	DefaultAllScripts       = false
 	DefaultCookies          = true
 	DefaultDOM              = false
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
+	DefaultScriptMetadata   = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 

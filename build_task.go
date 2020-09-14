@@ -171,6 +171,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return ts, err
 	}
+	*ts.Data.AllScripts, err = cmd.Flags().GetBool("all-scripts")
+	if err != nil {
+		return ts, err
+	}
 	*ts.Data.Cookies, err = cmd.Flags().GetBool("cookies")
 	if err != nil {
 		return nil, err
@@ -184,6 +188,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		return nil, err
 	}
 	*ts.Data.Screenshot, err = cmd.Flags().GetBool("screenshot")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Data.ScriptMetadata, err = cmd.Flags().GetBool("script-metadata")
 	if err != nil {
 		return nil, err
 	}

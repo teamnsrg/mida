@@ -65,10 +65,11 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			NumResources: 0,
 		},
 		DevTools: b.DevToolsRawData{
-			Network: b.DevtoolsNetworkRawData{
+			Network: b.DevToolsNetworkRawData{
 				RequestWillBeSent: make(map[string][]*network.EventRequestWillBeSent),
 				ResponseReceived:  make(map[string]*network.EventResponseReceived),
 			},
+			Scripts: make(b.DevToolsScriptRawData, 0),
 		},
 	}
 
@@ -96,7 +97,19 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		if err != nil {
 			err = os.MkdirAll(path.Join(tw.TempDir, b.DefaultResourceSubdir), 0744)
 			if err != nil {
-				tw.Log.Error("failed to create resource subdir within UDD")
+				tw.Log.Error("failed to create resource subdir within temp directory")
+				return nil, err
+			}
+		}
+	}
+
+	// If we are gathering all scripts, do the same for the scripts directory
+	if *(tw.SanitizedTask.DS.AllScripts) {
+		_, err = os.Stat(path.Join(tw.TempDir, b.DefaultScriptSubdir))
+		if err != nil {
+			err = os.MkdirAll(path.Join(tw.TempDir, b.DefaultScriptSubdir), 0744)
+			if err != nil {
+				tw.Log.Error("failed to create script subdir within temp directory")
 				return nil, err
 			}
 		}
@@ -136,7 +149,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	browserContext, _ := chromedp.NewContext(allocContext)
 
 	// Get our event listener goroutines up and running
-	eventHandlerWG.Add(8) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
+	eventHandlerWG.Add(9) // *** UPDATE ME WHEN YOU ADD A NEW EVENT HANDLER ***
 	go FetchRequestPaused(ec.requestPausedChan, &rawResult, &devToolsState, &eventHandlerWG, browserContext)
 	go PageFrameNavigated(ec.frameNavigatedChan, &devToolsState, &eventHandlerWG, browserContext)
 	go PageLoadEventFired(ec.loadEventFiredChan, loadEventChan, &rawResult, &eventHandlerWG, browserContext)
@@ -145,6 +158,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
 	go TargetTargetCreated(ec.targetCreatedChan, &eventHandlerWG, browserContext)
+	go DebuggerScriptParsed(ec.scriptParsedChan, &rawResult, &eventHandlerWG, browserContext)
 
 	// The browser will open now, when we run our first chromedp ActionFunc
 	rawResult.Lock()
@@ -212,16 +226,22 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			ec.frameRequestedNavigationChan <- ev.(*page.EventFrameRequestedNavigation)
 		case *page.EventJavascriptDialogOpening:
 			ec.javascriptDialogOpeningChan <- ev.(*page.EventJavascriptDialogOpening)
+
 		case *network.EventRequestWillBeSent:
 			ec.requestWillBeSentChan <- ev.(*network.EventRequestWillBeSent)
 		case *network.EventResponseReceived:
 			ec.responseReceivedChan <- ev.(*network.EventResponseReceived)
 		case *network.EventLoadingFinished:
 			ec.loadingFinishedChan <- ev.(*network.EventLoadingFinished)
+
 		case *fetch.EventRequestPaused:
 			ec.requestPausedChan <- ev.(*fetch.EventRequestPaused)
+
 		case *target.EventTargetCreated:
 			ec.targetCreatedChan <- ev.(*target.EventTargetCreated)
+
+		case *debugger.EventScriptParsed:
+			ec.scriptParsedChan <- ev.(*debugger.EventScriptParsed)
 		}
 	})
 

@@ -346,12 +346,28 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.ResourceMetadata = *rawDataSettings.ResourceMetadata
 	}
 
+	*result.ScriptMetadata = b.DefaultScriptMetadata
+	if parentSettings != nil && parentSettings.ScriptMetadata != nil {
+		*result.ScriptMetadata = *parentSettings.ScriptMetadata
+	}
+	if rawDataSettings != nil && rawDataSettings.ScriptMetadata != nil {
+		*result.ScriptMetadata = *rawDataSettings.ScriptMetadata
+	}
+
 	*result.AllResources = b.DefaultAllResources
 	if parentSettings != nil && parentSettings.AllResources != nil {
 		*result.AllResources = *parentSettings.AllResources
 	}
 	if rawDataSettings != nil && rawDataSettings.AllResources != nil {
 		*result.AllResources = *rawDataSettings.AllResources
+	}
+
+	*result.AllScripts = b.DefaultAllScripts
+	if parentSettings != nil && parentSettings.AllScripts != nil {
+		*result.AllScripts = *parentSettings.AllScripts
+	}
+	if rawDataSettings != nil && rawDataSettings.AllScripts != nil {
+		*result.AllScripts = *rawDataSettings.AllScripts
 	}
 
 	*result.Screenshot = b.DefaultScreenshot
