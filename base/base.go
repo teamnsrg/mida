@@ -10,6 +10,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/teamnsrg/mida/vv8"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -62,6 +63,7 @@ type DataSettings struct {
 	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
+	VV8              *bool `json:"vv8"`                         // Collect JavaScript traces using VisibleV8
 }
 
 // Settings describing output of results to the local filesystem
@@ -207,6 +209,7 @@ type FinalResult struct {
 	DTDOM              *cdp.Node                              `json:"dom"`
 	DTResourceMetadata map[string]DTResource                  `json:"resource_metadata"` // Metadata on each resource loaded
 	DTScriptMetadata   map[string]*debugger.EventScriptParsed `json:"script_metadata"`   // Metadata on each script parsed
+	DTVV8IsolateMap    map[vv8.IsolateAddress]vv8.Isolate     `json:"vv8_isolate_map"`   // Isolate Map for VisibleV8 log parsing
 }
 
 func AllocateNewCompressedTaskSet() *CompressedTaskSet {
@@ -284,6 +287,7 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
+	ds.VV8 = new(bool)
 
 	return ds
 }

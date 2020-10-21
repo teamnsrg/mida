@@ -394,6 +394,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.DOM = *rawDataSettings.DOM
 	}
 
+	*result.VV8 = b.DefaultVV8
+	if parentSettings != nil && parentSettings.VV8 != nil {
+		*result.VV8 = *parentSettings.VV8
+	}
+	if rawDataSettings != nil && rawDataSettings.VV8 != nil {
+		*result.VV8 = *rawDataSettings.VV8
+	}
+
 	return *result, nil
 }
 

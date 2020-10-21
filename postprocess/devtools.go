@@ -3,6 +3,11 @@ package postprocess
 import (
 	"github.com/chromedp/cdproto/debugger"
 	b "github.com/teamnsrg/mida/base"
+	"github.com/teamnsrg/mida/log"
+	"github.com/teamnsrg/mida/vv8"
+	"io/ioutil"
+	"path"
+	"strings"
 	"time"
 )
 
@@ -17,6 +22,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 
 	// For brevity
 	st := rr.TaskSummary.TaskWrapper.SanitizedTask
+	tempDir := rr.TaskSummary.TaskWrapper.TempDir
 
 	// Ignore any requests/responses which do not have a matching request/response
 	if *st.DS.ResourceMetadata {
@@ -56,6 +62,26 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 
 	if *st.DS.DOM {
 		finalResult.DTDOM = rr.DevTools.DOM
+	}
+
+	if *st.DS.VV8 {
+		files, err := ioutil.ReadDir(tempDir)
+		if err != nil {
+			log.Log.Error(err)
+		} else {
+			for _, f := range files {
+				if strings.HasPrefix(f.Name(), "vv8") && strings.HasSuffix(f.Name(), "log") {
+					isolateMap, err := vv8.ProcessLogFile(path.Join(tempDir, f.Name()))
+					if err != nil {
+						log.Log.Error(err)
+					} else {
+						// TODO: Need to handle multiple valid VV8 log files here
+						// Maybe ProcessLogFile should be ProcessLogFiles() ???
+						finalResult.DTVV8IsolateMap = isolateMap
+					}
+				}
+			}
+		}
 	}
 
 	finalResult.Summary.NumResources = len(rr.DevTools.Network.RequestWillBeSent)

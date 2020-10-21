@@ -108,6 +108,18 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.VV8 {
+		data, err := json.Marshal(finalResult.DTVV8IsolateMap)
+		if err != nil {
+			return errors.New("failed to marshal vv8 data")
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultVV8FileName), data, 0644)
+		if err != nil {
+			return errors.New("failed to write vv8 file")
+		}
+	}
+
 	// Store our log
 	err = tw.LogFile.Close()
 	if err != nil {

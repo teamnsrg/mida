@@ -12,6 +12,7 @@ const (
 	DefaultMetadataFile         = "metadata.json"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultScriptMetadataFile   = "script_metadata.json"
+	DefaultVV8FileName          = "vv8.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
 	DefaultTaskLogFile          = "task.log"
 
@@ -50,6 +51,7 @@ const (
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
 	DefaultScriptMetadata   = false
+	DefaultVV8              = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 
