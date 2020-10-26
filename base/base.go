@@ -64,6 +64,7 @@ type DataSettings struct {
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
 	VV8              *bool `json:"vv8"`                         // Collect JavaScript traces using VisibleV8
+	VV8Raw           *bool `json:"vv8_raw"`                     // Save raw VV8 traces
 }
 
 // Settings describing output of results to the local filesystem
@@ -288,6 +289,7 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
 	ds.VV8 = new(bool)
+	ds.VV8Raw = new(bool)
 
 	return ds
 }

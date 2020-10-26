@@ -199,6 +199,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.VV8Raw, err = cmd.Flags().GetBool("vv8-raw")
+	if err != nil {
+		return nil, err
+	}
 
 	// Output settings, either local or remote
 	resultsOutputPath, err := cmd.Flags().GetString("results-output-path")

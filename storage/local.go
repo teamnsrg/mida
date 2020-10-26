@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 )
 
 // Local stores the results of a site visit locally, returning the path
@@ -117,6 +118,32 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		err = ioutil.WriteFile(path.Join(outPath, b.DefaultVV8FileName), data, 0644)
 		if err != nil {
 			return errors.New("failed to write vv8 file")
+		}
+	}
+
+	if *dataSettings.VV8Raw {
+		// Create our raw vv8 log output directory
+		err = os.Mkdir(path.Join(outPath, b.DefaultVV8RawDir), 0755)
+		if err != nil {
+			log.Log.Error(err)
+			tw.Log.Error(err)
+		} else {
+			files, err := ioutil.ReadDir(tw.TempDir)
+			if err != nil {
+				log.Log.Error(err)
+				tw.Log.Error(err)
+			} else {
+				for _, f := range files {
+					if strings.HasPrefix(f.Name(), "vv8") && strings.HasSuffix(f.Name(), "log") {
+						// Copy log file vv8_raw_logs directory
+						err = os.Rename(path.Join(tw.TempDir, f.Name()), path.Join(outPath, b.DefaultVV8RawDir, f.Name()))
+						if err != nil {
+							log.Log.Error(err)
+							tw.Log.Error(err)
+						}
+					}
+				}
+			}
 		}
 	}
 

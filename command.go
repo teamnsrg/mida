@@ -195,6 +195,7 @@ func getBuildCommand() *cobra.Command {
 		screenshot       bool
 		scriptMetadata   bool
 		vv8              bool
+		vv8Raw           bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -300,6 +301,8 @@ func getBuildCommand() *cobra.Command {
 		"Gather and store metadata about the scripts parsed by the browser")
 	cmdBuild.Flags().BoolVarP(&vv8, "vv8", "", b.DefaultVV8,
 		"Gather JavaScript traces using VisibleV8 browser (must use VV8 browser with -b flag)")
+	cmdBuild.Flags().BoolVarP(&vv8Raw, "vv8-raw", "", b.DefaultVV8Raw,
+		"Save raw VV8 traces")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -351,6 +354,7 @@ func getGoCommand() *cobra.Command {
 		screenshot       bool
 		scriptMetadata   bool
 		vv8              bool
+		vv8Raw           bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -431,6 +435,8 @@ func getGoCommand() *cobra.Command {
 		"Gather and store metadata about the scripts parsed by the browser")
 	cmdGo.Flags().BoolVarP(&vv8, "vv8", "", b.DefaultVV8,
 		"Gather JavaScript traces using VisibleV8 browser (must use VV8 browser with -b flag)")
+	cmdGo.Flags().BoolVarP(&vv8Raw, "vv8-raw", "", b.DefaultVV8Raw,
+		"Save raw VV8 traces")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

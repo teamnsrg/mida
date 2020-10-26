@@ -71,8 +71,6 @@ func ProcessLogFile(filename string) (map[IsolateAddress]Isolate, error) {
 	// Open file
 	isolateMap := make(map[IsolateAddress]Isolate)
 
-	fmt.Println("Parsing " + filename)
-
 	file, err := os.Open(filename)
 	if err != nil {
 		return isolateMap, err

@@ -402,6 +402,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.VV8 = *rawDataSettings.VV8
 	}
 
+	*result.VV8Raw = b.DefaultVV8Raw
+	if parentSettings != nil && parentSettings.VV8Raw != nil {
+		*result.VV8Raw = *parentSettings.VV8Raw
+	}
+	if rawDataSettings != nil && rawDataSettings.VV8Raw != nil {
+		*result.VV8Raw = *rawDataSettings.VV8Raw
+	}
+
 	return *result, nil
 }
 
