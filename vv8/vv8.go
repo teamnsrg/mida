@@ -67,93 +67,97 @@ func readFullLine(reader *bufio.Reader) (string, error) {
 	return line, nil
 }
 
-func ProcessLogFile(filename string) (map[IsolateAddress]Isolate, error) {
+func ProcessLogFiles(filenames []string) (map[IsolateAddress]Isolate, error) {
 	// Open file
 	isolateMap := make(map[IsolateAddress]Isolate)
 
-	file, err := os.Open(filename)
-	if err != nil {
-		return isolateMap, err
-	}
-	defer file.Close()
+	for _, filename := range filenames {
 
-	// Initialize map
-	curIsolateID := IsolateAddress("")
-	curScriptID := ScriptID("?")
-
-	reader := bufio.NewReader(file)
-	for {
-		line, err := readFullLine(reader)
+		file, err := os.Open(filename)
 		if err != nil {
-			break
+			return isolateMap, err
+		}
+		defer file.Close()
+
+		// Initialize map
+		curIsolateID := IsolateAddress("")
+		curScriptID := ScriptID("?")
+
+		reader := bufio.NewReader(file)
+		for {
+			line, err := readFullLine(reader)
+			if err != nil {
+				break
+			}
+
+			splat := unescapedSplit(line[1:], ':')
+			switch line[0] {
+			case '~':
+				newIsolateID := IsolateAddress(line[1:])
+				isolateMap[newIsolateID] = make(Isolate)
+				curIsolateID = newIsolateID
+			case '@':
+			case '$':
+				scriptID := ScriptID(splat[0])
+				if _, ok := isolateMap[curIsolateID][scriptID]; !ok {
+					isolateMap[curIsolateID][scriptID] = &Script{
+						Calls: []Call{},
+					}
+				}
+				script := isolateMap[curIsolateID][scriptID]
+				script.ScriptID = scriptID
+				script.Name = splat[1]
+				script.Source = splat[2]
+			case '!':
+				curScriptID = ScriptID(line[1:])
+				if _, ok := isolateMap[curIsolateID][curScriptID]; !ok {
+					isolateMap[curIsolateID][curScriptID] = &Script{
+						Calls: []Call{},
+					}
+				}
+			case 'c':
+				call := Call{
+					Id:                  splat[0],
+					CallType:            Function,
+					FunctionName:        splat[1],
+					OwningObject:        splat[2],
+					PositionalArguments: splat[3:],
+				}
+				isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
+
+			case 'n':
+				call := Call{
+					Id:                  splat[0],
+					CallType:            New,
+					FunctionName:        splat[1],
+					PositionalArguments: splat[2:],
+				}
+				isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
+
+			case 'g':
+				call := Call{
+					Id:           splat[0],
+					CallType:     Get,
+					OwningObject: splat[1],
+					PropertyName: splat[2],
+				}
+				isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
+
+			case 's':
+				call := Call{
+					Id:           splat[0],
+					CallType:     Set,
+					OwningObject: splat[1],
+					PropertyName: splat[2],
+					NewValue:     splat[3],
+				}
+				isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
+
+			default:
+				fmt.Printf("Unknown line: %s\n", line)
+			}
 		}
 
-		splat := unescapedSplit(line[1:], ':')
-		switch line[0] {
-		case '~':
-			newIsolateID := IsolateAddress(line[1:])
-			isolateMap[newIsolateID] = make(Isolate)
-			curIsolateID = newIsolateID
-		case '@':
-		case '$':
-			scriptID := ScriptID(splat[0])
-			if _, ok := isolateMap[curIsolateID][scriptID]; !ok {
-				isolateMap[curIsolateID][scriptID] = &Script{
-					Calls: []Call{},
-				}
-			}
-			script := isolateMap[curIsolateID][scriptID]
-			script.ScriptID = scriptID
-			script.Name = splat[1]
-			script.Source = splat[2]
-		case '!':
-			curScriptID = ScriptID(line[1:])
-			if _, ok := isolateMap[curIsolateID][curScriptID]; !ok {
-				isolateMap[curIsolateID][curScriptID] = &Script{
-					Calls: []Call{},
-				}
-			}
-		case 'c':
-			call := Call{
-				Id:                  splat[0],
-				CallType:            Function,
-				FunctionName:        splat[1],
-				OwningObject:        splat[2],
-				PositionalArguments: splat[3:],
-			}
-			isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
-
-		case 'n':
-			call := Call{
-				Id:                  splat[0],
-				CallType:            New,
-				FunctionName:        splat[1],
-				PositionalArguments: splat[2:],
-			}
-			isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
-
-		case 'g':
-			call := Call{
-				Id:           splat[0],
-				CallType:     Get,
-				OwningObject: splat[1],
-				PropertyName: splat[2],
-			}
-			isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
-
-		case 's':
-			call := Call{
-				Id:           splat[0],
-				CallType:     Set,
-				OwningObject: splat[1],
-				PropertyName: splat[2],
-				NewValue:     splat[3],
-			}
-			isolateMap[curIsolateID][curScriptID].Calls = append(isolateMap[curIsolateID][curScriptID].Calls, call)
-
-		default:
-			fmt.Printf("Unknown line: %s\n", line)
-		}
 	}
 
 	return isolateMap, nil

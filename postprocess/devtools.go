@@ -69,17 +69,17 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		if err != nil {
 			log.Log.Error(err)
 		} else {
+			var logFiles []string
 			for _, f := range files {
 				if strings.HasPrefix(f.Name(), "vv8") && strings.HasSuffix(f.Name(), "log") {
-					isolateMap, err := vv8.ProcessLogFile(path.Join(tempDir, f.Name()))
-					if err != nil {
-						log.Log.Error(err)
-					} else {
-						// TODO: Need to handle multiple valid VV8 log files here
-						// Maybe ProcessLogFile should be ProcessLogFiles() ???
-						finalResult.DTVV8IsolateMap = isolateMap
-					}
+					logFiles = append(logFiles, path.Join(tempDir, f.Name()))
 				}
+			}
+			isolateMap, err := vv8.ProcessLogFiles(logFiles)
+			if err != nil {
+				log.Log.Error(err)
+			} else {
+				finalResult.DTVV8IsolateMap = isolateMap
 			}
 		}
 	}
