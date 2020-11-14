@@ -50,6 +50,7 @@ const (
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
 	DefaultScriptMetadata   = false
+	DefaultYiBrowse         = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 
