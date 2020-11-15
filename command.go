@@ -194,6 +194,9 @@ func getBuildCommand() *cobra.Command {
 		resourceMetadata bool
 		screenshot       bool
 		scriptMetadata   bool
+		yibrowse         bool
+		yibrowseRaw      bool
+
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -297,6 +300,10 @@ func getBuildCommand() *cobra.Command {
 		"Collect a screenshot after (if) the load event fires for the page")
 	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
 		"Gather and store metadata about the scripts parsed by the browser")
+	cmdBuild.Flags().BoolVarP(&yibrowse, "yibrowse", "", b.DefaultYiBrowse,
+		"Gather Javascript trace from yibrowse browser")
+	cmdBuild.Flags().BoolVarP(&yibrowseRaw, "yibrowse-raw", "", b.DefaultYiBrowseRaw,
+		"Store raw browser output from yibrowse browser")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -347,6 +354,9 @@ func getGoCommand() *cobra.Command {
 		resourceMetadata bool
 		screenshot       bool
 		scriptMetadata   bool
+		yibrowse         bool
+		yibrowseRaw      bool
+
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -425,6 +435,10 @@ func getGoCommand() *cobra.Command {
 		"Collect a screenshot after (if) the load event fires for the page")
 	cmdGo.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
 		"Gather and store metadata about the scripts parsed by the browser")
+	cmdGo.Flags().BoolVarP(&yibrowse, "yibrowse", "", b.DefaultYiBrowse,
+		"Gather Javascript trace from yibrowse browser")
+	cmdGo.Flags().BoolVarP(&yibrowseRaw, "yibrowse-raw", "", b.DefaultYiBrowseRaw,
+		"Store raw browser output from yibrowse browser")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

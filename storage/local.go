@@ -108,6 +108,29 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.YiBrowseRaw {
+		err = os.Rename(path.Join(tw.TempDir, b.DefaultBrowserLogFileName),
+			path.Join(outPath, b.DefaultBrowserLogFileName))
+		if err != nil {
+			log.Log.Error(err)
+			tw.Log.Error(err)
+		}
+	}
+
+	if *dataSettings.YiBrowse {
+		data, err = json.Marshal(finalResult.DTYibrowseCleanedTrace)
+		if err != nil {
+			log.Log.Error(err)
+			tw.Log.Error(err)
+		} else {
+			err = ioutil.WriteFile(path.Join(outPath, b.DefaultYibrowseOutputFile), data, 0644)
+			if err != nil {
+				log.Log.Error(err)
+				tw.Log.Error(err)
+			}
+		}
+	}
+
 	// Store our log
 	err = tw.LogFile.Close()
 	if err != nil {

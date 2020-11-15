@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20200709115526-d1f6fc58448b
+	github.com/davecgh/go-spew v1.1.1
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/magiconair/properties v1.8.2 // indirect

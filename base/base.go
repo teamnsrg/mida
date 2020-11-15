@@ -10,6 +10,7 @@ import (
 	"github.com/chromedp/cdproto/network"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/teamnsrg/mida/yibrowse"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -63,6 +64,7 @@ type DataSettings struct {
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
 	YiBrowse         *bool `json:"yibrowse,omitempty"`          // Use YiBrowse browser to gather JavaScript traces
+	YiBrowseRaw      *bool `json:"yibrowse_raw,omitempty"`      // Store raw output from yibrowse browser
 }
 
 // Settings describing output of results to the local filesystem
@@ -203,11 +205,13 @@ type DTResource struct {
 }
 
 type FinalResult struct {
-	Summary            TaskSummary                            `json:"stats"`   // Statistics on timing and resource usage for the crawl
-	DTCookies          []*network.Cookie                      `json:"cookies"` // Cookies collected from DevTools protocol
-	DTDOM              *cdp.Node                              `json:"dom"`
-	DTResourceMetadata map[string]DTResource                  `json:"resource_metadata"` // Metadata on each resource loaded
-	DTScriptMetadata   map[string]*debugger.EventScriptParsed `json:"script_metadata"`   // Metadata on each script parsed
+	Summary            		TaskSummary                            `json:"stats"`   // Statistics on timing and resource usage for the crawl
+	DTCookies          		[]*network.Cookie                      `json:"cookies"` // Cookies collected from DevTools protocol
+	DTDOM              		*cdp.Node                              `json:"dom"`
+	DTResourceMetadata 		map[string]DTResource                  `json:"resource_metadata"` // Metadata on each resource loaded
+	DTScriptMetadata   		map[string]*debugger.EventScriptParsed `json:"script_metadata"`   // Metadata on each script parsed
+	DTYibrowseRawTrace 		yibrowse.RawJSTrace                    `json:"yibrowse_raw_trace"` // Trace from yibrowse (with isolates)
+	DTYibrowseCleanedTrace	yibrowse.CleanedJSTrace            	   `json:"yibrowse_cleaned_trace"` // Trace from yibrowse (with isolates eliminated)
 }
 
 func AllocateNewCompressedTaskSet() *CompressedTaskSet {
@@ -286,6 +290,7 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
 	ds.YiBrowse = new(bool)
+	ds.YiBrowseRaw = new(bool)
 
 	return ds
 }

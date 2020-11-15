@@ -13,6 +13,7 @@ const (
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultScriptMetadataFile   = "script_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
+	DefaultYibrowseOutputFile   = "yibrowse.json"
 	DefaultTaskLogFile          = "task.log"
 
 	// MIDA Configuration Defaults
@@ -30,6 +31,7 @@ const (
 	DefaultLinuxChromiumPath   = "/usr/bin/chromium-browser"
 	DefaultWindowsChromePath   = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
 	DefaultWindowsChromiumPath = "\\%LocalAppData%\\chromium\\Application\\chrome.exe"
+	DefaultBrowserLogFileName  = "mida_browser.log"
 
 	// RawTask completion
 	DefaultTimeAfterLoad       = 5  // Default time to stay on a page after load event is fired (in TimeAfterLoad mode)
@@ -51,6 +53,7 @@ const (
 	DefaultScreenshot       = true
 	DefaultScriptMetadata   = false
 	DefaultYiBrowse         = false
+	DefaultYiBrowseRaw      = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 

@@ -394,6 +394,28 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.DOM = *rawDataSettings.DOM
 	}
 
+	*result.YiBrowse = b.DefaultYiBrowse
+	if parentSettings != nil && parentSettings.YiBrowse != nil {
+		*result.YiBrowse = *parentSettings.YiBrowse
+	}
+	if rawDataSettings != nil && rawDataSettings.YiBrowse != nil {
+		*result.YiBrowse = *rawDataSettings.YiBrowse
+	}
+
+	*result.YiBrowseRaw = b.DefaultYiBrowseRaw
+	if parentSettings != nil && parentSettings.YiBrowseRaw != nil {
+		*result.YiBrowseRaw = *parentSettings.YiBrowseRaw
+	}
+	if rawDataSettings != nil && rawDataSettings.YiBrowseRaw != nil {
+		*result.YiBrowseRaw = *rawDataSettings.YiBrowseRaw
+	}
+
+	///////////////////////////////////////////////////////////////
+
+	if *result.YiBrowse && !*result.ScriptMetadata {
+		*result.ScriptMetadata = true
+	}
+
 	return *result, nil
 }
 

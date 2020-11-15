@@ -195,6 +195,14 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.YiBrowse, err = cmd.Flags().GetBool("yibrowse")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Data.YiBrowseRaw, err = cmd.Flags().GetBool("yibrowse-raw")
+	if err != nil {
+		return nil, err
+	}
 
 	// Output settings, either local or remote
 	resultsOutputPath, err := cmd.Flags().GetString("results-output-path")

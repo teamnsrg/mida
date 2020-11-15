@@ -144,6 +144,16 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		cmd.Dir = tw.TempDir
 	}))
 
+	if *tw.SanitizedTask.DS.YiBrowse || *tw.SanitizedTask.DS.YiBrowseRaw {
+		midaBrowserOutfile, err := os.Create(path.Join(tw.TempDir, b.DefaultBrowserLogFileName))
+		if err != nil {
+			return nil, err
+		}
+		defer midaBrowserOutfile.Close()
+
+		opts = append(opts, chromedp.CombinedOutput(midaBrowserOutfile))
+	}
+
 	// Spawn our browser
 	allocContext, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	browserContext, _ := chromedp.NewContext(allocContext)
