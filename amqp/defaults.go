@@ -6,4 +6,5 @@ const (
 	DefaultPriority          = 5 // Default priority of tasks loaded into queue
 	DefaultTaskQueue         = "mida-tasks"
 	DefaultBroadcastExchange = "mida-broadcast"
+	DefaultPostQueue         = "mida-complete"
 )

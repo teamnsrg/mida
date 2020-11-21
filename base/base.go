@@ -84,8 +84,9 @@ type SftpOutputSettings struct {
 
 // An aggregation of the output settings for a task or task-set
 type OutputSettings struct {
-	LocalOut *LocalOutputSettings `json:"local_output_settings,omitempty"` // Output settings for the local filesystem
-	SftpOut  *SftpOutputSettings  `json:"sftp_output_settings,omitempty"`  // Output settings for the remote filesystem
+	LocalOut  *LocalOutputSettings `json:"local_output_settings,omitempty"` // Output settings for the local filesystem
+	SftpOut   *SftpOutputSettings  `json:"sftp_output_settings,omitempty"`  // Output settings for the remote filesystem
+	PostQueue *string              `json:"post_queue,omitempty"`            // AMQP queue in which we should put metadata for crawl once complete
 }
 
 // A raw MIDA task. This is the struct that is read from/written to file when tasks are stored as JSON.
@@ -293,6 +294,7 @@ func AllocateNewOutputSettings() *OutputSettings {
 	var ops = new(OutputSettings)
 	ops.LocalOut = AllocateNewLocalOutputSettings()
 	ops.SftpOut = AllocateNewSftpOutputSettings()
+	ops.PostQueue = new(string)
 
 	return ops
 }

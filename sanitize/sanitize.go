@@ -423,6 +423,12 @@ func OutputSettings(ops *b.OutputSettings, ds *b.DataSettings) (b.OutputSettings
 		return b.OutputSettings{}, err
 	}
 
+	if ops.PostQueue == nil {
+		*result.PostQueue = ""
+	} else {
+		*result.PostQueue = *ops.PostQueue
+	}
+
 	return *result, nil
 }
 

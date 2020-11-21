@@ -197,6 +197,7 @@ func getBuildCommand() *cobra.Command {
 
 		// Output settings
 		resultsOutputPath string // Results from task path
+		postQueue         string
 
 		outputPath string // Task file path
 		overwrite  bool
@@ -300,6 +301,8 @@ func getBuildCommand() *cobra.Command {
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
+	cmdBuild.Flags().StringVarP(&postQueue, "post-queue", "q", b.DefaultPostQueue,
+		"AMQP queue where crawl metadata will be enqueued after storage has completed")
 
 	cmdBuild.Flags().StringVarP(&outputPath, "outfile", "w", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
@@ -350,6 +353,7 @@ func getGoCommand() *cobra.Command {
 
 		// Output settings
 		resultsOutputPath string // Results from task path
+		postQueue         string
 
 		outputPath string // Task file path
 		overwrite  bool
@@ -428,6 +432,8 @@ func getGoCommand() *cobra.Command {
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
+	cmdGo.Flags().StringVarP(&postQueue, "post-queue", "q", b.DefaultPostQueue,
+		"AMQP queue where crawl metadata will be enqueued after storage has completed")
 
 	cmdGo.Flags().StringVarP(&outputPath, "outfile", "w", viper.GetString("task_file"),
 		"Path to write the newly-created JSON task file")
