@@ -158,12 +158,18 @@ type TaskTiming struct {
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
+	Url  string `json:"url"`
+	UUID string `json:"uuid"`
+
 	Success       bool   `json:"success"`                  // True if the task did not fail
 	FailureReason string `json:"failure_reason,omitempty"` // Holds the failure code for the task
 
 	TaskWrapper *TaskWrapper `json:"-"`            // Wrapper containing the full task
 	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
 	CrawlerInfo CrawlerInfo  `json:"crawler_info"` // Information about the infrastructure used to visit the site
+
+	OutputHost string `json:"output_host,omitempty"` // Host to which results were stored via SFTP
+	OutputPath string `json:"output_path,omitempty"` // Path to the results of the crawl on the applicable host (after storage)
 
 	NumResources int `json:"num_resources"` // Number of resources the browser loaded
 }
