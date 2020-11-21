@@ -58,7 +58,14 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		finalResult.DTDOM = rr.DevTools.DOM
 	}
 
+	finalResult.Summary.Url = st.URL
+	finalResult.Summary.UUID = finalResult.Summary.TaskWrapper.UUID.String()
 	finalResult.Summary.NumResources = len(rr.DevTools.Network.RequestWillBeSent)
+
+	if *st.OPS.SftpOut.Enable {
+		finalResult.Summary.OutputHost = *st.OPS.SftpOut.Host
+		finalResult.Summary.OutputPath = *st.OPS.SftpOut.Path
+	}
 
 	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 

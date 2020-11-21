@@ -234,6 +234,11 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		*ts.Output.LocalOut.DS = *ts.Data
 	}
 
+	*ts.Output.PostQueue, err = cmd.Flags().GetString("post-queue")
+	if err != nil {
+		return nil, err
+	}
+
 	*ts.Repeat, err = cmd.Flags().GetInt("repeat")
 	if err != nil {
 		return nil, err

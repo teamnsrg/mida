@@ -4,6 +4,7 @@ const (
 	// Output Parameters
 	DefaultTempDir              = ".midatmp"
 	DefaultLocalOutputPath      = "results"
+	DefaultPostQueue            = ""
 	DefaultResourceSubdir       = "resources"
 	DefaultScriptSubdir         = "scripts"
 	DefaultCoverageSubdir       = "coverage"

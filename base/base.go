@@ -85,8 +85,9 @@ type SftpOutputSettings struct {
 
 // An aggregation of the output settings for a task or task-set
 type OutputSettings struct {
-	LocalOut *LocalOutputSettings `json:"local_output_settings,omitempty"` // Output settings for the local filesystem
-	SftpOut  *SftpOutputSettings  `json:"sftp_output_settings,omitempty"`  // Output settings for the remote filesystem
+	LocalOut  *LocalOutputSettings `json:"local_output_settings,omitempty"` // Output settings for the local filesystem
+	SftpOut   *SftpOutputSettings  `json:"sftp_output_settings,omitempty"`  // Output settings for the remote filesystem
+	PostQueue *string              `json:"post_queue,omitempty"`            // AMQP queue in which we should put metadata for crawl once complete
 }
 
 // A raw MIDA task. This is the struct that is read from/written to file when tasks are stored as JSON.
@@ -158,12 +159,18 @@ type TaskTiming struct {
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
+	Url  string `json:"url"`
+	UUID string `json:"uuid"`
+
 	Success       bool   `json:"success"`                  // True if the task did not fail
 	FailureReason string `json:"failure_reason,omitempty"` // Holds the failure code for the task
 
 	TaskWrapper *TaskWrapper `json:"-"`            // Wrapper containing the full task
 	TaskTiming  TaskTiming   `json:"task_timing"`  // Timing data for the task
 	CrawlerInfo CrawlerInfo  `json:"crawler_info"` // Information about the infrastructure used to visit the site
+
+	OutputHost string `json:"output_host,omitempty"` // Host to which results were stored via SFTP
+	OutputPath string `json:"output_path,omitempty"` // Path to the results of the crawl on the applicable host (after storage)
 
 	NumResources int `json:"num_resources"` // Number of resources the browser loaded
 }
@@ -295,6 +302,7 @@ func AllocateNewOutputSettings() *OutputSettings {
 	var ops = new(OutputSettings)
 	ops.LocalOut = AllocateNewLocalOutputSettings()
 	ops.SftpOut = AllocateNewSftpOutputSettings()
+	ops.PostQueue = new(string)
 
 	return ops
 }

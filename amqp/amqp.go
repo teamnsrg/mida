@@ -92,6 +92,60 @@ func LoadTasks(tasks b.TaskSet, params ConnParams, queue string, priority uint8,
 	return tasksLoaded, nil
 }
 
+// LoadSummaryPost loads task summary data into AMQP queue. Creates and tears down a new connections each time.
+func LoadSummaryPost(summary b.TaskSummary, params ConnParams, queue string, priority uint8) error {
+	amqpUri := fullUriFromParams(params)
+	log.Log.Debugf("Connecting to AMQP instance at %s", params.Uri)
+
+	var connection *amqp.Connection
+	var err error
+
+	if strings.HasPrefix(amqpUri, "amqps") {
+		connection, err = amqp.DialTLS(amqpUri,
+			&tls.Config{
+				InsecureSkipVerify: true,
+			},
+		)
+	} else if strings.HasPrefix(amqpUri, "amqp") {
+		connection, err = amqp.Dial(amqpUri)
+	} else {
+		err = errors.New("invalid amqp URL: [ " + amqpUri + " ]")
+	}
+	if err != nil {
+		return err
+	}
+	defer connection.Close()
+
+	channel, err := connection.Channel()
+	if err != nil {
+		return err
+	}
+
+	summaryBytes, err := json.Marshal(summary)
+	if err != nil {
+		return err
+	}
+
+	err = channel.Publish(
+		"",
+		queue,
+		false,
+		false,
+		amqp.Publishing{
+			Headers:      amqp.Table{},
+			ContentType:  "text/plain",
+			DeliveryMode: 0,
+			Priority:     priority,
+			Timestamp:    time.Now(),
+			Body:         summaryBytes,
+		})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewAMQPTasksConsumer(params ConnParams, queue string) (*Consumer, <-chan amqp.Delivery, error) {
 	c := &Consumer{
 		conn:    nil,
