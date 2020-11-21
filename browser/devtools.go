@@ -141,7 +141,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			} else {
 				// Set up environment so that Chromium will save coverage data
 				opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+
-					path.Join(tw.TempDir, b.DefaultCoverageSubdir, "coverage-%4m.profraw")))
+					path.Join(tw.TempDir, b.DefaultCoverageSubdir, "coverage-%m.profraw")))
 			}
 		}
 	}
@@ -366,7 +366,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		tw.Log.Debug("general timeout before load event fired")
 	}
 
-	closeContext, _ := context.WithTimeout(browserContext, 5*time.Second)
+	closeContext, _ := context.WithTimeout(browserContext, 60*time.Second)
 	err = chromedp.Cancel(closeContext)
 	if err != nil {
 		tw.Log.Errorf("failed to close browser gracefully, so we had to force it (%s)", err.Error())
