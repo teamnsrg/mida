@@ -27,6 +27,7 @@ func initViperConfig() {
 func setDefaults() {
 	// MIDA-Wide Configuration Defaults
 	viper.SetDefault("crawlers", 1)
+	viper.SetDefault("postprocessers", 1)
 	viper.SetDefault("storers", 1)
 	viper.SetDefault("prom_port", 8001)
 	viper.SetDefault("monitor", false)

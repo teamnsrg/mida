@@ -24,9 +24,10 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	finalResultChan := make(chan *b.FinalResult)   // channel connection stages 4 and 5
 	monitorChan := make(chan *b.TaskSummary)
 
-	var crawlerWG sync.WaitGroup  // Tracks active crawler workers
-	var storageWG sync.WaitGroup  // Tracks active storage workers
-	var pipelineWG sync.WaitGroup // Tracks tasks currently in pipeline
+	var crawlerWG sync.WaitGroup       // Tracks active crawler workers
+	var postprocesserWG sync.WaitGroup // Tracks active postprocessers
+	var storageWG sync.WaitGroup       // Tracks active storage workers
+	var pipelineWG sync.WaitGroup      // Tracks tasks currently in pipeline
 
 	// Start our virtual display, if needed
 	xvfb, err := cmd.Flags().GetBool("xvfb")
@@ -63,12 +64,16 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	// Start goroutine(s) that handles crawl results storage
 	numStorers := viper.GetInt("storers")
 	storageWG.Add(numStorers)
-	for i := 0; i < viper.GetInt("storers"); i++ {
+	for i := 0; i < numStorers; i++ {
 		go stage5(finalResultChan, monitorChan, &storageWG, &pipelineWG)
 	}
 
 	// Start goroutine that handles crawl results sanitization
-	go stage4(rawResultChan, finalResultChan)
+	numPostprocessers := viper.GetInt("postprocessers")
+	postprocesserWG.Add(numPostprocessers)
+	for i := 0; i < numPostprocessers; i++ {
+		go stage4(rawResultChan, finalResultChan, &postprocesserWG)
+	}
 
 	// Start site visitors(s) which take sanitized tasks as arguments
 	numCrawlers := viper.GetInt("crawlers")
@@ -87,8 +92,11 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	crawlerWG.Wait()
 	close(rawResultChan)
 
-	// Wait for all of our storers to exit. We do not need to close the channel
-	// going to storers -- the channel close will ripple through the pipeline
+	// Wait for postprocessing to finish
+	postprocesserWG.Wait()
+	close(finalResultChan)
+
+	// Wait for all of our storers to exit.
 	storageWG.Wait()
 
 	// Close connections to databases or storage servers

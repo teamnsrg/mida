@@ -14,17 +14,20 @@ func getRootCommand() *cobra.Command {
 	var cmdRoot = &cobra.Command{Use: "mida"}
 
 	var (
-		numCrawlers    int
-		numStorers     int
-		monitor        bool
-		promPort       int
-		logLevel       int
-		virtualDisplay bool
-		rateLimit      int
+		numCrawlers       int
+		numPostprocessers int
+		numStorers        int
+		monitor           bool
+		promPort          int
+		logLevel          int
+		virtualDisplay    bool
+		rateLimit         int
 	)
 
 	cmdRoot.PersistentFlags().IntVarP(&numCrawlers, "crawlers", "c", viper.GetInt("crawlers"),
 		"Number of parallel browser instances to use for crawling")
+	cmdRoot.PersistentFlags().IntVarP(&numPostprocessers, "postprocessers", "p", viper.GetInt("postprocessers"),
+		"Number of parallel goroutines working to postprocess results")
 	cmdRoot.PersistentFlags().IntVarP(&numStorers, "storers", "s", viper.GetInt("storers"),
 		"Number of parallel goroutines working to store task results")
 	cmdRoot.PersistentFlags().BoolVarP(&monitor, "monitor", "m", false,
