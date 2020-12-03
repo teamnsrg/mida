@@ -34,6 +34,7 @@ func setDefaults() {
 	viper.SetDefault("log_level", 2)
 	viper.SetDefault("task_file", "examples/example_task.json")
 	viper.SetDefault("rate_limit", 200)
+	viper.SetDefault("tempdir", ".midatmp")
 
 	viper.SetDefault("amqp_user", "")
 	viper.SetDefault("amqp_pass", "")

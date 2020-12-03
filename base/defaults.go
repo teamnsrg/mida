@@ -2,7 +2,6 @@ package base
 
 const (
 	// Output Parameters
-	DefaultTempDir              = ".midatmp"
 	DefaultLocalOutputPath      = "results"
 	DefaultPostQueue            = ""
 	DefaultResourceSubdir       = "resources"

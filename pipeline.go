@@ -106,7 +106,7 @@ func InitPipeline(cmd *cobra.Command, args []string) {
 	}
 
 	// Cleanup any remaining temporary files before we exit
-	err = os.RemoveAll(sanitize.ExpandPath(b.DefaultTempDir))
+	err = os.RemoveAll(sanitize.ExpandPath(viper.GetString("tempdir")))
 	if err != nil {
 		log.Log.Error(err)
 	}

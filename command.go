@@ -20,6 +20,7 @@ func getRootCommand() *cobra.Command {
 		monitor           bool
 		promPort          int
 		logLevel          int
+		tmpDir            string
 		virtualDisplay    bool
 		rateLimit         int
 	)
@@ -36,6 +37,8 @@ func getRootCommand() *cobra.Command {
 		"Port used for hosting metrics for a Prometheus server")
 	cmdRoot.PersistentFlags().IntVarP(&logLevel, "log-level", "l", viper.GetInt("log_level"),
 		"Log Level for MIDA (0=Error, 1=Warn, 2=Info, 3=Debug)")
+	cmdRoot.PersistentFlags().StringVarP(&tmpDir, "tempdir", "", viper.GetString("tempdir"),
+		"Temporary directory for MIDA to use")
 	cmdRoot.PersistentFlags().BoolVarP(&virtualDisplay, "xvfb", "", false,
 		"Use Xvfb virtual display (for non-headless, monitor-less crawls on Linux)")
 	cmdRoot.PersistentFlags().IntVarP(&rateLimit, "rate-limit", "r", viper.GetInt("rate_limit"),
