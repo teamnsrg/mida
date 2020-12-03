@@ -227,12 +227,13 @@ func buildCovMapping(covPath string, profraws []string, infile string, outfile s
 		return
 	}
 
-	err = writer.Write([]string{"END", strconv.Itoa(int(count))})
-	if err != nil {
-		log.Log.Error(err)
+	if write {
+		err = writer.Write([]string{"END", strconv.Itoa(int(count))})
+		if err != nil {
+			log.Log.Error(err)
+		}
+		writer.Flush()
 	}
-	writer.Flush()
-
 	covMappingLength = count
 	covMapping = m
 
