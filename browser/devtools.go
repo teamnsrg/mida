@@ -130,6 +130,22 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	opts = append(opts, chromedp.UserDataDir(tw.SanitizedTask.UserDataDirectory))
 	opts = append(opts, chromedp.ExecPath(tw.SanitizedTask.BrowserBinaryPath))
 
+	// Set up for capturing clang coverage from chromium(-based) browser
+	if *(tw.SanitizedTask.DS.BrowserCoverage) {
+		// Create subdir where coverage files will be stored
+		_, err = os.Stat(path.Join(tw.TempDir, b.DefaultCoverageSubdir))
+		if err != nil {
+			err = os.Mkdir(path.Join(tw.TempDir, b.DefaultCoverageSubdir), 0744)
+			if err != nil {
+				log.Log.Error(err)
+			} else {
+				// Set up environment so that Chromium will save coverage data
+				opts = append(opts, chromedp.Env("LLVM_PROFILE_FILE="+
+					path.Join(tw.TempDir, b.DefaultCoverageSubdir, "coverage-%m.profraw")))
+			}
+		}
+	}
+
 	// Build channels we need for coordinating the site visit across goroutines
 	navChan := make(chan error)                                                          // A channel to signal the completion of navigation, successfully or not
 	timeoutChan := time.After(time.Duration(*tw.SanitizedTask.CS.Timeout) * time.Second) // Absolute longest we can go
@@ -350,7 +366,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		tw.Log.Debug("general timeout before load event fired")
 	}
 
-	closeContext, _ := context.WithTimeout(browserContext, 5*time.Second)
+	closeContext, _ := context.WithTimeout(browserContext, 60*time.Second)
 	err = chromedp.Cancel(closeContext)
 	if err != nil {
 		tw.Log.Errorf("failed to close browser gracefully, so we had to force it (%s)", err.Error())

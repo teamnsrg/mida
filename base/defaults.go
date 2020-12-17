@@ -2,11 +2,11 @@ package base
 
 const (
 	// Output Parameters
-	DefaultTempDir              = ".midatmp"
 	DefaultLocalOutputPath      = "results"
 	DefaultPostQueue            = ""
 	DefaultResourceSubdir       = "resources"
 	DefaultScriptSubdir         = "scripts"
+	DefaultCoverageSubdir       = "coverage"
 	DefaultScreenshotFileName   = "screenshot.png"
 	DefaultCookieFileName       = "cookies.json"
 	DefaultDomFileName          = "dom.json"
@@ -51,6 +51,7 @@ const (
 	DefaultResourceMetadata = true
 	DefaultScreenshot       = true
 	DefaultScriptMetadata   = false
+	DefaultBrowserCoverage  = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 

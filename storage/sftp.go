@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/sftp"
+	"github.com/spf13/viper"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	"github.com/teamnsrg/mida/sanitize"
@@ -85,7 +86,7 @@ func StoreResultsSSH(r *b.FinalResult, activeConn *SftpConn, remotePath string) 
 	// We store all the results to the local file system first in a temporary directory
 	// Ideally, we reuse what has already been stored locally, but we store it ourselves if required
 	tw := r.Summary.TaskWrapper
-	tempPath := path.Join(b.DefaultTempDir, tw.UUID.String()+"-sftpresults")
+	tempPath := path.Join(viper.GetString("tempdir"), tw.UUID.String()+"-sftpresults")
 	err := Local(r, tw.SanitizedTask.OPS.SftpOut.DS, tempPath)
 	if err != nil {
 		return err

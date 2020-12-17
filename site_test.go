@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/viper"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/browser"
 	"github.com/teamnsrg/mida/sanitize"
@@ -11,7 +12,7 @@ import (
 )
 
 func testCleanup() {
-	err := os.RemoveAll(b.DefaultTempDir)
+	err := os.RemoveAll(viper.GetString("tempdir"))
 	if err != nil {
 		fmt.Println(err)
 	}

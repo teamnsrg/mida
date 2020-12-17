@@ -5,11 +5,8 @@ go 1.13
 require (
 	github.com/chromedp/cdproto v0.0.0-20200709115526-d1f6fc58448b
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
-	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.0.4 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/magiconair/properties v1.8.2 // indirect
-	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/mapstructure v1.3.3 // indirect
 	github.com/montanaflynn/stats v0.6.3
@@ -28,10 +25,9 @@ require (
 	github.com/streadway/amqp v1.0.0
 	github.com/teamnsrg/chromedp v0.5.4-0.20200914040736-6492ab00a696
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
-	golang.org/x/sys v0.0.0-20200909081042-eff7692f9009 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/ini.v1 v1.61.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
 
-// replace github.com/teamnsrg/chromedp v0.5.4-0.20200914022638-1002e91285db => ../../../github.com/teamnsrg/chromedp
+// replace github.com/teamnsrg/chromedp v0.5.4-0.20200914040736-6492ab00a696 => ../../../github.com/teamnsrg/chromedp

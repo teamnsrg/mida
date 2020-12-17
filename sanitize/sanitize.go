@@ -24,7 +24,7 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 	// Each task gets its own UUID
 	tw.UUID = uuid.New()
 
-	tw.TempDir = path.Join(viper.GetString("cwd"), ExpandPath(b.DefaultTempDir), tw.UUID.String())
+	tw.TempDir = path.Join(ExpandPath(viper.GetString("tempdir")), tw.UUID.String())
 	err = os.MkdirAll(tw.TempDir, 0755)
 	if err != nil {
 		return b.TaskWrapper{}, errors.New("failed to create temporary directory for task: " + err.Error())
@@ -392,6 +392,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 	}
 	if rawDataSettings != nil && rawDataSettings.DOM != nil {
 		*result.DOM = *rawDataSettings.DOM
+	}
+
+	*result.BrowserCoverage = b.DefaultBrowserCoverage
+	if parentSettings != nil && parentSettings.BrowserCoverage != nil {
+		*result.BrowserCoverage = *parentSettings.BrowserCoverage
+	}
+	if rawDataSettings != nil && rawDataSettings.BrowserCoverage != nil {
+		*result.BrowserCoverage = *rawDataSettings.BrowserCoverage
 	}
 
 	return *result, nil

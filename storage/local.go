@@ -108,6 +108,14 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.BrowserCoverage {
+		err = os.Rename(path.Join(tw.TempDir, b.DefaultCoverageSubdir), path.Join(outPath, b.DefaultCoverageSubdir))
+		if err != nil {
+			tw.Log.Error("failed to copy coverage directory into results directory: " + err.Error())
+			log.Log.Error("failed to copy coverage directory into results directory: " + err.Error())
+		}
+	}
+
 	// Store our log
 	err = tw.LogFile.Close()
 	if err != nil {

@@ -62,6 +62,7 @@ type DataSettings struct {
 	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
+	BrowserCoverage  *bool `json:"browser_coverage"`            // Whether to gather code coverage data from the browser
 }
 
 // Settings describing output of results to the local filesystem
@@ -291,6 +292,7 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
+	ds.BrowserCoverage = new(bool)
 
 	return ds
 }

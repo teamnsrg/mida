@@ -195,6 +195,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.BrowserCoverage, err = cmd.Flags().GetBool("browser-coverage")
+	if err != nil {
+		return nil, err
+	}
 
 	// Output settings, either local or remote
 	resultsOutputPath, err := cmd.Flags().GetString("results-output-path")
