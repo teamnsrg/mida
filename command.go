@@ -101,7 +101,7 @@ func getLoadCommand() *cobra.Command {
 		Use:   "load",
 		Short: "Load tasks from file into queue",
 		Long:  `Read tasks from a JSON-formatted file, parse them, and load them into the specified queue instance`,
-		Args:  cobra.ExactArgs(1), // the filename containing tasks to read
+		Args:  cobra.MinimumNArgs(1), // the filename(s) containing tasks to read
 		Run: func(cmd *cobra.Command, args []string) {
 			ll, err := cmd.Flags().GetInt("log-level")
 			if err != nil {
@@ -113,9 +113,13 @@ func getLoadCommand() *cobra.Command {
 			}
 			log.Log.Debug("MIDA Starts (Mode: load)")
 
-			tasks, err := b.ReadTasksFromFile(args[0])
-			if err != nil {
-				log.Log.Fatal(err)
+			var tasks []b.RawTask
+			for _, arg := range args {
+				oneFileTasks, err := b.ReadTasksFromFile(arg)
+				if err != nil {
+					log.Log.Fatal(err)
+				}
+				tasks = append(tasks, oneFileTasks...)
 			}
 
 			var params = amqp.ConnParams{
@@ -145,8 +149,8 @@ func getLoadCommand() *cobra.Command {
 				log.Log.Fatal(err)
 			}
 
-			log.Log.Infof("Loaded %d tasks into queue \"%s\" with priority %d",
-				numTasksLoaded, queue, priority)
+			log.Log.Infof("Loaded %d tasks from %d files into queue \"%s\" with priority %d",
+				numTasksLoaded, len(args), queue, priority)
 		},
 	}
 
