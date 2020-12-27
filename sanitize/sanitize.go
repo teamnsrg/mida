@@ -24,7 +24,12 @@ func Task(rt *b.RawTask) (b.TaskWrapper, error) {
 	// Each task gets its own UUID
 	tw.UUID = uuid.New()
 
-	tw.TempDir = path.Join(ExpandPath(viper.GetString("tempdir")), tw.UUID.String())
+	tmpDir, err := filepath.Abs(path.Join(ExpandPath(viper.GetString("tempdir")), tw.UUID.String()))
+	if err != nil {
+		return b.TaskWrapper{}, err
+	}
+	tw.TempDir = tmpDir
+
 	err = os.MkdirAll(tw.TempDir, 0755)
 	if err != nil {
 		return b.TaskWrapper{}, errors.New("failed to create temporary directory for task: " + err.Error())

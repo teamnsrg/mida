@@ -19,7 +19,7 @@ import (
 
 var covMapping map[string]int
 var covMappingLength int
-var once sync.Once
+var covMappingLock sync.Mutex
 
 func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	finalResult := b.FinalResult{
@@ -98,9 +98,13 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		}
 
 		if len(rawCovFilenames) > 0 {
+			covMappingLock.Lock()
 			if covMapping == nil {
-				once.Do(func() { buildCovMapping(covPath, rawCovFilenames, "", "") })
+				log.Log.Debug("Building coverage map...")
+				buildCovMapping(covPath, rawCovFilenames, "", "")
+				log.Log.Debug("coverage map building is complete")
 			}
+			covMappingLock.Unlock()
 
 			cmd := exec.Command("llvm-profdata", append([]string{"merge",
 				"--text", "--failure-mode=any", "--num-threads=1", "--sparse",

@@ -366,6 +366,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		tw.Log.Debug("general timeout before load event fired")
 	}
 
+	tw.Log.Debug("closing browser")
 	closeContext, _ := context.WithTimeout(browserContext, 60*time.Second)
 	err = chromedp.Cancel(closeContext)
 	if err != nil {
