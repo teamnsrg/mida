@@ -31,6 +31,7 @@ const (
 	DefaultLinuxChromiumPath   = "/usr/bin/chromium-browser"
 	DefaultWindowsChromePath   = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
 	DefaultWindowsChromiumPath = "\\%LocalAppData%\\chromium\\Application\\chrome.exe"
+	DefaultHeadless            = false
 
 	// RawTask completion
 	DefaultTimeAfterLoad       = 5  // Default time to stay on a page after load event is fired (in TimeAfterLoad mode)

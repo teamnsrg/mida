@@ -184,6 +184,7 @@ func getBuildCommand() *cobra.Command {
 		removeBrowserFlags []string
 		setBrowserFlags    []string
 		extensions         []string
+		headless           bool
 
 		// Interaction settings
 		lockNavAfterLoad      bool
@@ -278,6 +279,8 @@ func getBuildCommand() *cobra.Command {
 		"Overrides default browser flags (comma-separated, no '--')")
 	cmdBuild.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no'--')")
+	cmdBuild.Flags().BoolVarP(&headless, "headless", "", b.DefaultHeadless,
+		"Shortcut for \"--add-browser-flags=headless\"")
 
 	cmdBuild.Flags().BoolVarP(&lockNavAfterLoad, "nav-lock", "", b.DefaultNavLockAfterLoad,
 		"Whether to lock (prevent) navigation after load event fires")
@@ -343,6 +346,7 @@ func getGoCommand() *cobra.Command {
 		removeBrowserFlags []string
 		setBrowserFlags    []string
 		extensions         []string
+		headless           bool
 
 		// Interaction Settings
 		lockNavAfterLoad      bool
@@ -412,6 +416,8 @@ func getGoCommand() *cobra.Command {
 		"Overrides default browser flags (comma-separated, no '--')")
 	cmdGo.Flags().StringSliceP("extensions", "e", extensions,
 		"Full paths to browser extensions to use (comma-separated, no '--')")
+	cmdGo.Flags().BoolVarP(&headless, "headless", "", b.DefaultHeadless,
+		"Shortcut for \"--add-browser-flags=headless\"")
 
 	cmdGo.Flags().BoolVarP(&lockNavAfterLoad, "nav-lock", "", b.DefaultNavLockAfterLoad,
 		"Whether to lock (prevent) navigation after load event fires")

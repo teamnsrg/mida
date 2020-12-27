@@ -153,6 +153,15 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		return nil, err
 	}
 
+	// Shortcut to allow headless task with a shorter flag
+	headless, err := cmd.Flags().GetBool("headless")
+	if err != nil {
+		return nil, err
+	}
+	if headless {
+		*ts.Browser.AddBrowserFlags = append(*ts.Browser.AddBrowserFlags, "headless")
+	}
+
 	*ts.Completion.Timeout, err = cmd.Flags().GetInt("timeout")
 	if err != nil {
 		return nil, err
