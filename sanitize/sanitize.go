@@ -282,11 +282,7 @@ func getUserDataDirectory(rt *b.RawTask, tempDir string) (string, error) {
 		return *rt.Browser.UserDataDirectory, nil
 	} else {
 		// Use the first 8 characters of the uuid for temporary directories by default
-		res, err := filepath.Abs(tempDir + "-udd")
-		if err != nil {
-			return "", err
-		}
-		return res, nil
+		return tempDir + "-udd", nil
 	}
 }
 
