@@ -11,6 +11,7 @@ const (
 	DefaultCookieFileName       = "cookies.json"
 	DefaultDomFileName          = "dom.json"
 	DefaultMetadataFile         = "metadata.json"
+	DefaultCovBVFileName        = "coverage.bv"
 	DefaultResourceMetadataFile = "resource_metadata.json"
 	DefaultScriptMetadataFile   = "script_metadata.json"
 	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"

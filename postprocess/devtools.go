@@ -2,14 +2,13 @@ package postprocess
 
 import (
 	"bufio"
-	"encoding/csv"
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
+	pp "github.com/teamnsrg/profparse"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -98,42 +97,40 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		}
 
 		if len(rawCovFilenames) > 0 {
-			covMappingLock.Lock()
-			if covMapping == nil {
-				log.Log.Debug("Building coverage map...")
-				buildCovMapping(covPath, rawCovFilenames, "", "")
-				log.Log.Debug("coverage map building is complete")
-			}
-			covMappingLock.Unlock()
-
-			cmd := exec.Command("llvm-profdata", append([]string{"merge",
-				"--text", "--failure-mode=any", "--num-threads=1", "--sparse",
-				"--output", path.Join(covPath, "merged.txt")}, rawCovFilenames...)...)
-
-			err = cmd.Run()
+			err = pp.MergeProfraws(rawCovFilenames, path.Join(covPath, "coverage.profdata"), "/usr/bin/llvm-profdata", 1)
 			if err != nil {
-				log.Log.Error("Could not run llvm-profdata successfully. It might not be in your path, or you might have passed" +
-					"in corrupted .profraw files.")
+				log.Log.Error(err)
 			} else {
-				bv, coveredBlocks, err := ParseMergedTextfile(path.Join(covPath, "merged.txt"), covMapping)
+				err = pp.GenCustomCovTxtFileFromProfdata(path.Join(covPath, "coverage.profdata"), "/usr/bin/chrome_87_cov_unstripped",
+					path.Join(covPath, "coverage.txt"), "/usr/bin/llvm-cov-custom", 1)
 				if err != nil {
 					log.Log.Error(err)
-				} else {
-					log.Log.Debugf("Covered %d blocks out of %d", coveredBlocks, len(bv))
-					err = WriteCovFile(path.Join(covPath, "coverage.bv"), bv)
+					bytes, err := ioutil.ReadFile(path.Join(covPath, "coverage.txt"))
 					if err != nil {
 						log.Log.Error(err)
 					}
+					log.Log.Info(string(bytes))
+				} else {
+					covMap, err := pp.ReadFileToCovMap(path.Join(covPath, "coverage.txt"))
+					if err != nil {
+						log.Log.Error(err)
+					} else {
+						bv := pp.ConvertCovMapToBools(covMap)
+						err = pp.WriteFileFromBV(path.Join(covPath, b.DefaultCovBVFileName), bv)
+						if err != nil {
+							log.Log.Error(err)
+						}
+					}
 				}
 			}
-
 		}
 
 		// Clean up profraw and text files
 		files, err = ioutil.ReadDir(covPath)
 		for _, file := range files {
 			if strings.HasSuffix(file.Name(), "profraw") ||
-				strings.HasSuffix(file.Name(), "txt") {
+				strings.HasSuffix(file.Name(), "txt") ||
+				strings.HasSuffix(file.Name(), "profdata"){
 				err = os.Remove(path.Join(covPath, file.Name()))
 				if err != nil {
 					log.Log.Error(err)
@@ -145,104 +142,6 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 
 	return finalResult, nil
-}
-
-// buildCovMapping merges existing profraw files and extracts the mapping from basic blocks to bit vector indices
-// so we can build coverage files properly
-func buildCovMapping(covPath string, profraws []string, infile string, outfile string) {
-	cmd := exec.Command("llvm-profdata", append([]string{"merge",
-		"--text", "--failure-mode=any", "--num-threads=1",
-		"--output", path.Join(covPath, "full.txt")}, profraws...)...)
-
-	err := cmd.Run()
-	if err != nil {
-		log.Log.Error("Could not run llvm-profdata successfully. It might not be in your path, or you might have passed" +
-			"in corrupted .profraw files.")
-		return
-	}
-
-	f, err := os.Open(path.Join(covPath, "full.txt"))
-	if err != nil {
-		log.Log.Error(err)
-		return
-	}
-	defer f.Close()
-
-	var g *os.File
-	var writer *csv.Writer
-	write := false
-	if outfile != "" {
-		g, err = os.Create(outfile)
-		if err != nil {
-			log.Log.Error(err)
-			return
-		}
-		defer g.Close()
-		writer = csv.NewWriter(g)
-		write = true
-	}
-
-	var count int
-	fn := ""
-	m := make(map[string]int)
-
-	nextIsCount := false
-
-	count = 0
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if nextIsCount {
-			numBlocks, err := strconv.Atoi(line)
-			if err != nil {
-				log.Log.Error("bad num blocks: ", line)
-				return
-			}
-			count += numBlocks
-			nextIsCount = false
-		}
-
-		if strings.HasPrefix(line, "#") {
-			if strings.HasPrefix(line, "# Num Counters:") {
-				nextIsCount = true
-			}
-			continue
-		}
-
-		if strings.TrimSpace(line) == "" {
-			fn = ""
-			continue
-		}
-
-		if fn == "" {
-			fn = strings.TrimSpace(line)
-			m[fn] = count
-			if write {
-				err = writer.Write([]string{fn, strconv.Itoa(int(count))})
-				if err != nil {
-					log.Log.Error(err)
-				}
-			}
-			continue
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		log.Log.Error(err)
-		return
-	}
-
-	if write {
-		err = writer.Write([]string{"END", strconv.Itoa(int(count))})
-		if err != nil {
-			log.Log.Error(err)
-		}
-		writer.Flush()
-	}
-	covMappingLength = count
-	covMapping = m
-
-	log.Log.Debugf("Created coverage mapping with %d functions and %d total blocks", len(m), covMappingLength)
-
 }
 
 func ParseMergedTextfile(fname string, mapping map[string]int) ([]bool, int, error) {
