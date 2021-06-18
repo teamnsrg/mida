@@ -101,7 +101,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			if err != nil {
 				log.Log.Error(err)
 			} else {
-				err = pp.GenCustomCovTxtFileFromProfdata(path.Join(covPath, "coverage.profdata"), "/usr/bin/chrome_87_cov_unstripped",
+				err = pp.GenCustomCovTxtFileFromProfdata(path.Join(covPath, "coverage.profdata"), "/usr/bin/chrome_91_cov_unstripped",
 					path.Join(covPath, "coverage.txt"), "/usr/bin/llvm-cov-custom", 1)
 				if err != nil {
 					log.Log.Error(err)
@@ -130,7 +130,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		for _, file := range files {
 			if strings.HasSuffix(file.Name(), "profraw") ||
 				strings.HasSuffix(file.Name(), "txt") ||
-				strings.HasSuffix(file.Name(), "profdata"){
+				strings.HasSuffix(file.Name(), "profdata") {
 				err = os.Remove(path.Join(covPath, file.Name()))
 				if err != nil {
 					log.Log.Error(err)
