@@ -1,5 +1,7 @@
 FROM ubuntu:latest
 
+ARG CACHEBUSTER=1
+
 RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y curl
 
