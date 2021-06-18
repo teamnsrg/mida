@@ -14,7 +14,7 @@ require (
 	github.com/pkg/sftp v1.12.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.13.0 // indirect
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/snowzach/rotatefilehook v0.0.0-20180327172521-2f64f265f58c
 	github.com/spf13/afero v1.3.5 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
@@ -32,4 +32,4 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )
 
-// replace github.com/teamnsrg/profparse v0.0.0-20210121165108-046e295a28ad => ../../../github.com/teamnsrg/profparse
+// replace github.com/teamnsrg/profparse v0.0.0-20210121190059-2a1316045d07 => ../../../github.com/teamnsrg/profparse
