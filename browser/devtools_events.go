@@ -311,8 +311,8 @@ func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.Wai
 			if ev.TargetInfo.URL != "about:blank" && ev.TargetInfo.Type == "page" {
 				err := chromedp.Run(ctxt, chromedp.ActionFunc(func(cxt context.Context) error {
 					log.Log.Debug("closing newly opened target " + ev.TargetInfo.URL)
-					success, err := target.CloseTarget(ev.TargetInfo.TargetID).Do(cxt)
-					if err != nil || !success {
+					err := target.CloseTarget(ev.TargetInfo.TargetID).Do(cxt)
+					if err != nil {
 						errString := "failed to close new target"
 						if err != nil {
 							errString += ": " + err.Error()
