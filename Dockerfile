@@ -35,7 +35,7 @@ RUN apt-get install -yq gconf-service libasound2 libatk1.0-0 libc6 libcairo2 lib
 
 RUN apt-get install dumb-init
 
-RUN wget https://golang.org/dl/go1.15.7.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.15.7.linux-amd64.tar.gz && rm go1.15.7.linux-amd64.tar.gz
+RUN wget https://golang.org/dl/go1.17.1.linux-amd64.tar.gz && tar -C /usr/local -xzf go1.17.1.linux-amd64.tar.gz && rm go1.17.1.linux-amd64.tar.gz
 ENV PATH="${PATH}:/usr/local/go/bin"
 
 WORKDIR /mida
