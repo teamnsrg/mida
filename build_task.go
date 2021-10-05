@@ -224,7 +224,7 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 		if err != nil {
 			return nil, err
 		}
-		// Url library includes port in host, we want to remove it here
+		// NavURL library includes port in host, we want to remove it here
 		*ts.Output.SftpOut.Host = strings.Split(remoteUrl.Host, ":")[0]
 		if remoteUrl.Port() == "" {
 			*ts.Output.SftpOut.Port = 22

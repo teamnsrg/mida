@@ -368,6 +368,17 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 
 	tw.Log.Debug("closing browser")
 	closeContext, _ := context.WithTimeout(browserContext, 60*time.Second)
+	err = chromedp.Run(closeContext, chromedp.ActionFunc(func(ctxt context.Context) error {
+		_, entries, err := page.GetNavigationHistory().Do(ctxt)
+		if err != nil {
+			return err
+		} else {
+			for _, entry := range entries {
+				rawResult.TaskSummary.NavHistory = append(rawResult.TaskSummary.NavHistory, *entry)
+			}
+			return nil
+		}
+	}))
 	err = chromedp.Cancel(closeContext)
 	if err != nil {
 		tw.Log.Errorf("failed to close browser gracefully, so we had to force it (%s)", err.Error())

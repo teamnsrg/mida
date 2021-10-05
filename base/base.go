@@ -8,6 +8,7 @@ import (
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
+	"github.com/chromedp/cdproto/page"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -145,7 +146,7 @@ type TaskWrapper struct {
 	LogFile *os.File
 }
 
-// Timing data for the processing of a particular task
+// TaskTiming contains timing data for the processing of a particular task
 type TaskTiming struct {
 	BrowserOpen           time.Time `json:"browser_open"`
 	ConnectionEstablished time.Time `json:"connection_established"`
@@ -159,8 +160,8 @@ type TaskTiming struct {
 
 // Statistics gathered about a specific task
 type TaskSummary struct {
-	Url  string `json:"url"`
-	UUID string `json:"uuid"`
+	NavURL string `json:"nav_url"`
+	UUID   string `json:"uuid"`
 
 	Success       bool   `json:"success"`                  // True if the task did not fail
 	FailureReason string `json:"failure_reason,omitempty"` // Holds the failure code for the task
@@ -173,6 +174,8 @@ type TaskSummary struct {
 	OutputPath string `json:"output_path,omitempty"` // Path to the results of the crawl on the applicable host (after storage)
 
 	NumResources int `json:"num_resources"` // Number of resources the browser loaded
+
+	NavHistory []page.NavigationEntry `json:"nav_history"`
 }
 
 // Information about the infrastructure used to perform the crawl

@@ -73,7 +73,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		finalResult.DTDOM = rr.DevTools.DOM
 	}
 
-	finalResult.Summary.Url = st.URL
+	finalResult.Summary.NavURL = st.URL
 	finalResult.Summary.UUID = finalResult.Summary.TaskWrapper.UUID.String()
 	finalResult.Summary.NumResources = len(rr.DevTools.Network.RequestWillBeSent)
 
