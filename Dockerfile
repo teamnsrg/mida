@@ -1,9 +1,13 @@
 FROM ubuntu:latest
 
-ARG CACHEBUSTER=1
+ARG CACHEBUSTER=3
 
 RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y curl
+
+# Install a library that weirdly disappeared around 10/21
+RUN curl -LO http://archive.ubuntu.com/ubuntu/pool/main/n/ncurses/libtinfo6_6.2-0ubuntu2_amd64.deb
+RUN dpkg -i libtinfo6_6.2-0ubuntu2_amd64.deb
 
 # Install our version of llvm-profdata, llvm-cov, chromium binary for processing Clang coverage data
 RUN cd /usr/bin && { curl -O https://files.mida.sprai.org/coverage/llvm-profdata ; chmod +x llvm-profdata ; cd -; }
@@ -30,7 +34,7 @@ RUN rm -f chromium_91_cov.deb
 
 
 
-RUN apt-get install -yq gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget x11vnc x11-xkb-utils xfonts-100dpi xfonts-75dpi xfonts-scalable xfonts-cyrillic x11-apps xvfb
+RUN apt-get update && apt-get install -yq gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget x11vnc x11-xkb-utils xfonts-100dpi xfonts-75dpi xfonts-scalable xfonts-cyrillic x11-apps xvfb
 
 
 RUN apt-get install dumb-init

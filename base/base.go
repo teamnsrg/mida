@@ -176,6 +176,7 @@ type TaskSummary struct {
 	NumResources int `json:"num_resources"` // Number of resources the browser loaded
 
 	NavHistory []page.NavigationEntry `json:"nav_history"`
+	CovFiles   []string               `json:"coverage_files"`
 }
 
 // Information about the infrastructure used to perform the crawl
