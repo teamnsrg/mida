@@ -101,7 +101,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			if err != nil {
 				log.Log.Error(err)
 			} else {
-				err = pp.GenCustomCovTxtFileFromProfdata(path.Join(covPath, "coverage.profdata"), "/usr/bin/chrome_91_cov_unstripped",
+				err = pp.GenCustomCovTxtFileFromProfdata(path.Join(covPath, "coverage.profdata"), "/usr/bin/chrome_unstripped",
 					path.Join(covPath, "coverage.txt"), "/usr/bin/llvm-cov-custom", 1)
 				if err != nil {
 					log.Log.Error(err)
