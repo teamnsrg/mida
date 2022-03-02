@@ -96,6 +96,8 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			}
 		}
 
+		finalResult.Summary.RawCoverageFilenames = rawCovFilenames
+
 		if len(rawCovFilenames) > 0 {
 			err = pp.MergeProfraws(rawCovFilenames, path.Join(covPath, "coverage.profdata"), "/usr/bin/llvm-profdata", 1)
 			if err != nil {

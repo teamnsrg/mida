@@ -87,7 +87,7 @@ func CleanupTask(fr *b.FinalResult) error {
 
 	// Chrome sometimes won't allow the user data directory to be deleted on the first try,
 	// so we loop until we can successfully remove it
-	err := os.RemoveAll(tw.SanitizedTask.UserDataDirectory)
+	os.RemoveAll(tw.SanitizedTask.UserDataDirectory)
 	for {
 		if _, err := os.Stat(tw.SanitizedTask.UserDataDirectory); err == nil {
 			time.Sleep(1 * time.Second)
@@ -101,7 +101,7 @@ func CleanupTask(fr *b.FinalResult) error {
 	}
 
 	// Remove our temporary results directory
-	err = os.RemoveAll(tw.TempDir)
+	err := os.RemoveAll(tw.TempDir)
 	if err != nil {
 		return err
 	}
