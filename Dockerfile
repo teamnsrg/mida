@@ -12,7 +12,7 @@ RUN dpkg -i libtinfo6_6.2-0ubuntu2_amd64.deb
 # Install our version of llvm-profdata, llvm-cov, chromium binary for processing Clang coverage data
 RUN cd /usr/bin && { curl -O https://files.mida.sprai.org/coverage/llvm-profdata ; chmod +x llvm-profdata ; cd -; }
 RUN cd /usr/bin && { curl -O https://files.mida.sprai.org/coverage/llvm-cov-custom ; chmod +x llvm-cov-custom ; cd -; }
-RUN cd /usr/bin && { curl -O https://files.mida.sprai.org/browser/chrome_91_cov_unstripped ; cd -; }
+RUN cd /usr/bin && { curl -o chrome_unstripped https://files.mida.sprai.org/browser/chrome_98_cov_unstripped ; cd -; }
 
 # Install latest version of chrome
 # RUN apt-get update
@@ -21,10 +21,10 @@ RUN cd /usr/bin && { curl -O https://files.mida.sprai.org/browser/chrome_91_cov_
 # RUN apt-get update
 # RUN apt-get -y upgrade
 
-RUN curl -LO https://files.mida.sprai.org/browser/chromium_91_cov.deb
+RUN curl -LO https://files.mida.sprai.org/browser/chromium_98_cov.deb
 RUN ln -fs /usr/share/zoneinfo/America/Chicago /etc/localtime
-RUN apt-get install -y ./chromium_91_cov.deb
-RUN rm -f chromium_91_cov.deb
+RUN apt-get install -y ./chromium_98_cov.deb
+RUN rm -f chromium_98_cov.deb
 # RUN apt-get autoclean
 # RUN apt-get update
 # RUN apt-get upgrade
