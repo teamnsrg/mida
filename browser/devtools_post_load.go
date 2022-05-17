@@ -55,7 +55,7 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	// Capture screenshot
 	if *tw.SanitizedTask.DS.Screenshot {
 		individualActionsWG.Add(1)
-		go captureScreenshot(cxt, path.Join(tw.TempDir, b.DefaultScreenshotFileName), tw.Log, &individualActionsWG)
+		go captureScreenshot(cxt, path.Join(tw.TempDir, b.DefaultScreenshotFileName), tw.Log, &individualActionsWG, tw.SanitizedTask.URL)
 	}
 
 	// Capture cookies set so far
@@ -79,7 +79,7 @@ func postLoadActions(cxt context.Context, tw *b.TaskWrapper, rawResult *b.RawRes
 	}
 
 	individualActionsWG.Wait()
-	log.Log.Debug("post load actions completed")
+	log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("Post load actions completed")
 	wg.Done()
 	return
 }
@@ -117,7 +117,7 @@ func basicInteraction(cxt context.Context, taskLog *logrus.Logger, wg *sync.Wait
 // significantly more aggressive than the basic interaction.
 func runGremlinsJS(cxt context.Context, taskLog *logrus.Logger, wg *sync.WaitGroup) {
 	var err error
-    gremlinsApplet := `javascript: (function() { function callback() { gremlins.createHorde({ species: [gremlins.species.clicker(),gremlins.species.toucher(),gremlins.species.formFiller(),gremlins.species.scroller(),gremlins.species.typer()], mogwais: [gremlins.mogwais.alert(),gremlins.mogwais.fps(),gremlins.mogwais.gizmo()], strategies: [gremlins.strategies.distribution(), gremlins.strategies.allTogether({ nb: 100000 })] }).unleash(); } var s = document.createElement("script"); s.src = "https://unpkg.com/gremlins.js"; if (s.addEventListener) { s.addEventListener("load", callback, false); } else if (s.readyState) { s.onreadystatechange = callback; } document.body.appendChild(s); })()`
+	gremlinsApplet := `javascript: (function() { function callback() { gremlins.createHorde({ species: [gremlins.species.clicker(),gremlins.species.toucher(),gremlins.species.formFiller(),gremlins.species.scroller(),gremlins.species.typer()], mogwais: [gremlins.mogwais.alert(),gremlins.mogwais.fps(),gremlins.mogwais.gizmo()], strategies: [gremlins.strategies.distribution(), gremlins.strategies.allTogether({ nb: 100000 })] }).unleash(); } var s = document.createElement("script"); s.src = "https://unpkg.com/gremlins.js"; if (s.addEventListener) { s.addEventListener("load", callback, false); } else if (s.readyState) { s.onreadystatechange = callback; } document.body.appendChild(s); })()`
 
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 		var bytes = new([]byte)
@@ -138,13 +138,13 @@ func runGremlinsJS(cxt context.Context, taskLog *logrus.Logger, wg *sync.WaitGro
 
 // captureScreenshot uses an existing browser context to capture a screenshot, logging any error to both
 // the global MIDA log and the task-specific log
-func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.Logger, wg *sync.WaitGroup) {
+func captureScreenshot(cxt context.Context, outputPath string, taskLog *logrus.Logger, wg *sync.WaitGroup, Url string) {
 	var data []byte
 	var err error
 	err = chromedp.Run(cxt, chromedp.ActionFunc(func(cxt context.Context) error {
 		data, err = page.CaptureScreenshot().Do(cxt)
 		if err != nil {
-			log.Log.Error(err)
+			log.Log.WithField("URL", Url).Warn(err)
 			return err
 		}
 		return nil

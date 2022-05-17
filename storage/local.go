@@ -16,6 +16,7 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 
 	// For brevity
 	tw := finalResult.Summary.TaskWrapper
+	log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("Begin Local Storage")
 
 	_, err := os.Stat(outPath)
 	if err != nil {
@@ -125,6 +126,8 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 	if err != nil {
 		log.Log.Error("failed to store log file")
 	}
+
+	log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("End Local Storage")
 
 	return nil
 }

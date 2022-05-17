@@ -32,6 +32,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	// For brevity
 	tw := finalResult.Summary.TaskWrapper
 	st := tw.SanitizedTask
+	log.Log.WithField("URL", st.URL).Debug("Begin Postprocess")
 
 	// Ignore any requests/responses which do not have a matching request/response
 	if *st.DS.ResourceMetadata {
@@ -141,6 +142,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		}
 	}
 
+	log.Log.WithField("URL", st.URL).Debug("End Postprocess")
 	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 
 	return finalResult, nil

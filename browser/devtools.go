@@ -74,6 +74,8 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 		},
 	}
 
+	log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("Begin Crawl Stage")
+
 	// Open all the event channels we will use to receive events from DevTools
 	ec := openEventChannels()
 
@@ -174,7 +176,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	go NetworkLoadingFinished(ec.loadingFinishedChan, &rawResult, &eventHandlerWG, browserContext, tw.Log)
 	go NetworkRequestWillBeSent(ec.requestWillBeSentChan, &rawResult, &eventHandlerWG, browserContext)
 	go NetworkResponseReceived(ec.responseReceivedChan, &rawResult, &eventHandlerWG, browserContext)
-	go TargetTargetCreated(ec.targetCreatedChan, &eventHandlerWG, browserContext)
+	go TargetTargetCreated(ec.targetCreatedChan, &eventHandlerWG, browserContext, tw.SanitizedTask.URL)
 	go DebuggerScriptParsed(ec.scriptParsedChan, &rawResult, &eventHandlerWG, browserContext)
 
 	// The browser will open now, when we run our first chromedp ActionFunc
@@ -399,6 +401,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	// Wait for all event handlers to finish
 	eventHandlerWG.Wait()
 	tw.Log.Debug("finished waiting on background goroutines, site visit concluded")
+	log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("End Crawl Stage")
 
 	return &rawResult, nil
 }
