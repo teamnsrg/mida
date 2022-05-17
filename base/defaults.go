@@ -30,7 +30,7 @@ const (
 	DefaultOSXChromiumPath     = "/Applications/Chromium.app/Contents/MacOS/Chromium"
 	DefaultLinuxChromePath     = "/usr/bin/google-chrome-stable"
 	DefaultLinuxChromiumPath   = "/usr/bin/chromium-browser"
-	DefaultWindowsChromePath   = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+	DefaultWindowsChromePath   = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 	DefaultWindowsChromiumPath = "\\%LocalAppData%\\chromium\\Application\\chrome.exe"
 	DefaultHeadless            = false
 
