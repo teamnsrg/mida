@@ -198,14 +198,15 @@ func getBuildCommand() *cobra.Command {
 		timeAfterLoad       int
 
 		// Data Gathering settings
-		allResources     bool
-		allScripts       bool
-		cookies          bool
-		dom              bool
-		resourceMetadata bool
-		screenshot       bool
-		scriptMetadata   bool
-		browserCoverage  bool
+		allResources       bool
+		allScripts         bool
+		cookies            bool
+		dom                bool
+		resourceMetadata   bool
+		screenshot         bool
+		scriptMetadata     bool
+		javascriptCoverage bool
+		browserCoverage    bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -312,8 +313,10 @@ func getBuildCommand() *cobra.Command {
 		"Collect a screenshot after (if) the load event fires for the page")
 	cmdBuild.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
 		"Gather and store metadata about the scripts parsed by the browser")
+	cmdBuild.Flags().BoolVarP(&javascriptCoverage, "javascript-coverage", "", b.DefaultJavaScriptCoverage,
+		"Gather and store JavaScript code coverage data")
 	cmdBuild.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", b.DefaultBrowserCoverage,
-		"Gather and store code coverage data from the browser")
+		"Gather and store source code coverage data from the browser")
 
 	cmdBuild.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")
@@ -360,14 +363,15 @@ func getGoCommand() *cobra.Command {
 		timeAfterLoad       int
 
 		// Data Gathering settings
-		allResources     bool
-		allScripts       bool
-		cookies          bool
-		dom              bool
-		resourceMetadata bool
-		screenshot       bool
-		scriptMetadata   bool
-		browserCoverage  bool
+		allResources       bool
+		allScripts         bool
+		cookies            bool
+		dom                bool
+		resourceMetadata   bool
+		screenshot         bool
+		scriptMetadata     bool
+		javascriptCoverage bool
+		browserCoverage    bool
 
 		// Output settings
 		resultsOutputPath string // Results from task path
@@ -449,8 +453,10 @@ func getGoCommand() *cobra.Command {
 		"Collect a screenshot after (if) the load event fires for the page")
 	cmdGo.Flags().BoolVarP(&scriptMetadata, "script-metadata", "", b.DefaultScriptMetadata,
 		"Gather and store metadata about the scripts parsed by the browser")
+	cmdGo.Flags().BoolVarP(&javascriptCoverage, "javascript-coverage", "", b.DefaultJavaScriptCoverage,
+		"Gather and store JavaScript code coverage data")
 	cmdGo.Flags().BoolVarP(&browserCoverage, "browser-coverage", "", b.DefaultBrowserCoverage,
-		"Gather and store metadata code coverage data from the browser")
+		"Gather and store source code coverage data from the browser")
 
 	cmdGo.Flags().StringVarP(&resultsOutputPath, "results-output-path", "o", b.DefaultLocalOutputPath,
 		"Path (local or remote) to store results in. A new directory will be created inside this one for each task.")

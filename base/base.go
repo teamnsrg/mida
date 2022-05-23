@@ -9,6 +9,7 @@ import (
 	"github.com/chromedp/cdproto/debugger"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/profiler"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -56,14 +57,15 @@ type CompletionSettings struct {
 
 // Settings describing which data MIDA will capture from the crawl
 type DataSettings struct {
-	AllResources     *bool `json:"all_resources,omitempty"`     // Save all resource files
-	AllScripts       *bool `json:"all_scripts,omitempty"`       // Save all scripts parsed by browser
-	Cookies          *bool `json:"cookies,omitempty"`           // Save cookies set by page
-	DOM              *bool `json:"dom,omitempty"`               // Collect JSON representation of the DOM
-	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
-	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
-	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
-	BrowserCoverage  *bool `json:"browser_coverage"`            // Whether to gather code coverage data from the browser
+	AllResources       *bool `json:"all_resources,omitempty"`       // Save all resource files
+	AllScripts         *bool `json:"all_scripts,omitempty"`         // Save all scripts parsed by browser
+	Cookies            *bool `json:"cookies,omitempty"`             // Save cookies set by page
+	DOM                *bool `json:"dom,omitempty"`                 // Collect JSON representation of the DOM
+	ResourceMetadata   *bool `json:"resource_metadata,omitempty"`   // Save extensive metadata about each resource
+	Screenshot         *bool `json:"screenshot,omitempty"`          // Save a screenshot from the web page
+	ScriptMetadata     *bool `json:"script_metadata,omitempty"`     // Save metadata on scripts parsed by browser
+	JavaScriptCoverage *bool `json:"javascript_coverage,omitempty"` // Save JavaScript code coverage data
+	BrowserCoverage    *bool `json:"browser_coverage"`              // Whether to gather code coverage data from the browser
 }
 
 // Settings describing output of results to the local filesystem
@@ -158,6 +160,13 @@ type TaskTiming struct {
 	EndStorage            time.Time `json:"-"`
 }
 
+type JavaScriptCoverageSummary struct {
+	TotalScripts        int     `json:"total_scripts"`
+	TotalBytes          int     `json:"total_bytes"`
+	CoveredBytes        int     `json:"covered_bytes"`
+	PercentCoveredBytes float64 `json:"percent_covered_bytes"`
+}
+
 // Statistics gathered about a specific task
 type TaskSummary struct {
 	NavURL string `json:"nav_url"`
@@ -177,7 +186,8 @@ type TaskSummary struct {
 
 	NavHistory []page.NavigationEntry `json:"nav_history"`
 
-	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
+	JavaScriptCovSummary *JavaScriptCoverageSummary `json:"javascript_coverage_summary,omitempty"`
+	RawCoverageFilenames []string                   `json:"raw_coverage_filenames"`
 }
 
 // Information about the infrastructure used to perform the crawl
@@ -196,10 +206,11 @@ type DevToolsNetworkRawData struct {
 type DevToolsScriptRawData []*debugger.EventScriptParsed
 
 type DevToolsRawData struct {
-	Network DevToolsNetworkRawData
-	Cookies []*network.Cookie
-	DOM     *cdp.Node
-	Scripts DevToolsScriptRawData
+	Network        DevToolsNetworkRawData
+	Cookies        []*network.Cookie
+	DOM            *cdp.Node
+	Scripts        DevToolsScriptRawData
+	ScriptCoverage []*profiler.ScriptCoverage
 }
 
 // The results MIDA gathers before they are post-processed
@@ -215,11 +226,12 @@ type DTResource struct {
 }
 
 type FinalResult struct {
-	Summary            TaskSummary                            `json:"stats"`   // Statistics on timing and resource usage for the crawl
-	DTCookies          []*network.Cookie                      `json:"cookies"` // Cookies collected from DevTools protocol
-	DTDOM              *cdp.Node                              `json:"dom"`
-	DTResourceMetadata map[string]DTResource                  `json:"resource_metadata"` // Metadata on each resource loaded
-	DTScriptMetadata   map[string]*debugger.EventScriptParsed `json:"script_metadata"`   // Metadata on each script parsed
+	Summary            TaskSummary                            `json:"stats"`                // Statistics on timing and resource usage for the crawl
+	DTCookies          []*network.Cookie                      `json:"cookies"`              // Cookies collected from DevTools protocol
+	DTDOM              *cdp.Node                              `json:"dom"`                  // JSON representation of the Document Object Model (DOM)
+	DTResourceMetadata map[string]DTResource                  `json:"resource_metadata"`    // Metadata on each resource loaded
+	DTScriptMetadata   map[string]*debugger.EventScriptParsed `json:"script_metadata"`      // Metadata on each script parsed
+	JavaScriptCoverage map[string]float64                     `json:"javascript_coverage "` // JavaScript Code Coverage data
 }
 
 func AllocateNewCompressedTaskSet() *CompressedTaskSet {
@@ -297,6 +309,7 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.ResourceMetadata = new(bool)
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
+	ds.JavaScriptCoverage = new(bool)
 	ds.BrowserCoverage = new(bool)
 
 	return ds

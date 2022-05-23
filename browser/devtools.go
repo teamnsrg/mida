@@ -8,6 +8,7 @@ import (
 	"github.com/chromedp/cdproto/fetch"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/profiler"
 	"github.com/chromedp/cdproto/target"
 	"github.com/teamnsrg/chromedp"
 	b "github.com/teamnsrg/mida/base"
@@ -207,6 +208,20 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			return err
 		}
 
+		if *tw.SanitizedTask.DS.JavaScriptCoverage {
+			rawResult.TaskSummary.JavaScriptCovSummary = new(b.JavaScriptCoverageSummary)
+			log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("Gathering JavaScript Coverage")
+			err = profiler.Enable().Do(cxt)
+			if err != nil {
+				return err
+			}
+			_, err := profiler.StartPreciseCoverage().
+				WithCallCount(false).WithDetailed(true).WithAllowTriggeredUpdates(false).Do(cxt)
+			if err != nil {
+				return err
+			}
+		}
+
 		rawResult.Lock()
 		rawResult.TaskSummary.CrawlerInfo.Browser = product
 		rawResult.TaskSummary.CrawlerInfo.BrowserVersion = revision
@@ -320,10 +335,12 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	}
 
 	// We have now successfully connected and navigated to the site. Now we wait for a termination condition.
+	haveConnectionToBrowser := true
 	select {
 	case <-browserContext.Done():
 		// Browser crashed, closed manually, or we otherwise lost connection to it prematurely
 		tw.Log.Warn("browser crashed, closed manually, or we lost connection")
+		haveConnectionToBrowser = false
 	case <-loadEventChan:
 		// The load event fired. What we do next depends on how the crawl completes
 		switch *tw.SanitizedTask.CS.CompletionCondition {
@@ -336,6 +353,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			case <-browserContext.Done():
 				// Browser crashed, closed manually, or we otherwise lost connection to it prematurely
 				tw.Log.Warn("browser crashed, closed manually, or we lost connection (after load event)")
+				haveConnectionToBrowser = false
 			case <-timeoutChan:
 				// We hit our general timeout before we got to timeAfterLoad. Fall through to browser close and cleanup
 				tw.Log.Debug("general timeout hit before timeAfterload")
@@ -344,7 +362,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 				tw.Log.Debug("hit timeAfterLoad")
 			}
 		case b.LoadEvent:
-			// We got out load event so we are just done, fall through to browser close and cleanup
+			// We got our load event, so we are just done. Fall through to browser close and cleanup
 			tw.Log.Debug("got load event so we are concluding site visit")
 		case b.TimeoutOnly:
 			// We need to just continue waiting for the timeout (or unexpected browser close).
@@ -355,6 +373,7 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			select {
 			case <-browserContext.Done():
 				// Browser crashed, closed manually, or we otherwise lost connection to it prematurely
+				haveConnectionToBrowser = false
 				tw.Log.Warn("browser crashed, closed manually, or we lost connection (after load event)")
 			case <-timeoutChan:
 				// We hit our general timeout, fall through to browser close and cleanup
@@ -362,12 +381,16 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			}
 		default:
 			// This state should be unreachable -- got an unknown termination condition
+			haveConnectionToBrowser = false
 			tw.Log.Error("got an unknown termination condition: ", *tw.SanitizedTask.CS.CompletionCondition)
 		}
 	case <-timeoutChan:
 		// Timeout before load event was fired, fall through to browser close and cleanup
 		tw.Log.Debug("general timeout before load event fired")
 	}
+
+	// Once we have made it here, that means it's time to close the browser (if it's not already closed)
+	// First, though, we attempt to get JavaScript code coverage data (if applicable for crawl)
 
 	tw.Log.Debug("closing browser")
 	closeContext, _ := context.WithTimeout(browserContext, 60*time.Second)
@@ -379,9 +402,26 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 			for _, entry := range entries {
 				rawResult.TaskSummary.NavHistory = append(rawResult.TaskSummary.NavHistory, *entry)
 			}
-			return nil
 		}
+		return nil
 	}))
+
+	if *tw.SanitizedTask.DS.JavaScriptCoverage && haveConnectionToBrowser {
+		err = chromedp.Run(closeContext, chromedp.ActionFunc(func(ctxt context.Context) error {
+			coverageData, _, err := profiler.TakePreciseCoverage().Do(ctxt)
+			if err != nil {
+				return err
+			}
+			rawResult.DevTools.ScriptCoverage = coverageData
+			return nil
+		}))
+	}
+	if err != nil {
+		log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("JavaScript Code Coverage failed: " + err.Error())
+		tw.Log.Warn("JavaScript Code Coverage failed: " + err.Error())
+	}
+
+	// Now (and only now), close the browser
 	err = chromedp.Cancel(closeContext)
 	if err != nil {
 		tw.Log.Errorf("failed to close browser gracefully, so we had to force it (%s)", err.Error())

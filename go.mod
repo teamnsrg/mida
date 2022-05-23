@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20220217222649-d8c14a5c6edf
+	github.com/davecgh/go-spew v1.1.1
 	github.com/google/uuid v1.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/montanaflynn/stats v0.6.6

@@ -399,6 +399,14 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 		*result.DOM = *rawDataSettings.DOM
 	}
 
+	*result.JavaScriptCoverage = b.DefaultJavaScriptCoverage
+	if parentSettings != nil && parentSettings.JavaScriptCoverage != nil {
+		*result.JavaScriptCoverage = *parentSettings.JavaScriptCoverage
+	}
+	if rawDataSettings != nil && rawDataSettings.JavaScriptCoverage != nil {
+		*result.JavaScriptCoverage = *rawDataSettings.JavaScriptCoverage
+	}
+
 	*result.BrowserCoverage = b.DefaultBrowserCoverage
 	if parentSettings != nil && parentSettings.BrowserCoverage != nil {
 		*result.BrowserCoverage = *parentSettings.BrowserCoverage

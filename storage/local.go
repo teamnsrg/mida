@@ -109,6 +109,18 @@ func Local(finalResult *b.FinalResult, dataSettings *b.DataSettings, outPath str
 		}
 	}
 
+	if *dataSettings.JavaScriptCoverage {
+		data, err := json.Marshal(finalResult.JavaScriptCoverage)
+		if err != nil {
+			return errors.New("failed to marshal JavaScript coverage for storage")
+		}
+
+		err = ioutil.WriteFile(path.Join(outPath, b.DefaultJavaScriptCoverageFileName), data, 0644)
+		if err != nil {
+			return errors.New("failed to write JavaScript code coverage file")
+		}
+	}
+
 	if *dataSettings.BrowserCoverage {
 		err = os.Rename(path.Join(tw.TempDir, b.DefaultCoverageSubdir), path.Join(outPath, b.DefaultCoverageSubdir))
 		if err != nil {

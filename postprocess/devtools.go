@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
+	"github.com/chromedp/cdproto/profiler"
 	b "github.com/teamnsrg/mida/base"
 	"github.com/teamnsrg/mida/log"
 	pp "github.com/teamnsrg/profparse"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -25,6 +27,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		Summary:            rr.TaskSummary,
 		DTResourceMetadata: make(map[string]b.DTResource),
 		DTScriptMetadata:   make(map[string]*debugger.EventScriptParsed),
+		JavaScriptCoverage: make(map[string]float64),
 	}
 
 	finalResult.Summary.TaskTiming.BeginPostprocess = time.Now()
@@ -81,6 +84,27 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	if *st.OPS.SftpOut.Enable {
 		finalResult.Summary.OutputHost = *st.OPS.SftpOut.Host
 		finalResult.Summary.OutputPath = *st.OPS.SftpOut.Path
+	}
+
+	if *st.DS.JavaScriptCoverage {
+		totalScripts := 0
+		totalBytes := 0
+		totalCoveredBytes := 0
+		for _, cov := range rr.DevTools.ScriptCoverage {
+			coveredBytes, byteCount := getScriptCodeCoverage(cov)
+
+			percentCovered := float64(coveredBytes) * 100.0 / float64(byteCount)
+			finalResult.JavaScriptCoverage[cov.ScriptID.String()] = percentCovered
+
+			totalScripts += 1
+			totalBytes += byteCount
+			totalCoveredBytes += coveredBytes
+		}
+		finalResult.Summary.JavaScriptCovSummary.TotalScripts = totalScripts
+		finalResult.Summary.JavaScriptCovSummary.TotalBytes = totalBytes
+		finalResult.Summary.JavaScriptCovSummary.CoveredBytes = totalCoveredBytes
+		finalResult.Summary.JavaScriptCovSummary.PercentCoveredBytes =
+			float64(totalCoveredBytes) * 100.0 / float64(totalBytes)
 	}
 
 	if *st.DS.BrowserCoverage {
@@ -242,4 +266,38 @@ func WriteCovFile(fName string, bv []bool) error {
 	}
 
 	return nil
+}
+
+func getScriptCodeCoverage(cov *profiler.ScriptCoverage) (int, int) {
+	var start int64 = math.MaxInt64
+	var end int64 = 0
+
+	for _, funcData := range cov.Functions {
+		for _, segment := range funcData.Ranges {
+			if segment.StartOffset < start {
+				start = segment.StartOffset
+			}
+			if segment.EndOffset > end {
+				end = segment.EndOffset
+			}
+		}
+	}
+
+	coverage := make([]bool, end-start)
+	for _, funcData := range cov.Functions {
+		for _, segment := range funcData.Ranges {
+			for i := segment.StartOffset; i < segment.EndOffset; i++ {
+				coverage[i] = segment.Count != 0
+			}
+		}
+	}
+
+	covered := 0
+	for i := 0; i < len(coverage); i++ {
+		if coverage[i] {
+			covered++
+		}
+	}
+
+	return covered, len(coverage)
 }

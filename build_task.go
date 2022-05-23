@@ -204,6 +204,10 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.JavaScriptCoverage, err = cmd.Flags().GetBool("javascript-coverage")
+	if err != nil {
+		return nil, err
+	}
 	*ts.Data.BrowserCoverage, err = cmd.Flags().GetBool("browser-coverage")
 	if err != nil {
 		return nil, err

@@ -2,20 +2,21 @@ package base
 
 const (
 	// Output Parameters
-	DefaultLocalOutputPath      = "results"
-	DefaultPostQueue            = ""
-	DefaultResourceSubdir       = "resources"
-	DefaultScriptSubdir         = "scripts"
-	DefaultCoverageSubdir       = "coverage"
-	DefaultScreenshotFileName   = "screenshot.png"
-	DefaultCookieFileName       = "cookies.json"
-	DefaultDomFileName          = "dom.json"
-	DefaultMetadataFile         = "metadata.json"
-	DefaultCovBVFileName        = "coverage.bv"
-	DefaultResourceMetadataFile = "resource_metadata.json"
-	DefaultScriptMetadataFile   = "script_metadata.json"
-	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
-	DefaultTaskLogFile          = "task.log"
+	DefaultLocalOutputPath            = "results"
+	DefaultPostQueue                  = ""
+	DefaultResourceSubdir             = "resources"
+	DefaultScriptSubdir               = "scripts"
+	DefaultCoverageSubdir             = "coverage"
+	DefaultScreenshotFileName         = "screenshot.png"
+	DefaultCookieFileName             = "cookies.json"
+	DefaultDomFileName                = "dom.json"
+	DefaultMetadataFile               = "metadata.json"
+	DefaultJavaScriptCoverageFileName = "javascript_coverage.json"
+	DefaultCovBVFileName              = "coverage.bv"
+	DefaultResourceMetadataFile       = "resource_metadata.json"
+	DefaultScriptMetadataFile         = "script_metadata.json"
+	DefaultSftpPrivKeyFile            = "~/.ssh/id_rsa"
+	DefaultTaskLogFile                = "task.log"
 
 	// MIDA Configuration Defaults
 
@@ -46,14 +47,15 @@ const (
 	DefaultTriggerEventListeners = false
 
 	// Defaults for data gathering settings
-	DefaultAllResources     = true
-	DefaultAllScripts       = false
-	DefaultCookies          = true
-	DefaultDOM              = false
-	DefaultResourceMetadata = true
-	DefaultScreenshot       = true
-	DefaultScriptMetadata   = false
-	DefaultBrowserCoverage  = false
+	DefaultAllResources       = true
+	DefaultAllScripts         = false
+	DefaultCookies            = true
+	DefaultDOM                = false
+	DefaultResourceMetadata   = true
+	DefaultScreenshot         = true
+	DefaultScriptMetadata     = false
+	DefaultJavaScriptCoverage = false
+	DefaultBrowserCoverage    = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 
