@@ -35,8 +35,8 @@ func PageLoadEventFired(eventChan chan *page.EventLoadEventFired, loadEventChan 
 			rawResult.TaskSummary.TaskTiming.LoadEvent = time.Now()
 			rawResult.Unlock()
 
-			log.Log.WithField("URL", rawResult.TaskSummary.TaskWrapper.SanitizedTask.URL).Debug("load event fired")
-			rawResult.TaskSummary.TaskWrapper.Log.Debug("load event fired")
+			log.Log.WithField("URL", rawResult.TaskSummary.TaskWrapper.SanitizedTask.URL).Debug("Load event fired")
+			rawResult.TaskSummary.TaskWrapper.Log.Debug("Load event fired")
 
 			// Ensure we only send one load event per page visit. Subsequent load events will be ignored
 			if !sentLoadEvent {
@@ -270,7 +270,7 @@ func FetchRequestPaused(eventChan chan *fetch.EventRequestPaused, rawResult *b.R
 
 					if frameId == mainFrame {
 						err = fetch.FailRequest(ev.RequestID, network.ErrorReasonAborted).Do(cxt)
-						log.Log.Debug("denying navigation to " + ev.Request.URL)
+						log.Log.WithField("URL", tw.SanitizedTask.URL).Debug("denying navigation to " + ev.Request.URL)
 					} else {
 						err = fetch.ContinueRequest(ev.RequestID).Do(cxt)
 					}
@@ -297,7 +297,7 @@ func FetchRequestPaused(eventChan chan *fetch.EventRequestPaused, rawResult *b.R
 	wg.Done()
 }
 
-func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.WaitGroup, ctxt context.Context) {
+func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.WaitGroup, ctxt context.Context, Url string) {
 	done := false
 	for {
 		select {
@@ -322,7 +322,7 @@ func TargetTargetCreated(eventChan chan *target.EventTargetCreated, wg *sync.Wai
 					return err
 				}))
 				if err != nil {
-					log.Log.Error(err)
+					log.Log.WithField("URL", Url).Error(err)
 				}
 			}
 
