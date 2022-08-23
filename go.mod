@@ -1,6 +1,6 @@
 module github.com/teamnsrg/mida
 
-go 1.17
+go 1.19
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20220217222649-d8c14a5c6edf

@@ -100,10 +100,10 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		finalResult.Summary.RawCoverageFilenames = rawCovFilenames
 
 		if len(rawCovFilenames) > 0 {
-			finalResult.Summary.CovFiles = make([]string, 0)
+			finalResult.Summary.RawCoverageFilenames = make([]string, 0)
 			for _, rawCovFile := range rawCovFilenames {
 				log.Log.Debugf("Got raw coverage file: %s", rawCovFile)
-				finalResult.Summary.CovFiles = append(finalResult.Summary.CovFiles, rawCovFile)
+				finalResult.Summary.RawCoverageFilenames = append(finalResult.Summary.RawCoverageFilenames, rawCovFile)
 			}
 			err = pp.MergeProfraws(rawCovFilenames, path.Join(covPath, "coverage.profdata"), "/usr/bin/llvm-profdata", 1)
 			if err != nil {
