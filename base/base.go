@@ -159,7 +159,6 @@ type TaskTiming struct {
 }
 
 type BrowserCoverageMetadata struct {
-	CovTextFileMD5       string   `json:"cov_text_file_md5""`
 	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
 	TotalRegions         int      `json:"total_regions"`
 	CoveredRegions       int      `json:"covered_regions""`

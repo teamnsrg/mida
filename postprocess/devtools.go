@@ -2,7 +2,6 @@ package postprocess
 
 import (
 	"bufio"
-	"crypto/md5"
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
 	b "github.com/teamnsrg/mida/base"
@@ -116,18 +115,12 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 					path.Join(covPath, "coverage.txt"), "/usr/bin/llvm-cov-custom", 1)
 				if err != nil {
 					log.Log.Error(err)
-					bytes, err := ioutil.ReadFile(path.Join(covPath, "coverage.txt"))
+					bytes, err := os.ReadFile(path.Join(covPath, "coverage.txt"))
 					if err != nil {
 						log.Log.Error(err)
 					}
 					log.Log.Info(string(bytes))
 				} else {
-					h := md5.New()
-					bytes, err := ioutil.ReadFile(path.Join(covPath, "coverage.txt"))
-					if err != nil {
-						log.Log.Error(err)
-					}
-					finalResult.Summary.BrowserCovData.CovTextFileMD5 = string(h.Sum(bytes))
 					covMap, err := pp.ReadFileToCovMap(path.Join(covPath, "coverage.txt"))
 					if err != nil {
 						log.Log.Error(err)
