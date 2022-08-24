@@ -59,11 +59,11 @@ func VisitPageDevtoolsProtocol(tw *b.TaskWrapper) (*b.RawResult, error) {
 	// Fully allocate our raw result object -- should be locked whenever it is read or written
 	rawResult := b.RawResult{
 		TaskSummary: b.TaskSummary{
-			Success:              false,
-			TaskWrapper:          tw,
-			TaskTiming:           b.TaskTiming{},
-			NumResources:         0,
-			RawCoverageFilenames: []string{},
+			Success:        false,
+			TaskWrapper:    tw,
+			TaskTiming:     b.TaskTiming{},
+			NumResources:   0,
+			BrowserCovData: b.BrowserCoverageMetadata{},
 		},
 		DevTools: b.DevToolsRawData{
 			Network: b.DevToolsNetworkRawData{

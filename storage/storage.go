@@ -117,6 +117,7 @@ func DirNameFromURL(s string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// TODO: Handle things like about:blank here
 
 	// Replace all disallowed file path characters (both Windows and Unix) so we can safely use URL as directory name
 	disallowedChars := []string{"/", "\\", ">", "<", ":", "|", "?", "*"}

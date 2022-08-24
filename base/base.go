@@ -158,6 +158,13 @@ type TaskTiming struct {
 	EndStorage            time.Time `json:"-"`
 }
 
+type BrowserCoverageMetadata struct {
+	CovTextFileMD5       string   `json:"cov_text_file_md5""`
+	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
+	TotalRegions         int      `json:"total_regions"`
+	CoveredRegions       int      `json:"covered_regions""`
+}
+
 // Statistics gathered about a specific task
 type TaskSummary struct {
 	NavURL string `json:"nav_url"`
@@ -173,11 +180,12 @@ type TaskSummary struct {
 	OutputHost string `json:"output_host,omitempty"` // Host to which results were stored via SFTP
 	OutputPath string `json:"output_path,omitempty"` // Path to the results of the crawl on the applicable host (after storage)
 
-	NumResources int `json:"num_resources"` // Number of resources the browser loaded
+	NumResources int `json:"num_resources"` // Number of resources the browser downloaded
+	NumScripts   int `json:"num_scripts"`   // Number of scripts the browser parsed
 
 	NavHistory []page.NavigationEntry `json:"nav_history"`
 
-	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
+	BrowserCovData BrowserCoverageMetadata `json:"browser_cov_data"`
 }
 
 // Information about the infrastructure used to perform the crawl

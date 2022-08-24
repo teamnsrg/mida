@@ -2,6 +2,7 @@ package postprocess
 
 import (
 	"bufio"
+	"crypto/md5"
 	"errors"
 	"github.com/chromedp/cdproto/debugger"
 	b "github.com/teamnsrg/mida/base"
@@ -64,6 +65,8 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 				finalResult.DTScriptMetadata[v.ScriptID.String()] = v
 			}
 		}
+
+		finalResult.Summary.NumScripts = len(rr.DevTools.Scripts)
 	}
 
 	if *st.DS.Cookies {
@@ -97,13 +100,13 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			}
 		}
 
-		finalResult.Summary.RawCoverageFilenames = rawCovFilenames
+		finalResult.Summary.BrowserCovData.RawCoverageFilenames = rawCovFilenames
 
 		if len(rawCovFilenames) > 0 {
-			finalResult.Summary.RawCoverageFilenames = make([]string, 0)
+			finalResult.Summary.BrowserCovData.RawCoverageFilenames = make([]string, 0)
 			for _, rawCovFile := range rawCovFilenames {
 				log.Log.Debugf("Got raw coverage file: %s", rawCovFile)
-				finalResult.Summary.RawCoverageFilenames = append(finalResult.Summary.RawCoverageFilenames, rawCovFile)
+				finalResult.Summary.BrowserCovData.RawCoverageFilenames = append(finalResult.Summary.BrowserCovData.RawCoverageFilenames, rawCovFile)
 			}
 			err = pp.MergeProfraws(rawCovFilenames, path.Join(covPath, "coverage.profdata"), "/usr/bin/llvm-profdata", 1)
 			if err != nil {
@@ -119,11 +122,23 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 					}
 					log.Log.Info(string(bytes))
 				} else {
+					h := md5.New()
+					bytes, err := ioutil.ReadFile(path.Join(covPath, "coverage.txt"))
+					if err != nil {
+						log.Log.Error(err)
+					}
+					finalResult.Summary.BrowserCovData.CovTextFileMD5 = string(h.Sum(bytes))
 					covMap, err := pp.ReadFileToCovMap(path.Join(covPath, "coverage.txt"))
 					if err != nil {
 						log.Log.Error(err)
 					} else {
 						bv := pp.ConvertCovMapToBools(covMap)
+						for _, val := range bv {
+							finalResult.Summary.BrowserCovData.TotalRegions += 1
+							if val {
+								finalResult.Summary.BrowserCovData.CoveredRegions += 1
+							}
+						}
 						err = pp.WriteFileFromBV(path.Join(covPath, b.DefaultCovBVFileName), bv)
 						if err != nil {
 							log.Log.Error(err)
