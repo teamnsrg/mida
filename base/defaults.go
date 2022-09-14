@@ -2,20 +2,21 @@ package base
 
 const (
 	// Output Parameters
-	DefaultLocalOutputPath      = "results"
-	DefaultPostQueue            = ""
-	DefaultResourceSubdir       = "resources"
-	DefaultScriptSubdir         = "scripts"
-	DefaultCoverageSubdir       = "coverage"
-	DefaultScreenshotFileName   = "screenshot.png"
-	DefaultCookieFileName       = "cookies.json"
-	DefaultDomFileName          = "dom.json"
-	DefaultMetadataFile         = "metadata.json"
-	DefaultCovBVFileName        = "coverage.bv"
-	DefaultResourceMetadataFile = "resource_metadata.json"
-	DefaultScriptMetadataFile   = "script_metadata.json"
-	DefaultSftpPrivKeyFile      = "~/.ssh/id_rsa"
-	DefaultTaskLogFile          = "task.log"
+	DefaultLocalOutputPath        = "results"
+	DefaultPostQueue              = ""
+	DefaultResourceSubdir         = "resources"
+	DefaultScriptSubdir           = "scripts"
+	DefaultCoverageSubdir         = "coverage"
+	DefaultScreenshotFileName     = "screenshot.png"
+	DefaultCookieFileName         = "cookies.json"
+	DefaultDomFileName            = "dom.json"
+	DefaultMetadataFile           = "metadata.json"
+	DefaultCovBVFileName          = "coverage.bv"
+	DefaultCovTreeSummaryFileName = "cov_tree.csv"
+	DefaultResourceMetadataFile   = "resource_metadata.json"
+	DefaultScriptMetadataFile     = "script_metadata.json"
+	DefaultSftpPrivKeyFile        = "~/.ssh/id_rsa"
+	DefaultTaskLogFile            = "task.log"
 
 	// MIDA Configuration Defaults
 
@@ -54,6 +55,9 @@ const (
 	DefaultScreenshot       = true
 	DefaultScriptMetadata   = false
 	DefaultBrowserCoverage  = false
+	DefaultRawCovFiles      = false
+	DefaultCovTxtFile       = false
+	DefaultCovTreeSummary   = false
 
 	DefaultShuffle = true // Whether to shuffle order of task processing
 

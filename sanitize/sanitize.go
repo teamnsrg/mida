@@ -127,8 +127,8 @@ func InteractionSettings(rt *b.RawTask) (b.InteractionSettings, error) {
 // binary we will use for this crawl. If an invalid path is provided, it returns an error. If no
 // path is provided, it attempts to select a default.
 // Order of preference:
-//   1. Chromium
-//   2. Chrome
+//  1. Chromium
+//  2. Chrome
 func getBrowserBinaryPath(rt *b.RawTask, log *logrus.Logger) (string, error) {
 
 	if rt.Browser == nil || rt.Browser.BrowserBinary == nil || *rt.Browser.BrowserBinary == "" {
@@ -405,6 +405,30 @@ func DataSettings(rawDataSettings *b.DataSettings, parentSettings *b.DataSetting
 	}
 	if rawDataSettings != nil && rawDataSettings.BrowserCoverage != nil {
 		*result.BrowserCoverage = *rawDataSettings.BrowserCoverage
+	}
+
+	*result.RawCovFiles = b.DefaultRawCovFiles
+	if parentSettings != nil && parentSettings.RawCovFiles != nil {
+		*result.RawCovFiles = *parentSettings.RawCovFiles
+	}
+	if rawDataSettings != nil && rawDataSettings.RawCovFiles != nil {
+		*result.RawCovFiles = *rawDataSettings.RawCovFiles
+	}
+
+	*result.CovTxtFile = b.DefaultCovTxtFile
+	if parentSettings != nil && parentSettings.CovTxtFile != nil {
+		*result.CovTxtFile = *parentSettings.CovTxtFile
+	}
+	if rawDataSettings != nil && rawDataSettings.CovTxtFile != nil {
+		*result.CovTxtFile = *rawDataSettings.CovTxtFile
+	}
+
+	*result.CovTreeSummary = b.DefaultCovTreeSummary
+	if parentSettings != nil && parentSettings.CovTreeSummary != nil {
+		*result.CovTreeSummary = *parentSettings.CovTreeSummary
+	}
+	if rawDataSettings != nil && rawDataSettings.CovTreeSummary != nil {
+		*result.CovTreeSummary = *rawDataSettings.CovTreeSummary
 	}
 
 	return *result, nil

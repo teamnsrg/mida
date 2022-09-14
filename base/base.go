@@ -63,7 +63,11 @@ type DataSettings struct {
 	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
-	BrowserCoverage  *bool `json:"browser_coverage"`            // Whether to gather code coverage data from the browser
+
+	BrowserCoverage *bool `json:"browser_coverage"` // Whether to gather code coverage data from the browser
+	RawCovFiles     *bool `json:"raw_cov_files"`    // Raw profraw files from browser
+	CovTxtFile      *bool `json:"cov_txt_file"`     // llvm-cov-custom generated text file containing coverage
+	CovTreeSummary  *bool `json:"cov_tree_summary"` // CSV summary of code coverage for file tree
 }
 
 // Settings describing output of results to the local filesystem
@@ -305,6 +309,9 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
 	ds.BrowserCoverage = new(bool)
+	ds.RawCovFiles = new(bool)
+	ds.CovTxtFile = new(bool)
+	ds.CovTreeSummary = new(bool)
 
 	return ds
 }

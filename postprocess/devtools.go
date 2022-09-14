@@ -135,6 +135,12 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 						err = pp.WriteFileFromBV(path.Join(covPath, b.DefaultCovBVFileName), bv)
 						if err != nil {
 							log.Log.Error(err)
+						} else {
+							tree := pp.GetTreeSummary(covMap, 3)
+							err = pp.WriteTreeToFile(tree, path.Join(covPath, b.DefaultCovTreeSummaryFileName))
+							if err != nil {
+								log.Log.Error(err)
+							}
 						}
 					}
 				}
@@ -144,9 +150,10 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		// Clean up profraw and text files
 		files, err = ioutil.ReadDir(covPath)
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), "profraw") ||
-				strings.HasSuffix(file.Name(), "txt") ||
+			if (!(*st.DS.CovTxtFile) && strings.HasSuffix(file.Name(), "txt")) ||
+				(!(*st.DS.RawCovFiles) && strings.HasSuffix(file.Name(), "profraw")) ||
 				strings.HasSuffix(file.Name(), "profdata") {
+
 				err = os.Remove(path.Join(covPath, file.Name()))
 				if err != nil {
 					log.Log.Error(err)
