@@ -106,9 +106,9 @@ func StoreResultsSSH(r *b.FinalResult, activeConn *SftpConn, remotePath string) 
 	err = copyDirRemote(sftpClient, tempPath, path.Join(remotePath,
 		dirName, tw.UUID.String()))
 	if err != nil {
-		err = os.RemoveAll(tempPath)
+		err2 := os.RemoveAll(tempPath)
 		if err != nil {
-			log.Log.Error(err)
+			log.Log.Error(err2)
 		}
 		return err
 	}

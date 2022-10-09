@@ -208,6 +208,18 @@ func BuildCompressedTaskSet(cmd *cobra.Command, args []string) (*b.CompressedTas
 	if err != nil {
 		return nil, err
 	}
+	*ts.Data.RawCovFiles, err = cmd.Flags().GetBool("raw-cov-files")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Data.CovTxtFile, err = cmd.Flags().GetBool("cov-txt-file")
+	if err != nil {
+		return nil, err
+	}
+	*ts.Data.CovTreeSummary, err = cmd.Flags().GetBool("cov-tree-summary")
+	if err != nil {
+		return nil, err
+	}
 
 	// Output settings, either local or remote
 	resultsOutputPath, err := cmd.Flags().GetString("results-output-path")

@@ -63,7 +63,11 @@ type DataSettings struct {
 	ResourceMetadata *bool `json:"resource_metadata,omitempty"` // Save extensive metadata about each resource
 	Screenshot       *bool `json:"screenshot,omitempty"`        // Save a screenshot from the web page
 	ScriptMetadata   *bool `json:"script_metadata,omitempty"`   // Save metadata on scripts parsed by browser
-	BrowserCoverage  *bool `json:"browser_coverage"`            // Whether to gather code coverage data from the browser
+
+	BrowserCoverage *bool `json:"browser_coverage"` // Whether to gather code coverage data from the browser
+	RawCovFiles     *bool `json:"raw_cov_files"`    // Raw profraw files from browser
+	CovTxtFile      *bool `json:"cov_txt_file"`     // llvm-cov-custom generated text file containing coverage
+	CovTreeSummary  *bool `json:"cov_tree_summary"` // CSV summary of code coverage for file tree
 }
 
 // Settings describing output of results to the local filesystem
@@ -158,6 +162,12 @@ type TaskTiming struct {
 	EndStorage            time.Time `json:"-"`
 }
 
+type BrowserCoverageMetadata struct {
+	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
+	TotalRegions         int      `json:"total_regions"`
+	CoveredRegions       int      `json:"covered_regions""`
+}
+
 // Statistics gathered about a specific task
 type TaskSummary struct {
 	NavURL string `json:"nav_url"`
@@ -173,11 +183,12 @@ type TaskSummary struct {
 	OutputHost string `json:"output_host,omitempty"` // Host to which results were stored via SFTP
 	OutputPath string `json:"output_path,omitempty"` // Path to the results of the crawl on the applicable host (after storage)
 
-	NumResources int `json:"num_resources"` // Number of resources the browser loaded
+	NumResources int `json:"num_resources"` // Number of resources the browser downloaded
+	NumScripts   int `json:"num_scripts"`   // Number of scripts the browser parsed
 
 	NavHistory []page.NavigationEntry `json:"nav_history"`
 
-	RawCoverageFilenames []string `json:"raw_coverage_filenames"`
+	BrowserCovData BrowserCoverageMetadata `json:"browser_cov_data"`
 }
 
 // Information about the infrastructure used to perform the crawl
@@ -298,6 +309,9 @@ func AllocateNewDataSettings() *DataSettings {
 	ds.Screenshot = new(bool)
 	ds.ScriptMetadata = new(bool)
 	ds.BrowserCoverage = new(bool)
+	ds.RawCovFiles = new(bool)
+	ds.CovTxtFile = new(bool)
+	ds.CovTreeSummary = new(bool)
 
 	return ds
 }

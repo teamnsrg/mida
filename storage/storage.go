@@ -35,6 +35,7 @@ var connInfo = newConnInfo()
 func StoreAll(finalResult *b.FinalResult) error {
 	// For brevity
 	st := finalResult.Summary.TaskWrapper.SanitizedTask
+	log.Log.WithField("URL", st.URL).Debug("Begin Storage")
 
 	if *st.OPS.LocalOut.Enable {
 		// Build our output path
@@ -57,6 +58,7 @@ func StoreAll(finalResult *b.FinalResult) error {
 		}
 	}
 
+	log.Log.WithField("URL", st.URL).Debug("End Storage")
 	return nil
 }
 
@@ -115,6 +117,7 @@ func DirNameFromURL(s string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// TODO: Handle things like about:blank here
 
 	// Replace all disallowed file path characters (both Windows and Unix) so we can safely use URL as directory name
 	disallowedChars := []string{"/", "\\", ">", "<", ":", "|", "?", "*"}

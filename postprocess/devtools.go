@@ -32,6 +32,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 	// For brevity
 	tw := finalResult.Summary.TaskWrapper
 	st := tw.SanitizedTask
+	log.Log.WithField("URL", st.URL).Debug("Begin Postprocess")
 
 	// Ignore any requests/responses which do not have a matching request/response
 	if *st.DS.ResourceMetadata {
@@ -63,6 +64,8 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 				finalResult.DTScriptMetadata[v.ScriptID.String()] = v
 			}
 		}
+
+		finalResult.Summary.NumScripts = len(rr.DevTools.Scripts)
 	}
 
 	if *st.DS.Cookies {
@@ -96,9 +99,14 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 			}
 		}
 
-		finalResult.Summary.RawCoverageFilenames = rawCovFilenames
+		finalResult.Summary.BrowserCovData.RawCoverageFilenames = rawCovFilenames
 
 		if len(rawCovFilenames) > 0 {
+			finalResult.Summary.BrowserCovData.RawCoverageFilenames = make([]string, 0)
+			for _, rawCovFile := range rawCovFilenames {
+				log.Log.Debugf("Got raw coverage file: %s", rawCovFile)
+				finalResult.Summary.BrowserCovData.RawCoverageFilenames = append(finalResult.Summary.BrowserCovData.RawCoverageFilenames, rawCovFile)
+			}
 			err = pp.MergeProfraws(rawCovFilenames, path.Join(covPath, "coverage.profdata"), "/usr/bin/llvm-profdata", 1)
 			if err != nil {
 				log.Log.Error(err)
@@ -107,7 +115,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 					path.Join(covPath, "coverage.txt"), "/usr/bin/llvm-cov-custom", 1)
 				if err != nil {
 					log.Log.Error(err)
-					bytes, err := ioutil.ReadFile(path.Join(covPath, "coverage.txt"))
+					bytes, err := os.ReadFile(path.Join(covPath, "coverage.txt"))
 					if err != nil {
 						log.Log.Error(err)
 					}
@@ -118,9 +126,21 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 						log.Log.Error(err)
 					} else {
 						bv := pp.ConvertCovMapToBools(covMap)
+						for _, val := range bv {
+							finalResult.Summary.BrowserCovData.TotalRegions += 1
+							if val {
+								finalResult.Summary.BrowserCovData.CoveredRegions += 1
+							}
+						}
 						err = pp.WriteFileFromBV(path.Join(covPath, b.DefaultCovBVFileName), bv)
 						if err != nil {
 							log.Log.Error(err)
+						} else {
+							tree := pp.GetTreeSummary(covMap, 3)
+							err = pp.WriteTreeToFile(tree, path.Join(covPath, b.DefaultCovTreeSummaryFileName))
+							if err != nil {
+								log.Log.Error(err)
+							}
 						}
 					}
 				}
@@ -130,9 +150,10 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		// Clean up profraw and text files
 		files, err = ioutil.ReadDir(covPath)
 		for _, file := range files {
-			if strings.HasSuffix(file.Name(), "profraw") ||
-				strings.HasSuffix(file.Name(), "txt") ||
+			if (!(*st.DS.CovTxtFile) && strings.HasSuffix(file.Name(), "txt")) ||
+				(!(*st.DS.RawCovFiles) && strings.HasSuffix(file.Name(), "profraw")) ||
 				strings.HasSuffix(file.Name(), "profdata") {
+
 				err = os.Remove(path.Join(covPath, file.Name()))
 				if err != nil {
 					log.Log.Error(err)
@@ -141,6 +162,7 @@ func DevTools(rr *b.RawResult) (b.FinalResult, error) {
 		}
 	}
 
+	log.Log.WithField("URL", st.URL).Debug("End Postprocess")
 	finalResult.Summary.TaskTiming.EndPostprocess = time.Now()
 
 	return finalResult, nil
