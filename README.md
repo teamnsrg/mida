@@ -20,7 +20,7 @@ $ sudo python3 setup.py
 
 Now we are ready to visit a site and collect some data:
 ```bash
-$ mida go www.illinois.edu
+$ mida go example.org
 ```
 
 You can find the results of your crawl in the `results/` directory.
