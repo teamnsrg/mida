@@ -121,7 +121,7 @@ func DirNameFromURL(s string) (string, error) {
 
 	// Replace all disallowed file path characters (both Windows and Unix) so we can safely use URL as directory name
 	disallowedChars := []string{"/", "\\", ">", "<", ":", "|", "?", "*"}
-	result := u.Host + u.EscapedPath()
+	result := u.Host
 	for _, c := range disallowedChars {
 		result = strings.Replace(result, c, "-", -1)
 	}
