@@ -1,6 +1,6 @@
 # MIDA: A Tool for Measuring the Web
 
-![Build](https://github.com/teamnsrg/mida/workflows/Go/badge.svg)
+[![Go](https://github.com/teamnsrg/mida/actions/workflows/go.yml/badge.svg)](https://github.com/teamnsrg/mida/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/teamnsrg/mida)](https://goreportcard.com/report/github.com/teamnsrg/mida)
 
 MIDA is meant to be a general tool for web measurement projects. It is built in Go 
