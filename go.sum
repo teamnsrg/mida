@@ -79,6 +79,8 @@ github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/chromedp/cdproto v0.0.0-20211002082225-0242b9dca9f4/go.mod h1:At5TxYYdxkbQL0TSefRjhLE3Q0lgvqKKMSFUglJ7i1U=
 github.com/chromedp/cdproto v0.0.0-20220217222649-d8c14a5c6edf h1:1omDWNUsWxn2HpiMiMuyRmzjl9uG7RP3IE6GTlpgJWU=
 github.com/chromedp/cdproto v0.0.0-20220217222649-d8c14a5c6edf/go.mod h1:At5TxYYdxkbQL0TSefRjhLE3Q0lgvqKKMSFUglJ7i1U=
+github.com/chromedp/cdproto v0.0.0-20220924210414-0e3390be1777 h1:nEnjcdmVQjhtQm0RFJxRINMw7lsQ8gidtbpsidiDqpY=
+github.com/chromedp/cdproto v0.0.0-20220924210414-0e3390be1777/go.mod h1:5Y4sD/eXpwrChIuxhSr/G20n9CdbCmoerOHnuAf0Zr0=
 github.com/chromedp/sysutil v1.0.0 h1:+ZxhTpfpZlmchB58ih/LBHX52ky7w2VhQVKQMucy3Ic=
 github.com/chromedp/sysutil v1.0.0/go.mod h1:kgWmDdq8fTzXYcKIBqIYvRRTnYb9aNS9moAV0xufSww=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
@@ -404,6 +406,8 @@ github.com/subosito/gotenv v1.2.0 h1:Slr1R9HxAlEKefgq5jn9U+DnETlIUa6HfgEzj0g5d7s
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/teamnsrg/chromedp v0.5.4-0.20211005175531-e8480cd4d3a0 h1:tcN4qNIEDlDhKLJllh7MqRmRQ5LtS7PdrBo1Z3ylX0I=
 github.com/teamnsrg/chromedp v0.5.4-0.20211005175531-e8480cd4d3a0/go.mod h1:7bhrjovmxEuJgyMhTqh9TwQxQz3fk1xVcIm6d+UEzXs=
+github.com/teamnsrg/chromedp v0.5.4-0.20221211025425-2947d12d4e77 h1:jMJ7x6FeCxCiRPHkLQ5X3HdChA83+KvlG1YA/2fMUgc=
+github.com/teamnsrg/chromedp v0.5.4-0.20221211025425-2947d12d4e77/go.mod h1:Icqikj7+QGD7/Clov2UvxiuqZaDpQ6QMd5owjskx4es=
 github.com/teamnsrg/mida v0.0.0-20220517035720-7510614e1b07/go.mod h1:hsHgW82X25y8FgZHAgYTC1UkwQm2g96cl0/wPi76v+Y=
 github.com/teamnsrg/profparse v0.0.0-20210816141139-235e259c6843 h1:X6UBcYhwan3LAN1fF7OXeEwfy79ZPeaUCmM9yN3o2F0=
 github.com/teamnsrg/profparse v0.0.0-20210816141139-235e259c6843/go.mod h1:6lryGFpyLBmPzh89yBguC30TW9Ij+PxCaCHHea2O7kk=
@@ -634,6 +638,8 @@ golang.org/x/sys v0.0.0-20220209214540-3681064d5158 h1:rm+CHSpPEEW2IsXUib1ThaHIj
 golang.org/x/sys v0.0.0-20220209214540-3681064d5158/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220315180522-27bbf83dae87 h1:CdpUJojjGE1hEo9rQtAdH5Bc80IaSzwA+ZiGqYutf24=
 golang.org/x/sys v0.0.0-20220315180522-27bbf83dae87/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec h1:BkDtF2Ih9xZ7le9ndzTA7KJow28VbQW3odyk/8drmuI=
+golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 h1:v+OssWQX+hTHEmOBgwxdZxK4zHq3yOs8F9J7mk0PY8E=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
